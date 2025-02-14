@@ -1,0 +1,10 @@
+[package]
+name = "ergogen-rs"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = [".", "app", "web"]
+
+[dependencies]
+ergogen-app = { path = "app" }
