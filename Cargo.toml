@@ -1,5 +1,5 @@
 [package]
-name = "ergogen-rs"
+name = "ergogen"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,15 @@ edition = "2021"
 members = [".", "app", "web"]
 
 [dependencies]
+anyhow = { workspace = true }
+clap = { version = "4.5.29", features = ["derive"] }
 ergogen-app = { path = "app" }
+tokio = { version = "1.43.0", features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+
+[workspace.dependencies]
+anyhow = "1.0.95"
+tokio = { version = "1.43.0", features = ["full"] }
+tracing = "0.1.41"
+
