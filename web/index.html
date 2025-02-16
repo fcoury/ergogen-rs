@@ -4,8 +4,13 @@
 <head>
   <meta charset="utf-8" />
 
+  <!-- Copy directories -->
   <link data-trunk rel="copy-dir" href="./assets/js" />
-  <link data-trunk rel="copy-dir" href="./assets" />
+
+  <!-- Individual assets -->
+  <link data-trunk rel="icon" href="assets/favicon.ico" />
+  <link data-trunk rel="copy-file" href="assets/manifest.json" />
+  <link data-trunk rel="css" href="./assets/css/styles.css" />
 
   <link rel="icon" href="/favicon.ico" />
 
@@ -19,6 +24,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap" rel="stylesheet">
+
   <title>Ergogen</title>
   <style>
     html,
@@ -41,7 +47,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/8.1.1/math.js"
     integrity="sha512-OFr0yNTrn4TBOCW8hAkqVRjN45OYD4C3Zv3JA+/UFDW7rEjt7RV89OfUinLg/9GzHbUWYq1+jXzgVV/UsZWJHQ=="
     crossorigin="anonymous"></script>
-  <script src="%PUBLIC_URL%/dependencies/maker.js"></script>
+  <script src="/js/maker.js"></script>
   <script>
     makerjs = require('makerjs')
   </script>
