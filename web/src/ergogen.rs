@@ -2,6 +2,8 @@ use std::rc::Rc;
 use stylist::{style, Style};
 use yew::prelude::*;
 
+use crate::atoms::Split;
+
 // First, let's define our styles
 fn get_editor_container_style() -> Style {
     style!(
@@ -98,49 +100,45 @@ pub struct ConfigOption {
     pub value: String,
 }
 
-// State struct to manage component state
-#[derive(Clone)]
-struct ErgogenState {
-    preview_key: String,
-    selected_option: Option<ConfigOption>,
-    error: Option<String>,
-}
-
 #[function_component(Ergogen)]
-pub fn ergogen(props: &ErgogenProps) -> Html {
-    let state = use_state(|| ErgogenState {
-        preview_key: "demo.svg".to_string(),
-        selected_option: None,
-        error: None,
-    });
+pub fn ergogen() -> Html {
+    let preview_key = use_state(|| "demo.svg".to_string());
+    let selected_option = use_state(|| None::<ConfigOption>);
+    let error = use_state(|| None::<String>);
 
-    // Styles
-    let editor_container_style = get_editor_container_style();
     let flex_container_style = get_flex_container_style();
-    let split_style = get_split_style();
-    let left_pane_style = get_left_split_pane_style();
-    let right_pane_style = get_right_split_pane_style();
+    let editor_container_style = get_editor_container_style();
 
     html! {
         <div class={flex_container_style}>
-            <div class={split_style}>
-                <div class={left_pane_style}>
+            <Split direction="horizontal" sizes={vec![30.0, 70.0]} min_size={Some(100.0)} gutter_size={Some(10.0)} snap_offset={Some(0.0)}>
+                <div>
                     <div class={editor_container_style}>
+    <p>{"Editor Area"}</p>
                         // TODO: Add Select component
                         // TODO: Add ConfigEditor
                         // TODO: Add Button
                         // TODO: Add OptionContainer with GenOptions
-                        if let Some(error) = &state.error {
+                        if let Some(error) = (*error).as_ref() {
                             <div class={get_error_style()}>
                                 {error}
                             </div>
                         }
                     </div>
                 </div>
-                <div class={right_pane_style}>
-                    // TODO: Add nested split pane with FilePreview and Downloads
+                <div>
+                    <Split direction="horizontal" sizes={vec![70.0, 30.0]} min_size={Some(100.0)} gutter_size={Some(10.0)} snap_offset={Some(0.0)}>
+                        <div>
+    <p>{"Preview Area - Current key: "}{(*preview_key).clone()}</p>
+                            // TODO: Add FilePreview
+                        </div>
+                        <div>
+    <p>{"Downloads Area"}</p>
+                            // TODO: Add Downloads
+                        </div>
+                    </Split>
                 </div>
-            </div>
+            </Split>
         </div>
     }
 }
