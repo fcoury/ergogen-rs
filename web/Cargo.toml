@@ -4,4 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+js-sys = "0.3.77"
+stylist = { version = "0.13.0", features = ["yew", "parser"] }
+wasm-bindgen = "0.2.100"
+web-sys = "0.3.77"
 yew = { version = "0.21.0", features = ["csr"] }
