@@ -4,16 +4,16 @@ use yew::prelude::*;
 
 use crate::{atoms::Split, molecules::MonacoWrapper};
 
-// First, let's define our styles
 fn get_editor_container_style() -> Style {
     style!(
         r#"
         position: relative;
-        height: 80%;
+        height: 100%;
         display: flex;
         flex-direction: column;
         width: 100%;
         flex-grow: 1;
+        overflow: hidden;  
         "#
     )
     .unwrap()
@@ -24,6 +24,9 @@ fn get_flex_container_style() -> Style {
         r#"
         display: flex;
         flex-flow: wrap;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
         "#
     )
     .unwrap()

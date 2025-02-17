@@ -1,6 +1,7 @@
 use monaco::yew::{CodeEditorLink, CodeEditorProps};
 use monaco::{api::CodeEditorOptions, sys::editor::BuiltinTheme, yew::CodeEditor};
 use std::rc::Rc;
+use stylist::style;
 use yew::{html, Callback, Component, Context, Html, Properties};
 
 #[derive(Properties, PartialEq)]
@@ -34,6 +35,21 @@ impl Component for MonacoWrapper {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let editor_container_style = style!(
+            r#"
+            height: 100%;
+            min-height: 500px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+
+            & > div {
+                flex-grow: 1;
+                height: 100%;
+            }
+            "#
+        )
+        .unwrap();
         let on_editor_created = {
             let on_change = ctx.props().on_change.clone();
             let editor_link = self.editor_link.clone();
@@ -55,12 +71,14 @@ impl Component for MonacoWrapper {
         };
 
         html! {
-            <CodeEditor
-                classes={"full-height"}
-                options={Some(self.options.to_sys_options())}
-                on_editor_created={on_editor_created}
-                link={self.editor_link.clone()}
-            />
+            <div class={editor_container_style}>
+                <CodeEditor
+                    classes={"full-height"}
+                    options={Some(self.options.to_sys_options())}
+                    on_editor_created={on_editor_created}
+                    link={self.editor_link.clone()}
+                />
+            </div>
         }
     }
 }

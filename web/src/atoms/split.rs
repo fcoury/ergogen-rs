@@ -112,11 +112,11 @@ impl Component for Split {
             flex-direction: ${flex_direction};
             width: 100%;
             height: 100%;
+            overflow: hidden;
             "#,
             flex_direction = flex_direction
         )
         .unwrap();
-
         let size_prop = if direction == "horizontal" {
             "width"
         } else {
@@ -160,10 +160,11 @@ impl Component for Split {
 
                         let child_style = style!(
                             r#"
-                            flex-grow: 0;
-                            flex-shrink: 0;
-                            flex-basis: ${size}%;
-                            "#,
+                                    flex-grow: 0;
+                                    flex-shrink: 0;
+                                    flex-basis: ${size}%;
+                                    overflow: hidden;
+                                    "#,
                             size = size
                         ).unwrap();
 

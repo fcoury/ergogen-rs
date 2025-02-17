@@ -13,8 +13,14 @@ fn get_app_container_style() -> Style {
         display: flex;
         flex-direction: column;
         color: #FFFFFF;
-        height: 100%;
+        height: 100vh;
         width: 100%;
+        overflow: hidden;
+        position: fixed; 
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
         "#,
     )
     .unwrap()
