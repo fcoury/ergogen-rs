@@ -1,8 +1,8 @@
-use std::rc::Rc;
 use stylist::{style, Style};
+use web_sys::console;
 use yew::prelude::*;
 
-use crate::atoms::Split;
+use crate::{atoms::Split, molecules::MonacoWrapper};
 
 // First, let's define our styles
 fn get_editor_container_style() -> Style {
@@ -109,12 +109,16 @@ pub fn ergogen() -> Html {
     let flex_container_style = get_flex_container_style();
     let editor_container_style = get_editor_container_style();
 
+    let code = "test";
+
     html! {
         <div class={flex_container_style}>
             <Split direction="horizontal" sizes={vec![30.0, 70.0]} min_size={Some(100.0)} gutter_size={Some(10.0)} snap_offset={Some(0.0)}>
                 <div>
                     <div class={editor_container_style}>
-    <p>{"Editor Area"}</p>
+                        <MonacoWrapper
+                            initial_value={code}
+                        />
                         // TODO: Add Select component
                         // TODO: Add ConfigEditor
                         // TODO: Add Button

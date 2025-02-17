@@ -1,74 +1,66 @@
-use monaco::{
-    api::{CodeEditorOptions, TextModel},
-    sys::editor::BuiltinTheme,
-    yew::CodeEditor,
-};
-use yew::prelude::*;
+use monaco::yew::{CodeEditorLink, CodeEditorProps};
+use monaco::{api::CodeEditorOptions, sys::editor::BuiltinTheme, yew::CodeEditor};
+use std::rc::Rc;
+use yew::{html, Callback, Component, Context, Html, Properties};
 
 #[derive(Properties, PartialEq)]
-pub struct ConfigEditorProps {
+pub struct MonacoProps {
     #[prop_or_default]
-    pub class: Classes,
-    pub config_input: String,
     pub on_change: Callback<String>,
+    #[prop_or_default]
+    pub initial_value: String,
 }
 
-// Inner editor component that handles the Monaco instance
-#[derive(Properties, PartialEq)]
-struct MonacoEditorProps {
-    text_model: TextModel,
-    on_change: Callback<String>,
+pub struct MonacoWrapper {
+    options: CodeEditorOptions,
+    editor_link: CodeEditorLink,
 }
 
-#[function_component(MonacoEditor)]
-fn monaco_editor(props: &MonacoEditorProps) -> Html {
-    let options = CodeEditorOptions::default()
-        .with_language("json".to_owned())
-        .with_builtin_theme(BuiltinTheme::VsDark)
-        .with_automatic_layout(true);
+impl Component for MonacoWrapper {
+    type Message = ();
+    type Properties = MonacoProps;
 
-    let on_change = {
-        let callback = props.on_change.clone();
-        Callback::from(move |_: String| {
-            // Use the text model to get the current value
-            let current_value = props.text_model.get_value();
-            callback.emit(current_value);
-        })
-    };
+    fn create(ctx: &Context<Self>) -> Self {
+        let options = CodeEditorOptions::default()
+            .with_language("rust".to_owned())
+            .with_value(ctx.props().initial_value.clone())
+            .with_builtin_theme(BuiltinTheme::VsDark)
+            .with_automatic_layout(true);
 
-    html! {
-        <CodeEditor
-            classes={"full-height"}
-            options={options.to_sys_options()}
-            model={props.text_model.clone()}
-            on_change={on_change}
-        />
+        Self {
+            options,
+            editor_link: CodeEditorLink::new(),
+        }
     }
-}
 
-#[function_component(ConfigEditor)]
-pub fn config_editor(props: &ConfigEditorProps) -> Html {
-    // Create and manage TextModel with use_state_eq
-    let text_model = use_state_eq(|| {
-        TextModel::create(&props.config_input, Some("json"), None)
-            .expect("Failed to create text model")
-    });
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let on_editor_created = {
+            let on_change = ctx.props().on_change.clone();
+            let editor_link = self.editor_link.clone();
 
-    // Update text model when config_input changes
-    let text_model_clone = text_model.clone();
-    use_effect_with(props.config_input.clone(), move |config_input| {
-        text_model_clone.set_value(config_input);
-        || ()
-    });
+            Callback::from(move |_: CodeEditorLink| {
+                editor_link.with_editor(|editor| {
+                    if let Some(model) = editor.get_model() {
+                        let model = model.clone();
+                        let on_change = on_change.clone();
 
-    html! {
-        <div class={props.class.clone()}>
-            <div style="height: 70vh;">
-                <MonacoEditor
-                    text_model={(*text_model).clone()}
-                    on_change={props.on_change.clone()}
-                />
-            </div>
-        </div>
+                        let model_clone = model.clone();
+                        model.on_did_change_content(Box::new(move |_event| {
+                            let content = model_clone.get_value();
+                            on_change.emit(content);
+                        }));
+                    }
+                });
+            })
+        };
+
+        html! {
+            <CodeEditor
+                classes={"full-height"}
+                options={Some(self.options.to_sys_options())}
+                on_editor_created={on_editor_created}
+                link={self.editor_link.clone()}
+            />
+        }
     }
 }
