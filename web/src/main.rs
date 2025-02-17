@@ -1,5 +1,6 @@
 mod atoms;
 mod ergogen;
+mod molecules;
 
 use atoms::{Footer, Header};
 use ergogen::Ergogen;
