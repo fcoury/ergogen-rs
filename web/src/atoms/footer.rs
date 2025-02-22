@@ -1,9 +1,7 @@
 use stylist::{style, Style};
 use wasm_bindgen::prelude::*;
-use web_sys::window;
 use yew::prelude::*;
 
-// Define the ergogen window binding
 fn get_footer_container_style() -> Style {
     style!(
         r#"
@@ -15,13 +13,25 @@ fn get_footer_container_style() -> Style {
         padding: 0 1rem 0.5rem 1rem;
         margin-top: auto;
         color: #FFFFFF;
+        "#
+    )
+    .unwrap()
+}
 
-        a {
-            color: #28a745;
-            text-decoration: none;
-        }
+fn get_link_style() -> Style {
+    style!(
+        r#"
+        color: #28a745;
+        text-decoration: none;
+        "#
+    )
+    .unwrap()
+}
 
-        a:hover {
+fn get_link_hover_style() -> Style {
+    style!(
+        r#"
+        &:hover {
             color: #FFF;
         }
         "#
@@ -31,40 +41,36 @@ fn get_footer_container_style() -> Style {
 
 #[function_component(Footer)]
 pub fn footer() -> Html {
-    let footer_style = get_footer_container_style();
+    let version = use_state(|| String::from("unknown"));
 
-    // Get the ergogen version from window
-    let version = use_state(String::new);
-
-    // Effect to get the version on component mount
-    let cloned_version = version.clone();
-    use_effect_with((), move |_| {
-        if let Some(window) = window() {
-            if let Ok(ergogen) = js_sys::Reflect::get(&window, &JsValue::from_str("ergogen")) {
-                if let Ok(version_val) =
-                    js_sys::Reflect::get(&ergogen, &JsValue::from_str("version"))
-                {
-                    if let Some(version_str) = version_val.as_string() {
-                        cloned_version.set(version_str);
-                    }
-                }
-            }
-        }
-        || ()
-    });
+    {
+        let version = version.clone();
+        use_effect_with((), move |_| {
+            let version_str = web_sys::window()
+                .and_then(|win| js_sys::Reflect::get(&win, &JsValue::from_str("ergogen")).ok())
+                .and_then(|ergogen| {
+                    js_sys::Reflect::get(&ergogen, &JsValue::from_str("version")).ok()
+                })
+                .and_then(|v| v.as_string())
+                .unwrap_or_else(|| "unknown".to_string());
+            version.set(version_str);
+            || ()
+        });
+    }
 
     html! {
-        <div class={footer_style}>
+        <div class={get_footer_container_style()}>
             <div>
-                <a href="https://www.github.com/ergogen/ergogen" target="_blank" rel="noreferrer">
+                <a class={classes!(get_link_style(), get_link_hover_style())} href="https://www.github.com/ergogen/ergogen" target="_blank">
                     {"Ergogen by MrZealot"}
                 </a>
             </div>
             <div>
-                {"v"}{&*version}
+                {"v"}{(*version).clone()}
             </div>
             <div>
-                {"Powering the "}<a href="https://zealot.hu/absolem" target="_blank" rel="noreferrer">
+                {"Powering the "}
+                <a class={classes!(get_link_style(), get_link_hover_style())} href="https://zealot.hu/absolem" target="_blank">
                     {"Absolem"}
                 </a>
             </div>

@@ -34,25 +34,17 @@ fn get_link_container_style() -> Style {
 
 #[function_component(Header)]
 pub fn header() -> Html {
-    let header_style = get_header_container_style();
-    let link_style = get_link_container_style();
-
     html! {
-        <div class={header_style}>
+        <div class={get_header_container_style()}>
             <div>
                 <h2>{"Ergogen"}</h2>
             </div>
-            <div class={link_style}>
-                // Commented out intro link as in original
-                /*
-                <a href="#" rel="noreferrer">
-                    {"Intro"}
-                </a>
-                */
-                <a href="https://docs.ergogen.xyz/" target="_blank" rel="noreferrer">
+
+            <div class={get_link_container_style()}>
+                <a href="https://docs.ergogen.xyz/" target="_blank">
                     {"Docs"}
                 </a>
-                <a href="https://discord.gg/nbKcAZB" target="_blank" rel="noreferrer">
+                <a href="https://discord.gg/nbKcAZB" target="_blank">
                     {"Discord"}
                 </a>
             </div>

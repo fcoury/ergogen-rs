@@ -3,7 +3,10 @@ use stylist::{style, Style};
 use web_sys::{console, HtmlSelectElement};
 use yew::prelude::*;
 
-use crate::{atoms::Split, molecules::ConfigEditor};
+use crate::{
+    atoms::Split,
+    molecules::{ConfigEditor, Downloads, FilePreview},
+};
 
 fn get_editor_container_style() -> Style {
     style!(
@@ -120,7 +123,19 @@ pub struct ConfigOption {
 #[function_component(Ergogen)]
 pub fn ergogen() -> Html {
     let preview_key = use_state(|| "demo.svg".to_string());
+    let preview_content = use_state(|| String::new());
     let error = use_state(|| None::<String>);
+
+    // TODO: This will be replaced with actual results from ergogen processing
+    {
+        let preview_content = preview_content.clone();
+        use_effect_with((*preview_key).clone(), move |key| {
+            if key == "demo.svg" {
+                preview_content.set("<svg width=\"100\" height=\"100\"><circle cx=\"50\" cy=\"50\" r=\"40\" stroke=\"black\" stroke-width=\"3\" fill=\"red\"/></svg>".to_string());
+            }
+            || ()
+        });
+    }
 
     let example_options = [
         GroupedOption {
@@ -221,12 +236,15 @@ pub fn ergogen() -> Html {
                     <div style="flex: 1; height: 100%;">
                         <Split direction="horizontal" sizes={vec![70.0, 30.0]} min_size={Some(100.0)} gutter_size={Some(10.0)} snap_offset={Some(0.0)}>
                         <div style="height: 100%; display: flex; flex-direction: column; flex: 1;">
-                            <p>{"Preview Area - Current key: "}{(*preview_key).clone()}</p>
-                            // TODO: Add FilePreview
+                            <FilePreview
+                                preview_key={(*preview_key).clone()}
+                                preview_content={(*preview_content).clone()}
+                            />
                         </div>
                         <div style="height: 100%; display: flex; flex-direction: column; flex: 1;">
-                            <p>{"Downloads Area"}</p>
-                            // TODO: Add Downloads
+                            <Downloads
+                                set_preview={Callback::from(move |key: String| preview_key.set(key))}
+                            />
                         </div>
                         </Split>
                     </div>
