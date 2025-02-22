@@ -30,14 +30,14 @@ pub fn config_editor(props: &ConfigEditorProps) -> Html {
     let editor_container_style = style!(
         r#"
         height: 100%;
-        min-height: 500px;
         width: 100%;
         display: flex;
         flex-direction: column;
+        flex: 1;
 
         & > div {
-            flex-grow: 1;
-            height: 100%;
+            flex: 1;
+            min-height: 0;
         }
         "#
     )

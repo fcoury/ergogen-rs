@@ -1,7 +1,7 @@
 use gloo::events::EventListener;
 use stylist::{style, Style};
 use wasm_bindgen::JsCast;
-use web_sys::{Event, HtmlElement, MouseEvent};
+use web_sys::{HtmlElement, MouseEvent};
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]

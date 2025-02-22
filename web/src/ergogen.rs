@@ -9,12 +9,20 @@ fn get_editor_container_style() -> Style {
     style!(
         r#"
         position: relative;
-        height: 100%;
         display: flex;
         flex-direction: column;
         width: 100%;
-        flex-grow: 1;
+        height: calc(100vh - 4rem);
         overflow: hidden;
+
+        & > select {
+            margin-bottom: 1rem;
+        }
+
+        & > div {
+            flex: 1;
+            min-height: 0;
+        }
         "#
     )
     .unwrap()
@@ -26,7 +34,7 @@ fn get_flex_container_style() -> Style {
         display: flex;
         flex-flow: wrap;
         width: 100%;
-        height: 100%;
+        height: 100vh;
         overflow: hidden;
         "#
     )
@@ -112,28 +120,21 @@ pub struct ConfigOption {
 #[function_component(Ergogen)]
 pub fn ergogen() -> Html {
     let preview_key = use_state(|| "demo.svg".to_string());
-    let selected_option = use_state(|| None::<ConfigOption>);
     let error = use_state(|| None::<String>);
-    let content = use_state_eq(|| TextModel::create("test: test", Some("yaml"), None).unwrap());
-
-    let flex_container_style = get_flex_container_style();
-    let editor_container_style = get_editor_container_style();
-
-    let code = "test";
 
     let example_options = [
-        GroupedOption {
-            label: "Empty configurations".to_string(),
-            options: vec![ConfigOption {
-                label: "Empty YAML configuration".to_string(),
-                value: include_str!("examples/empty.yaml").to_string(),
-            }],
-        },
         GroupedOption {
             label: "Simple (points only)".to_string(),
             options: vec![ConfigOption {
                 label: "Absolem (simplified)".to_string(),
                 value: include_str!("examples/absolem.yaml").to_string(),
+            }],
+        },
+        GroupedOption {
+            label: "Empty configurations".to_string(),
+            options: vec![ConfigOption {
+                label: "Empty YAML configuration".to_string(),
+                value: include_str!("examples/empty.yaml").to_string(),
             }],
         },
         GroupedOption {
@@ -146,25 +147,46 @@ pub fn ergogen() -> Html {
         },
     ];
 
+    // Get the first example option
+    let first_example = example_options
+        .iter()
+        .flat_map(|group| &group.options)
+        .next()
+        .cloned()
+        .unwrap_or(ConfigOption {
+            label: "Empty YAML configuration".to_string(),
+            value: include_str!("examples/empty.yaml").to_string(),
+        });
+
+    // Initialize states with the first example
+    let selected_option = use_state(|| Some(first_example.clone()));
+    let content =
+        use_state_eq(|| TextModel::create(&first_example.value, Some("yaml"), None).unwrap());
+
+    let flex_container_style = get_flex_container_style();
+    let editor_container_style = get_editor_container_style();
+
     let example_options_cloned = example_options.clone();
     let content_cloned = content.clone();
+    let selected_option_cloned = selected_option.clone();
     html! {
         <div class={flex_container_style}>
             <Split direction="horizontal" sizes={vec![30.0, 70.0]} min_size={Some(100.0)} gutter_size={Some(10.0)} snap_offset={Some(0.0)}>
-                <div>
-                    <div class={editor_container_style}>
+                <div style="height: 100%; display: flex;">
+                    <div class={editor_container_style} style="flex: 1;">
                         <select
                             placeholder="Paste your config below, or select an example to get started"
+                            value={first_example.label.clone()}
                             onchange={Callback::from(move |e: Event| {
                                 let input: HtmlSelectElement = e.target_unchecked_into();
                                 let value = input.value();
-                                if let Some(option) = example_options_cloned.iter().flat_map(|group| &group.options).find(|opt| opt.value == value) {
-                                    selected_option.set(Some(option.clone()));
+                                if let Some(option) = example_options_cloned.iter().flat_map(|group| &group.options).find(|opt| opt.label == value) {
+                                    selected_option_cloned.set(Some(option.clone()));
                                     content_cloned.set(TextModel::create(&option.value, Some("yaml"), None).unwrap());
                                     console::log_1(&format!("Selected option: {}", option.label).into());
                                     console::log_1(&format!("Selected value: {}", option.value).into());
                                 } else {
-                                    selected_option.set(None);
+                                    selected_option_cloned.set(None);
                                 }
                             })}>
                             { for example_options.iter().map(|group| {
@@ -172,7 +194,9 @@ pub fn ergogen() -> Html {
                                     <optgroup label={group.label.clone()}>
                                         { for group.options.iter().map(|option| {
                                             html! {
-                                                <option value={option.value.clone()}>{&option.label}</option>
+                                                <option value={option.label.clone()} selected={option.label == first_example.label}>
+                                                    {&option.label}
+                                                </option>
                                             }
                                         })}
                                     </optgroup>
@@ -182,7 +206,6 @@ pub fn ergogen() -> Html {
 
                         // ConfigEditor
                         <ConfigEditor
-                            initial_value={code}
                             text_model={(*content).clone()}
                         />
                         // TODO: Add Button
@@ -194,17 +217,19 @@ pub fn ergogen() -> Html {
                         }
                     </div>
                 </div>
-                <div>
-                    <Split direction="horizontal" sizes={vec![70.0, 30.0]} min_size={Some(100.0)} gutter_size={Some(10.0)} snap_offset={Some(0.0)}>
-                        <div>
+                <div style="height: 100%; display: flex;">
+                    <div style="flex: 1; height: 100%;">
+                        <Split direction="horizontal" sizes={vec![70.0, 30.0]} min_size={Some(100.0)} gutter_size={Some(10.0)} snap_offset={Some(0.0)}>
+                        <div style="height: 100%; display: flex; flex-direction: column; flex: 1;">
                             <p>{"Preview Area - Current key: "}{(*preview_key).clone()}</p>
                             // TODO: Add FilePreview
                         </div>
-                        <div>
+                        <div style="height: 100%; display: flex; flex-direction: column; flex: 1;">
                             <p>{"Downloads Area"}</p>
                             // TODO: Add Downloads
                         </div>
-                    </Split>
+                        </Split>
+                    </div>
                 </div>
             </Split>
         </div>

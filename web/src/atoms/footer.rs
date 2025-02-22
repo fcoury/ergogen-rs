@@ -4,12 +4,6 @@ use web_sys::window;
 use yew::prelude::*;
 
 // Define the ergogen window binding
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = window)]
-    pub static ERGOGEN: JsValue;
-}
-
 fn get_footer_container_style() -> Style {
     style!(
         r#"
@@ -40,7 +34,7 @@ pub fn footer() -> Html {
     let footer_style = get_footer_container_style();
 
     // Get the ergogen version from window
-    let version = use_state(|| String::new());
+    let version = use_state(String::new);
 
     // Effect to get the version on component mount
     let cloned_version = version.clone();
