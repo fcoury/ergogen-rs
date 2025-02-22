@@ -73,8 +73,8 @@ pub fn download_row(props: &DownloadRowProps) -> Html {
     let download_url = {
         let array = js_sys::Array::new();
         array.push(&JsValue::from_str(&content));
-        let mut blob_properties = web_sys::BlobPropertyBag::new();
-        blob_properties.set_type("application/octet-stream");
+        let blob_properties = web_sys::BlobPropertyBag::new();
+        let _ = blob_properties.set_type("application/octet-stream");
         let blob = web_sys::Blob::new_with_str_sequence_and_options(&array, &blob_properties)
             .expect("Failed to create Blob");
         Url::create_object_url_with_blob(&blob).expect("Failed to create object URL")

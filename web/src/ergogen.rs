@@ -1,10 +1,12 @@
 use monaco::api::TextModel;
 use stylist::{style, Style};
+use wasm_bindgen_futures::spawn_local;
 use web_sys::{console, HtmlSelectElement};
 use yew::prelude::*;
 
 use crate::{
-    atoms::Split,
+    atoms::{Button, Split},
+    context::ergogen::use_ergogen_context,
     molecules::{ConfigEditor, Downloads, FilePreview},
 };
 
@@ -123,19 +125,41 @@ pub struct ConfigOption {
 #[function_component(Ergogen)]
 pub fn ergogen() -> Html {
     let preview_key = use_state(|| "demo.svg".to_string());
-    let preview_content = use_state(|| String::new());
-    let error = use_state(|| None::<String>);
+    let context = use_ergogen_context();
 
-    // TODO: This will be replaced with actual results from ergogen processing
-    {
-        let preview_content = preview_content.clone();
-        use_effect_with((*preview_key).clone(), move |key| {
-            if key == "demo.svg" {
-                preview_content.set("<svg width=\"100\" height=\"100\"><circle cx=\"50\" cy=\"50\" r=\"40\" stroke=\"black\" stroke-width=\"3\" fill=\"red\"/></svg>".to_string());
+    let preview_content = if let Some(context) = &context {
+        if let Some(results) = &context.results {
+            // Try to find the preview content in the results
+            let mut content = String::new();
+            let parts: Vec<&str> = preview_key.split('.').collect();
+            if parts.len() > 1 {
+                let name = parts[0];
+                let ext = parts[1];
+                match ext {
+                    "svg" => {
+                        if let Some(outline) = results.outlines.get(name) {
+                            if let Some(svg) = outline.get("svg") {
+                                content = svg.as_str().unwrap_or_default().to_string();
+                            }
+                        }
+                    }
+                    "jscad" => {
+                        if let Some(case) = results.cases.get(name) {
+                            if let Some(jscad) = case.get("jscad") {
+                                content = jscad.as_str().unwrap_or_default().to_string();
+                            }
+                        }
+                    }
+                    _ => {}
+                }
             }
-            || ()
-        });
-    }
+            content
+        } else {
+            String::new()
+        }
+    } else {
+        String::new()
+    };
 
     let example_options = [
         GroupedOption {
@@ -184,6 +208,7 @@ pub fn ergogen() -> Html {
     let example_options_cloned = example_options.clone();
     let content_cloned = content.clone();
     let selected_option_cloned = selected_option.clone();
+    let first_example_label = first_example.label.clone();
     html! {
         <div class={flex_container_style}>
             <Split direction="horizontal" sizes={vec![30.0, 70.0]} min_size={Some(100.0)} gutter_size={Some(10.0)} snap_offset={Some(0.0)}>
@@ -191,7 +216,7 @@ pub fn ergogen() -> Html {
                     <div class={editor_container_style} style="flex: 1;">
                         <select
                             placeholder="Paste your config below, or select an example to get started"
-                            value={first_example.label.clone()}
+                            value={first_example.label}
                             onchange={Callback::from(move |e: Event| {
                                 let input: HtmlSelectElement = e.target_unchecked_into();
                                 let value = input.value();
@@ -206,11 +231,12 @@ pub fn ergogen() -> Html {
                             })}>
                             { for example_options.iter().map(|group| {
                                 html! {
-                                    <optgroup label={group.label.clone()}>
+                                    <optgroup label={group.label.to_string()}>
                                         { for group.options.iter().map(|option| {
+                                            let label = option.label.to_string();
                                             html! {
-                                                <option value={option.label.clone()} selected={option.label == first_example.label}>
-                                                    {&option.label}
+                                                <option value={label.clone()} selected={option.label == first_example_label}>
+                                                    {label}
                                                 </option>
                                             }
                                         })}
@@ -223,12 +249,78 @@ pub fn ergogen() -> Html {
                         <ConfigEditor
                             text_model={(*content).clone()}
                         />
-                        // TODO: Add Button
-                        // TODO: Add OptionContainer with GenOptions
-                        if let Some(error) = (*error).as_ref() {
-                            <div class={get_error_style()}>
-                                {error}
+
+                        // Generate button and options
+                        if let Some(context) = &context {
+                            <div>
+                                <Button onclick={
+                                    let context = context.clone();
+                                    let content = (*content).clone();
+                                    Callback::from(move |_| {
+                                        let input = content.get_value();
+                                        let context = context.clone();
+                                        spawn_local(async move {
+                                            context.process_input(&input, false).await;
+                                        });
+                                    })
+                                }>{"Generate"}</Button>
+
+                                <div style="display: flex; justify-content: space-between; margin-top: 1rem;">
+                                    <label>
+                                        <input
+                                            type="checkbox"
+                                            checked={context.auto_gen}
+                                            onchange={
+                                                let set_auto_gen = context.set_auto_gen.clone();
+                                                Callback::from(move |e: Event| {
+                                                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                                                    set_auto_gen.emit(input.checked());
+                                                })
+                                            }
+                                        />
+                                        {"Auto-generate"}
+                                    </label>
+
+                                    <label>
+                                        <input
+                                            type="checkbox"
+                                            checked={context.debug}
+                                            onchange={
+                                                let set_debug = context.set_debug.clone();
+                                                Callback::from(move |e: Event| {
+                                                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                                                    set_debug.emit(input.checked());
+                                                })
+                                            }
+                                        />
+                                        {"Debug"}
+                                    </label>
+
+                                    <label>
+                                        <input
+                                            type="checkbox"
+                                            checked={context.auto_gen_3d}
+                                            onchange={
+                                                let set_auto_gen_3d = context.set_auto_gen_3d.clone();
+                                                Callback::from(move |e: Event| {
+                                                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                                                    set_auto_gen_3d.emit(input.checked());
+                                                })
+                                            }
+                                        />
+                                        {"Auto-gen 3D "}
+                                        <small>{"(slow)"}</small>
+                                    </label>
+                                </div>
                             </div>
+                        }
+
+                        if let Some(context) = &context {
+                            if let Some(error) = &context.error {
+                                <div class={get_error_style()}>
+                                    {error}
+                                </div>
+                            }
                         }
                     </div>
                 </div>
@@ -238,7 +330,7 @@ pub fn ergogen() -> Html {
                         <div style="height: 100%; display: flex; flex-direction: column; flex: 1;">
                             <FilePreview
                                 preview_key={(*preview_key).clone()}
-                                preview_content={(*preview_content).clone()}
+                                preview_content={(*preview_content).to_string()}
                             />
                         </div>
                         <div style="height: 100%; display: flex; flex-direction: column; flex: 1;">

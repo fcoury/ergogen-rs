@@ -49,7 +49,8 @@
     crossorigin="anonymous"></script>
   <script src="/js/maker.js"></script>
   <script>
-    makerjs = require('makerjs')
+    // Store makerjs globally
+    window.makerjs = require('makerjs');
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js"
     integrity="sha512-y3o0Z5TJF1UsKjs/jS2CDkeHN538bWsftxO9nctODL5W40nyXIbs0Pgyu7//icrQY9m6475gLaVr39i/uh/nLA=="
@@ -67,6 +68,11 @@
   <script src="/js/openjscad.js?type=js"></script>
   <script src="/js/kle.js?type=js"></script>
   <script src="/js/ergogen.js?type=js"></script>
+  <script>
+    // Store the ergogen module and expose the process function for WASM
+    window.ergogenModule = ergogen;
+    window.ergogen = ergogen.process;
+  </script>
 </body>
 
 </html>
