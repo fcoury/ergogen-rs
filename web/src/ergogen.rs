@@ -1,8 +1,9 @@
+use monaco::api::TextModel;
 use stylist::{style, Style};
-use web_sys::console;
+use web_sys::{console, HtmlSelectElement};
 use yew::prelude::*;
 
-use crate::{atoms::Split, molecules::MonacoWrapper};
+use crate::{atoms::Split, molecules::ConfigEditor};
 
 fn get_editor_container_style() -> Style {
     style!(
@@ -13,7 +14,7 @@ fn get_editor_container_style() -> Style {
         flex-direction: column;
         width: 100%;
         flex-grow: 1;
-        overflow: hidden;  
+        overflow: hidden;
         "#
     )
     .unwrap()
@@ -96,7 +97,12 @@ pub struct ErgogenProps {
     pub children: Children,
 }
 
-// Define the ConfigOption type
+#[derive(Clone, PartialEq)]
+pub struct GroupedOption {
+    pub label: String,
+    pub options: Vec<ConfigOption>,
+}
+
 #[derive(Clone, PartialEq)]
 pub struct ConfigOption {
     pub label: String,
@@ -108,22 +114,77 @@ pub fn ergogen() -> Html {
     let preview_key = use_state(|| "demo.svg".to_string());
     let selected_option = use_state(|| None::<ConfigOption>);
     let error = use_state(|| None::<String>);
+    let content = use_state_eq(|| TextModel::create("test: test", Some("yaml"), None).unwrap());
 
     let flex_container_style = get_flex_container_style();
     let editor_container_style = get_editor_container_style();
 
     let code = "test";
 
+    let example_options = [
+        GroupedOption {
+            label: "Empty configurations".to_string(),
+            options: vec![ConfigOption {
+                label: "Empty YAML configuration".to_string(),
+                value: include_str!("examples/empty.yaml").to_string(),
+            }],
+        },
+        GroupedOption {
+            label: "Simple (points only)".to_string(),
+            options: vec![ConfigOption {
+                label: "Absolem (simplified)".to_string(),
+                value: include_str!("examples/absolem.yaml").to_string(),
+            }],
+        },
+        GroupedOption {
+            label: "Complete (with pcb)".to_string(),
+            options: vec![],
+        },
+        GroupedOption {
+            label: "Miscellaneous".to_string(),
+            options: vec![],
+        },
+    ];
+
+    let example_options_cloned = example_options.clone();
+    let content_cloned = content.clone();
     html! {
         <div class={flex_container_style}>
             <Split direction="horizontal" sizes={vec![30.0, 70.0]} min_size={Some(100.0)} gutter_size={Some(10.0)} snap_offset={Some(0.0)}>
                 <div>
                     <div class={editor_container_style}>
-                        <MonacoWrapper
+                        <select
+                            placeholder="Paste your config below, or select an example to get started"
+                            onchange={Callback::from(move |e: Event| {
+                                let input: HtmlSelectElement = e.target_unchecked_into();
+                                let value = input.value();
+                                if let Some(option) = example_options_cloned.iter().flat_map(|group| &group.options).find(|opt| opt.value == value) {
+                                    selected_option.set(Some(option.clone()));
+                                    content_cloned.set(TextModel::create(&option.value, Some("yaml"), None).unwrap());
+                                    console::log_1(&format!("Selected option: {}", option.label).into());
+                                    console::log_1(&format!("Selected value: {}", option.value).into());
+                                } else {
+                                    selected_option.set(None);
+                                }
+                            })}>
+                            { for example_options.iter().map(|group| {
+                                html! {
+                                    <optgroup label={group.label.clone()}>
+                                        { for group.options.iter().map(|option| {
+                                            html! {
+                                                <option value={option.value.clone()}>{&option.label}</option>
+                                            }
+                                        })}
+                                    </optgroup>
+                                }
+                            }) }
+                        </select>
+
+                        // ConfigEditor
+                        <ConfigEditor
                             initial_value={code}
+                            text_model={(*content).clone()}
                         />
-                        // TODO: Add Select component
-                        // TODO: Add ConfigEditor
                         // TODO: Add Button
                         // TODO: Add OptionContainer with GenOptions
                         if let Some(error) = (*error).as_ref() {
@@ -136,11 +197,11 @@ pub fn ergogen() -> Html {
                 <div>
                     <Split direction="horizontal" sizes={vec![70.0, 30.0]} min_size={Some(100.0)} gutter_size={Some(10.0)} snap_offset={Some(0.0)}>
                         <div>
-    <p>{"Preview Area - Current key: "}{(*preview_key).clone()}</p>
+                            <p>{"Preview Area - Current key: "}{(*preview_key).clone()}</p>
                             // TODO: Add FilePreview
                         </div>
                         <div>
-    <p>{"Downloads Area"}</p>
+                            <p>{"Downloads Area"}</p>
                             // TODO: Add Downloads
                         </div>
                     </Split>
