@@ -1,4 +1,5 @@
 use stylist::{style, Style};
+use web_sys::console;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
@@ -42,6 +43,8 @@ fn get_container_style() -> Style {
 pub fn svg_preview(props: &SvgPreviewProps) -> Html {
     let SvgPreviewProps { svg, width, height } = props;
     let image_ref = use_node_ref();
+
+    console::log_1(&format!(" *** SVG: {}", svg).into());
 
     // Create data URL for SVG
     let src = format!("data:image/svg+xml;utf8,{}", urlencoding::encode(svg));

@@ -125,26 +125,47 @@ pub struct ConfigOption {
 #[function_component(Ergogen)]
 pub fn ergogen() -> Html {
     let preview_key = use_state(|| "demo.svg".to_string());
+    // let preview_content = use_state(|| None::<String>);
+    let preview_content = use_state(String::new);
     let context = use_ergogen_context();
+    let results_dependency = context.as_ref().and_then(|ctx| ctx.results.clone());
 
-    let preview_content = if let Some(context) = &context {
-        if let Some(results) = &context.results {
+    let preview_key_clone = preview_key.clone();
+    let preview_content_clone = preview_content.clone();
+
+    use_effect_with(results_dependency, move |results| {
+        if let Some(r) = results.as_ref() {
+            console::log_1(&format!("Results: {:#?}", r).into());
+            // print all keys in r
+            console::log_1(&format!("Outlines: {:#?}", r.outlines).into());
+            console::log_1(&format!("Cases: {:#?}", r.cases).into());
+            let preview_value = if let Some((key, _)) = r.outlines.iter().next() {
+                format!("{}.svg", key)
+            } else if let Some((key, _)) = r.cases.iter().next() {
+                format!("{}.jscad", key)
+            } else {
+                "".to_string()
+            };
+
             // Try to find the preview content in the results
             let mut content = String::new();
-            let parts: Vec<&str> = preview_key.split('.').collect();
+            let parts: Vec<&str> = preview_value.split('.').collect();
+            console::log_1(&format!("Parts: {:?}", parts).into());
             if parts.len() > 1 {
                 let name = parts[0];
                 let ext = parts[1];
                 match ext {
                     "svg" => {
-                        if let Some(outline) = results.outlines.get(name) {
+                        console::log_1(&format!("Outlines: {:#?}", r.outlines).into());
+                        if let Some(outline) = r.outlines.get(name) {
                             if let Some(svg) = outline.get("svg") {
                                 content = svg.as_str().unwrap_or_default().to_string();
                             }
                         }
                     }
                     "jscad" => {
-                        if let Some(case) = results.cases.get(name) {
+                        console::log_1(&format!("Cases: {:#?}", r.cases).into());
+                        if let Some(case) = r.cases.get(name) {
                             if let Some(jscad) = case.get("jscad") {
                                 content = jscad.as_str().unwrap_or_default().to_string();
                             }
@@ -153,13 +174,16 @@ pub fn ergogen() -> Html {
                     _ => {}
                 }
             }
-            content
-        } else {
-            String::new()
+
+            console::log_1(&format!("Preview key: {}", preview_value).into());
+            console::log_1(&format!("Preview content: {}", content).into());
+
+            preview_key_clone.set(preview_value.clone());
+            preview_content_clone.set(content.clone());
         }
-    } else {
-        String::new()
-    };
+
+        || ()
+    });
 
     let example_options = [
         GroupedOption {
@@ -178,7 +202,24 @@ pub fn ergogen() -> Html {
         },
         GroupedOption {
             label: "Complete (with pcb)".to_string(),
-            options: vec![],
+            options: vec![
+                ConfigOption {
+                    label: "A. dux".to_string(),
+                    value: include_str!("examples/adux.yaml").to_string(),
+                },
+                ConfigOption {
+                    label: "Sweep-like (minimal)".to_string(),
+                    value: include_str!("examples/sweeplike.yaml").to_string(),
+                },
+                ConfigOption {
+                    label: "Reviung 41 (simplified)".to_string(),
+                    value: include_str!("examples/reviung41.yaml").to_string(),
+                },
+                ConfigOption {
+                    label: "Tiny20".to_string(),
+                    value: include_str!("examples/tiny20.yaml").to_string(),
+                },
+            ],
         },
         GroupedOption {
             label: "Miscellaneous".to_string(),
@@ -224,7 +265,6 @@ pub fn ergogen() -> Html {
                                     selected_option_cloned.set(Some(option.clone()));
                                     content_cloned.set(TextModel::create(&option.value, Some("yaml"), None).unwrap());
                                     console::log_1(&format!("Selected option: {}", option.label).into());
-                                    console::log_1(&format!("Selected value: {}", option.value).into());
                                 } else {
                                     selected_option_cloned.set(None);
                                 }

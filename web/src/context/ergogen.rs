@@ -59,11 +59,11 @@ impl ErgogenContext {
 
         // Convert result to ErgogenResults
         if let Ok(obj) = result.dyn_into::<js_sys::Object>() {
-            console::log_1(&format!("Got ergogen result: {:#?}", obj).into());
+            // console::log_1(&format!("Got ergogen result: {:#?}", obj).into());
             if let Ok(value) = serde_wasm_bindgen::from_value::<Value>(obj.into()) {
-                console::log_1(&format!("{:#?}", value).into());
+                // console::log_1(&format!("{:#?}", value).into());
                 let results = ErgogenResults {
-                    points: value.get("points").map(|v| v.clone()),
+                    points: value.get("points").cloned(),
                     outlines: value
                         .get("outlines")
                         .and_then(|v| v.as_object())
@@ -84,7 +84,7 @@ impl ErgogenContext {
                         })
                         .unwrap_or_default(),
                 };
-                console::log_1(&format!("result: {:#?}", results).into());
+                // console::log_1(&format!("result: {:#?}", results).into());
                 self.set_results.emit(Some(results));
                 None
             } else {
