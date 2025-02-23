@@ -5,7 +5,7 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::console;
 use yew::prelude::*;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct ErgogenResults {
     pub points: Option<Value>,
     pub outlines: HashMap<String, Value>,
@@ -59,9 +59,9 @@ impl ErgogenContext {
 
         // Convert result to ErgogenResults
         if let Ok(obj) = result.dyn_into::<js_sys::Object>() {
-            console::log_1(&format!("Got ergogen result: {:?}", obj).into());
+            console::log_1(&format!("Got ergogen result: {:#?}", obj).into());
             if let Ok(value) = serde_wasm_bindgen::from_value::<Value>(obj.into()) {
-                console::log_1(&format!("{:?}", value).into());
+                console::log_1(&format!("{:#?}", value).into());
                 let results = ErgogenResults {
                     points: value.get("points").map(|v| v.clone()),
                     outlines: value
@@ -84,6 +84,7 @@ impl ErgogenContext {
                         })
                         .unwrap_or_default(),
                 };
+                console::log_1(&format!("result: {:#?}", results).into());
                 self.set_results.emit(Some(results));
                 None
             } else {
