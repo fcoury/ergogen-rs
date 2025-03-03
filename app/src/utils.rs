@@ -249,3 +249,34 @@ pub trait CombineOperation {
     fn intersect(&self, other: &Self) -> Self;
     fn stack(&self, other: &Self) -> Self;
 }
+
+use serde_json::{Map, Number, Value};
+
+/// Converts all numeric values in a JSON structure to f64
+pub fn convert_numbers_to_f64(value: Value) -> Value {
+    match value {
+        Value::Number(num) => {
+            // Convert any number to f64
+            if let Some(f) = num.as_f64() {
+                Value::Number(Number::from_f64(f).unwrap())
+            } else {
+                // This should not happen with valid JSON numbers
+                Value::Null
+            }
+        }
+        Value::Array(arr) => {
+            // Process each element in the array
+            Value::Array(arr.into_iter().map(convert_numbers_to_f64).collect())
+        }
+        Value::Object(obj) => {
+            // Process each value in the object
+            let mut new_obj = Map::new();
+            for (key, val) in obj {
+                new_obj.insert(key, convert_numbers_to_f64(val));
+            }
+            Value::Object(new_obj)
+        }
+        // Return other value types unchanged
+        _ => value,
+    }
+}

@@ -31,7 +31,7 @@ pub fn parse(
     units: &IndexMap<String, f64>,
 ) -> Result<Point> {
     // Default starting point
-    let start = start.cloned().unwrap_or_else(|| Point::default());
+    let start = start.cloned().unwrap_or_else(Point::default);
 
     // Handle different anchor types
     match raw {
@@ -106,115 +106,112 @@ pub fn parse(
             }
 
             // Handle aggregation
-            if let Some(aggregate) = obj.get("aggregate") {
-                if let Value::Object(agg_obj) = aggregate {
-                    // Get aggregation method
-                    let method = agg_obj
-                        .get("method")
-                        .and_then(|m| m.as_str())
-                        .unwrap_or("average");
+            if let Some(Value::Object(agg_obj)) = obj.get("aggregate") {
+                // Get aggregation method
+                let method = agg_obj
+                    .get("method")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("average");
 
-                    // Get parts to aggregate
-                    let parts = match agg_obj.get("parts") {
-                        Some(Value::Array(parts_arr)) => parts_arr,
-                        _ => {
-                            return Err(Error::Config(format!(
-                                "Field \"{}.aggregate.parts\" must be an array!",
-                                name
-                            )))
-                        }
-                    };
-
-                    // Parse each part
-                    let mut parsed_parts = Vec::new();
-                    for (i, part) in parts.iter().enumerate() {
-                        let parsed = parse(
-                            part,
-                            &format!("{}.aggregate.parts[{}]", name, i + 1),
-                            points,
-                            Some(&start),
-                            mirror,
-                            units,
-                        )?;
-                        parsed_parts.push(parsed);
+                // Get parts to aggregate
+                let parts = match agg_obj.get("parts") {
+                    Some(Value::Array(parts_arr)) => parts_arr,
+                    _ => {
+                        return Err(Error::Config(format!(
+                            "Field \"{}.aggregate.parts\" must be an array!",
+                            name
+                        )))
                     }
+                };
 
-                    // Apply aggregation method
-                    match method {
-                        "average" => {
-                            if parsed_parts.is_empty() {
-                                point = Point::default();
-                            } else {
-                                let len = parsed_parts.len() as f64;
-                                let mut x = 0.0;
-                                let mut y = 0.0;
-                                let mut r = 0.0;
+                // Parse each part
+                let mut parsed_parts = Vec::new();
+                for (i, part) in parts.iter().enumerate() {
+                    let parsed = parse(
+                        part,
+                        &format!("{}.aggregate.parts[{}]", name, i + 1),
+                        points,
+                        Some(&start),
+                        mirror,
+                        units,
+                    )?;
+                    parsed_parts.push(parsed);
+                }
 
-                                for part in &parsed_parts {
-                                    x += part.x;
-                                    y += part.y;
-                                    r += part.r;
-                                }
+                // Apply aggregation method
+                match method {
+                    "average" => {
+                        if parsed_parts.is_empty() {
+                            point = Point::default();
+                        } else {
+                            let len = parsed_parts.len() as f64;
+                            let mut x = 0.0;
+                            let mut y = 0.0;
+                            let mut r = 0.0;
 
-                                point = Point::new(x / len, y / len, r / len, IndexMap::new());
+                            for part in &parsed_parts {
+                                x += part.x;
+                                y += part.y;
+                                r += part.r;
                             }
+
+                            point = Point::new(x / len, y / len, r / len, IndexMap::new());
                         }
-                        "intersect" => {
-                            if parsed_parts.len() != 2 {
-                                return Err(Error::Config(format!(
-                                    "Intersect expects exactly two parts, but got {}!",
-                                    parsed_parts.len()
-                                )));
-                            }
-
-                            // Get the two points
-                            let p1 = &parsed_parts[0];
-                            let p2 = &parsed_parts[1];
-
-                            // Create lines from the points
-
-                            // Line 1: from point 1 along its Y axis (rotated)
-                            let p1_origin = Point2::new(p1.x, p1.y);
-                            let p1_vec = Vector2::new(0.0, -1.0); // Up direction
-                            let p1_rot = p1.r * PI / 180.0;
-                            let p1_dir = nalgebra::Rotation2::new(p1_rot) * p1_vec;
-
-                            // Line 2: from point 2 along its Y axis (rotated)
-                            let p2_origin = Point2::new(p2.x, p2.y);
-                            let p2_vec = Vector2::new(0.0, -1.0); // Up direction
-                            let p2_rot = p2.r * PI / 180.0;
-                            let p2_dir = nalgebra::Rotation2::new(p2_rot) * p2_vec;
-
-                            // Calculate intersection
-                            // For two lines represented as p1 + t1 * dir1 and p2 + t2 * dir2
-                            // Solve for t1 and t2
-                            let det = p1_dir.x * p2_dir.y - p1_dir.y * p2_dir.x;
-
-                            if det.abs() < 1e-10 {
-                                return Err(Error::Config(format!(
-                                    "The points under \"{}.parts\" do not intersect!",
-                                    name
-                                )));
-                            }
-
-                            let dx = p2_origin.x - p1_origin.x;
-                            let dy = p2_origin.y - p1_origin.y;
-
-                            let t1 = (dx * p2_dir.y - dy * p2_dir.x) / det;
-
-                            // Calculate intersection point
-                            let intersection_x = p1_origin.x + t1 * p1_dir.x;
-                            let intersection_y = p1_origin.y + t1 * p1_dir.y;
-
-                            point =
-                                Point::new(intersection_x, intersection_y, 0.0, IndexMap::new());
-                        }
-                        _ => {
+                    }
+                    "intersect" => {
+                        if parsed_parts.len() != 2 {
                             return Err(Error::Config(format!(
-                                "Unknown aggregator method \"{}\" in anchor \"{}\"!",
-                                method, name
+                                "Intersect expects exactly two parts, but got {}!",
+                                parsed_parts.len()
                             )));
                         }
+
+                        // Get the two points
+                        let p1 = &parsed_parts[0];
+                        let p2 = &parsed_parts[1];
+
+                        // Create lines from the points
+
+                        // Line 1: from point 1 along its Y axis (rotated)
+                        let p1_origin = Point2::new(p1.x, p1.y);
+                        let p1_vec = Vector2::new(0.0, -1.0); // Up direction
+                        let p1_rot = p1.r * PI / 180.0;
+                        let p1_dir = nalgebra::Rotation2::new(p1_rot) * p1_vec;
+
+                        // Line 2: from point 2 along its Y axis (rotated)
+                        let p2_origin = Point2::new(p2.x, p2.y);
+                        let p2_vec = Vector2::new(0.0, -1.0); // Up direction
+                        let p2_rot = p2.r * PI / 180.0;
+                        let p2_dir = nalgebra::Rotation2::new(p2_rot) * p2_vec;
+
+                        // Calculate intersection
+                        // For two lines represented as p1 + t1 * dir1 and p2 + t2 * dir2
+                        // Solve for t1 and t2
+                        let det = p1_dir.x * p2_dir.y - p1_dir.y * p2_dir.x;
+
+                        if det.abs() < 1e-10 {
+                            return Err(Error::Config(format!(
+                                "The points under \"{}.parts\" do not intersect!",
+                                name
+                            )));
+                        }
+
+                        let dx = p2_origin.x - p1_origin.x;
+                        let dy = p2_origin.y - p1_origin.y;
+
+                        let t1 = (dx * p2_dir.y - dy * p2_dir.x) / det;
+
+                        // Calculate intersection point
+                        let intersection_x = p1_origin.x + t1 * p1_dir.x;
+                        let intersection_y = p1_origin.y + t1 * p1_dir.y;
+
+                        point = Point::new(intersection_x, intersection_y, 0.0, IndexMap::new());
+                    }
+                    _ => {
+                        return Err(Error::Config(format!(
+                            "Unknown aggregator method \"{}\" in anchor \"{}\"!",
+                            method, name
+                        )));
                     }
                 }
             }
