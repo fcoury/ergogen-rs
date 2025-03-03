@@ -384,6 +384,7 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "axum",
+ "indexmap",
  "lazy_static",
  "maplit",
  "nalgebra",
@@ -1301,6 +1302,7 @@ checksum = "8c9c992b02b5b4c94ea26e32fe5bccb7aa7d9f390ab5c1221ff895bc7ea8b652"
 dependencies = [
  "equivalent",
  "hashbrown",
+ "serde",
 ]
 
 [[package]]

@@ -1,5 +1,6 @@
-use std::collections::HashMap;
 use std::fmt;
+
+use indexmap::IndexMap;
 
 // Custom error type for the parser
 #[derive(Debug)]
@@ -158,11 +159,11 @@ impl Lexer {
 struct Parser {
     lexer: Lexer,
     current_token: Token,
-    variables: HashMap<String, f64>,
+    variables: IndexMap<String, f64>,
 }
 
 impl Parser {
-    fn new(text: &str, variables: HashMap<String, f64>) -> Result<Self, ParserError> {
+    fn new(text: &str, variables: IndexMap<String, f64>) -> Result<Self, ParserError> {
         let mut lexer = Lexer::new(text);
         let current_token = lexer.get_next_token()?;
 
@@ -292,7 +293,7 @@ impl Parser {
 
 pub fn evaluate_expression(
     expression: &str,
-    variables: HashMap<String, f64>,
+    variables: IndexMap<String, f64>,
 ) -> Result<f64, ParserError> {
     let mut parser = Parser::new(expression, variables.clone())?;
     parser.parse()

@@ -1,7 +1,7 @@
 use crate::Error;
+use indexmap::IndexMap;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Deeply copy a value that can be serialized and deserialized
 pub fn deepcopy<T: Serialize + for<'a> Deserialize<'a>>(value: &T) -> T {
@@ -57,7 +57,7 @@ pub fn deep<'a, T: Serialize + for<'de> Deserialize<'de>>(
 }
 
 /// Template a string, replacing variables in the format {{variable}} with values from a map
-pub fn template(template_str: &str, values: &HashMap<String, serde_json::Value>) -> String {
+pub fn template(template_str: &str, values: &IndexMap<String, serde_json::Value>) -> String {
     let mut result = template_str.to_string();
     let regex = regex::Regex::new(r"\{\{([^}]*)\}\}").unwrap();
 
@@ -76,7 +76,7 @@ pub fn template(template_str: &str, values: &HashMap<String, serde_json::Value>)
 
 /// Helper function to get a deeply nested value from a JSON Value
 fn deep_get_value<'a>(
-    values: &'a HashMap<String, serde_json::Value>,
+    values: &'a IndexMap<String, serde_json::Value>,
     key: &str,
 ) -> Option<&'a serde_json::Value> {
     let parts: Vec<&str> = key.split('.').collect();

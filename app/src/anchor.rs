@@ -1,6 +1,6 @@
+use indexmap::IndexMap;
 use nalgebra::{Point2, Vector2};
 use serde_json::Value;
-use std::collections::HashMap;
 use std::f64::consts::PI;
 
 use crate::{point::Point, Error, Result};
@@ -25,10 +25,10 @@ const AGGREGATOR_COMMON: [&str; 2] = ["parts", "method"];
 pub fn parse(
     raw: &Value,
     name: &str,
-    points: &HashMap<String, Point>,
+    points: &IndexMap<String, Point>,
     start: Option<&Point>,
     mirror: bool,
-    units: &HashMap<String, f64>,
+    units: &IndexMap<String, f64>,
 ) -> Result<Point> {
     // Default starting point
     let start = start.cloned().unwrap_or_else(|| Point::default());
@@ -156,7 +156,7 @@ pub fn parse(
                                     r += part.r;
                                 }
 
-                                point = Point::new(x / len, y / len, r / len, HashMap::new());
+                                point = Point::new(x / len, y / len, r / len, IndexMap::new());
                             }
                         }
                         "intersect" => {
@@ -206,7 +206,8 @@ pub fn parse(
                             let intersection_x = p1_origin.x + t1 * p1_dir.x;
                             let intersection_y = p1_origin.y + t1 * p1_dir.y;
 
-                            point = Point::new(intersection_x, intersection_y, 0.0, HashMap::new());
+                            point =
+                                Point::new(intersection_x, intersection_y, 0.0, IndexMap::new());
                         }
                         _ => {
                             return Err(Error::Config(format!(

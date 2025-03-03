@@ -1,12 +1,12 @@
+use indexmap::IndexMap;
 use serde_json::{json, Value};
-use std::collections::HashMap;
 
 use crate::{expr::evaluate_expression, Error, Result};
 
 /// Parse and calculate units from the config
-pub fn parse(config: &Value) -> Result<HashMap<String, f64>> {
+pub fn parse(config: &Value) -> Result<IndexMap<String, f64>> {
     // Create a default units map
-    let mut raw_units = HashMap::<String, Value>::from([
+    let mut raw_units = IndexMap::<String, Value>::from([
         ("U".to_string(), json!(19.05)),
         ("u".to_string(), json!(19.0)),
         ("cx".to_string(), json!(18.0)),
@@ -35,7 +35,7 @@ pub fn parse(config: &Value) -> Result<HashMap<String, f64>> {
     }
 
     // Calculate final units
-    let mut units = HashMap::<String, f64>::new();
+    let mut units = IndexMap::<String, f64>::new();
 
     // Iterate fixed values
     let (fixed, calculated): (Vec<_>, Vec<_>) = raw_units.iter().partition(|(_, v)| v.is_number());
@@ -82,7 +82,7 @@ pub fn parse(config: &Value) -> Result<HashMap<String, f64>> {
 }
 
 /// Evaluate a mathematical expression or number using the units map
-pub fn evaluate_mathnum(val: &Value, units: &HashMap<String, f64>) -> Result<f64> {
+pub fn evaluate_mathnum(val: &Value, units: &IndexMap<String, f64>) -> Result<f64> {
     match val {
         Value::Number(n) => {
             if let Some(f) = n.as_f64() {
@@ -267,5 +267,26 @@ mod tests {
 
         let result = parse(&config);
         assert!(result.is_ok()); // Should ignore invalid variables and use defaults
+    }
+
+    #[test]
+    fn test_simple_example() {
+        let config = json!({
+            "units": {
+              "kx": "cx",
+              "ky": "cy",
+              "px": "kx + 8",
+              "py": "ky + 8",
+            },
+        });
+
+        let result = parse(&config);
+        assert!(result.is_ok());
+
+        let units = result.unwrap();
+        assert_eq!(units.get("kx").unwrap(), &18.0);
+        assert_eq!(units.get("ky").unwrap(), &17.0);
+        assert_eq!(units.get("px").unwrap(), &26.0);
+        assert_eq!(units.get("py").unwrap(), &25.0);
     }
 }

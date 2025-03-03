@@ -1,10 +1,11 @@
+use indexmap::IndexMap;
 use nalgebra::{Point2, Rotation2};
 use serde_json::{json, Map, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::f64::consts::PI;
 
 use crate::point::Point;
-use crate::{anchor, filter, units, utils, Error, Result};
+use crate::{anchor, units, utils, Error, Result};
 
 /// Render a zone of keys
 pub fn render_zone(
@@ -12,8 +13,8 @@ pub fn render_zone(
     zone: &Value,
     anchor: &Point,
     global_key: &Value,
-    units: &HashMap<String, f64>,
-) -> Result<HashMap<String, Point>> {
+    units: &IndexMap<String, f64>,
+) -> Result<IndexMap<String, Point>> {
     // Zone-wide sanitization
     if !zone.is_object() {
         return Err(Error::TypeError {
@@ -54,7 +55,7 @@ pub fn render_zone(
     };
 
     // Algorithm preparation
-    let mut points = HashMap::new();
+    let mut points = IndexMap::new();
     let mut rotations = Vec::new();
     let mut zone_anchor = anchor.clone();
 
@@ -225,7 +226,7 @@ pub fn render_zone(
                 .collect::<Vec<String>>()
             {
                 if let Some(val) = key[&k].as_str() {
-                    let key_map = serde_json::from_value::<HashMap<String, Value>>(key.clone())
+                    let key_map = serde_json::from_value::<IndexMap<String, Value>>(key.clone())
                         .unwrap_or_default();
                     key[&k] = Value::String(utils::template(val, &key_map));
                 }
@@ -303,9 +304,9 @@ pub fn render_zone(
             }
 
             // Save new key
-            // Convert the key to a HashMap<String, Value> for the point's metadata
+            // Convert the key to a IndexMap<String, Value> for the point's metadata
             let key_map =
-                serde_json::from_value::<HashMap<String, Value>>(key.clone()).unwrap_or_default();
+                serde_json::from_value::<IndexMap<String, Value>>(key.clone()).unwrap_or_default();
             point.meta = key_map;
 
             let key_name = key["name"].as_str().unwrap_or("unknown").to_string();
@@ -327,8 +328,8 @@ pub fn render_zone(
 pub fn parse_axis(
     config: &Value,
     name: &str,
-    points: &HashMap<String, Point>,
-    units: &HashMap<String, f64>,
+    points: &IndexMap<String, Point>,
+    units: &IndexMap<String, f64>,
 ) -> Result<Option<f64>> {
     match config {
         Value::Object(obj) => {
@@ -422,12 +423,12 @@ pub fn perform_mirror(point: &Point, axis: f64) -> (Option<String>, Option<Point
 
 /// Apply autobind to points based on their positions
 pub fn perform_autobind(
-    points: &mut HashMap<String, Point>,
-    units: &HashMap<String, f64>,
+    points: &mut IndexMap<String, Point>,
+    units: &IndexMap<String, f64>,
 ) -> Result<()> {
     // Group points by zone and column
-    let mut bounds = HashMap::new();
-    let mut col_lists = HashMap::new();
+    let mut bounds = IndexMap::new();
+    let mut col_lists = IndexMap::new();
 
     // Helper to get the zone name with mirror prefix if needed
     let mirrorzone = |p: &Point| -> String {
@@ -462,7 +463,7 @@ pub fn perform_autobind(
 
         // Initialize zone and column if needed
         if !bounds.contains_key(&zone) {
-            bounds.insert(zone.clone(), HashMap::new());
+            bounds.insert(zone.clone(), IndexMap::new());
         }
 
         if !bounds[&zone].contains_key(&col) {
@@ -592,7 +593,7 @@ pub fn perform_autobind(
 }
 
 /// Parse the points configuration and generate key positions
-pub fn parse(config: &Value, units: &HashMap<String, f64>) -> Result<HashMap<String, Point>> {
+pub fn parse(config: &Value, units: &IndexMap<String, f64>) -> Result<IndexMap<String, Point>> {
     // Config sanitization
     if !config.is_object() {
         return Err(Error::TypeError {
@@ -628,7 +629,7 @@ pub fn parse(config: &Value, units: &HashMap<String, f64>) -> Result<HashMap<Str
     let global_mirror = config_obj.get("mirror");
 
     // Collect all points
-    let mut points = HashMap::new();
+    let mut points = IndexMap::new();
 
     // Render zones
     for (zone_name, zone_value) in zones.iter() {
@@ -717,7 +718,7 @@ pub fn parse(config: &Value, units: &HashMap<String, f64>) -> Result<HashMap<Str
             &points,
             units,
         )? {
-            let mut mirrored_points = HashMap::new();
+            let mut mirrored_points = IndexMap::new();
 
             for point in new_points.values() {
                 let (mname, mp) = perform_mirror(point, axis);
@@ -747,7 +748,7 @@ pub fn parse(config: &Value, units: &HashMap<String, f64>) -> Result<HashMap<Str
         &points,
         units,
     )? {
-        let mut mirrored_points = HashMap::new();
+        let mut mirrored_points = IndexMap::new();
 
         for point in points.values() {
             if point.meta.get("mirrored").is_none() {
@@ -765,7 +766,7 @@ pub fn parse(config: &Value, units: &HashMap<String, f64>) -> Result<HashMap<Str
     }
 
     // Remove temporary points
-    let mut filtered = HashMap::new();
+    let mut filtered = IndexMap::new();
     for (name, point) in &points {
         if point
             .meta
@@ -784,7 +785,7 @@ pub fn parse(config: &Value, units: &HashMap<String, f64>) -> Result<HashMap<Str
 }
 
 /// Generate a visual representation of the points
-pub fn visualize(points: &HashMap<String, Point>, units: &HashMap<String, f64>) -> Value {
+pub fn visualize(points: &IndexMap<String, Point>, units: &IndexMap<String, f64>) -> Value {
     let mut models = Map::new();
 
     for (name, point) in points {

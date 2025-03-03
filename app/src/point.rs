@@ -1,6 +1,6 @@
+use indexmap::IndexMap;
 use nalgebra::{Point2, Rotation2, Vector2};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::f64::consts::PI;
 
 use crate::utils;
@@ -12,12 +12,12 @@ pub struct Point {
     pub y: f64,
     pub r: f64,
     #[serde(default)]
-    pub meta: HashMap<String, serde_json::Value>,
+    pub meta: IndexMap<String, serde_json::Value>,
 }
 
 impl Point {
     /// Create a new point
-    pub fn new(x: f64, y: f64, r: f64, meta: HashMap<String, serde_json::Value>) -> Self {
+    pub fn new(x: f64, y: f64, r: f64, meta: IndexMap<String, serde_json::Value>) -> Self {
         Self { x, y, r, meta }
     }
 
@@ -27,7 +27,7 @@ impl Point {
             x: 0.0,
             y: 0.0,
             r: 0.0,
-            meta: HashMap::new(),
+            meta: IndexMap::new(),
         }
     }
 
@@ -38,7 +38,7 @@ impl Point {
                 x: arr[0],
                 y: arr[1],
                 r: 0.0,
-                meta: HashMap::new(),
+                meta: IndexMap::new(),
             }
         } else {
             Self::default()
