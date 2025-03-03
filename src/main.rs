@@ -17,6 +17,21 @@ enum Command {
         #[clap(short, long)]
         port: Option<u16>,
     },
+
+    /// Generates the output files
+    #[clap(alias = "gen")]
+    Generate {
+        path: String,
+
+        #[clap(short, long)]
+        output: Option<String>,
+
+        #[clap(short, long)]
+        debug: bool,
+
+        #[clap(short, long)]
+        clean: bool,
+    },
 }
 
 #[tokio::main]
@@ -33,7 +48,12 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Command::Web { listen_addr, port } => {
-            ergogen_app::start(listen_addr, port).await?;
+            ergogen_app::start_webserver(listen_addr, port).await?;
+        }
+
+        Command::Generate { path, debug, .. } => {
+            let contents = tokio::fs::read_to_string(&path).await?;
+            ergogen_app::process(&contents, debug).await?;
         }
     }
 

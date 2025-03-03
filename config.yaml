@@ -1,0 +1,213 @@
+units:
+  # Proxy Spacing Variables
+  kx: cx
+  ky: cy
+  # Padding Variables
+  px: kx + 8
+  py: ky + 8
+points:
+  zones:
+    # The primary 6x5 key matrix, plus 3 modifiers.
+    matrix:
+      # Position in center of KiCAD workspace.
+      anchor:
+        shift: [100, -100]
+      # Choc spacing
+      key:
+        padding: 1ky
+        spread: 1kx
+      columns:
+        outer:
+          key:
+            spread: 1.25kx
+        pinky:
+        ring:
+          key:
+            stagger: 0.25ky
+        middle:
+          key:
+            stagger: 0.25ky
+        index:
+          key:
+            stagger: -0.25ky
+          # rows:
+          #   mod:
+          #     width: 2kx
+          #     adjust.shift: [kx/2, 0]
+        inner:
+          key:
+            stagger: -0.25ky
+      rows:
+        bottom:
+        home:
+        top:
+        num:
+    thumbs:
+      # Choc spacing
+      key:
+        padding: 1ky
+        spread: 1kx
+      # Place thumbs where the inner mod would go.
+      anchor:
+        ref: matrix_inner_bottom
+        shift: [0kx, -1.25ky]
+      columns:
+        # Fan thumbs out by -15 degrees.
+        layer:
+          key:
+            splay: -25
+            column_net: P8
+        # Spacebar uses a 1.5 wide key.
+        space:
+          key:
+            width: 1.5kx
+            splay: 90
+            shift: [-0.25kx, 0]
+            column_net: P9
+      rows:
+        # Thumbs only have one row.
+        cluster:
+          row_net: P15
+          mirror.row_net: P6
+  mirror: &mirror
+    ref: matrix_inner_num
+    distance: 6kx
+outlines:
+  raw:
+    - what: rectangle
+      where: true
+      size: [px, py]
+  keys:
+    - what: rectangle
+      where: true
+      size: [kx-0.5, ky-0.5]
+  board_left:
+    - what: polygon
+      operation: stack
+      fillet: 2
+      points:
+        - ref: matrix_outer_num
+          shift: [-0.5px, 0.5py]
+        - ref: matrix_ring_num
+          shift: [-0.5px, 0.5py]
+        - ref: matrix_middle_num
+          shift: [-0.5px, 0.5py]
+        - ref: matrix_middle_num
+          shift: [0.5px, 0.5py]
+        - ref: matrix_inner_num
+          shift: [0.5px, 0.5py]
+        - ref: matrix_inner_top
+          shift: [0.5px, 0.5py]
+        - ref: matrix_inner_home
+          shift: [0.5px, 0.5py]
+        - ref: matrix_inner_bottom
+          shift: [0.5px, -0.125py]
+        - ref: matrix_inner_bottom
+          shift: [0.75px, -0.25py]
+        - ref: matrix_inner_bottom
+          shift: [0.75px, -0.875py]
+        - ref: matrix_inner_bottom
+          shift: [0.75px, -0.875py]
+        - ref: thumbs_space_cluster
+          shift: [0.375px, -0.5py]
+        - ref: thumbs_space_cluster
+          shift: [-1px, -0.5py]
+        - ref: thumbs_space_cluster
+          shift: [-1px, 0.400py]
+        - ref: thumbs_space_cluster
+          shift: [-0.25px, 0.400py]
+        - ref: thumbs_layer_cluster
+          shift: [-0.5px, -0.425py]
+        - ref: matrix_index_bottom
+          shift: [0px, -0.75py]
+        - ref: matrix_middle_bottom
+          shift: [0px, -0.625py]
+        - ref: matrix_ring_bottom
+          shift: [-0.25px, -0.45py]
+        - ref: matrix_ring_bottom
+          shift: [-0.25px, -0.67py]
+        - ref: matrix_outer_bottom
+          shift: [-0.5px, -0.5py]
+  board_right:
+    - what: polygon
+      operation: stack
+      fillet: 2
+      points:
+        - ref: mirror_matrix_outer_num
+          shift: [-0.5px, 0.5py]
+        - ref: mirror_matrix_ring_num
+          shift: [-0.5px, 0.5py]
+        - ref: mirror_matrix_middle_num
+          shift: [-0.5px, 0.5py]
+        - ref: mirror_matrix_middle_num
+          shift: [0.5px, 0.5py]
+        - ref: mirror_matrix_inner_num
+          shift: [0.5px, 0.5py]
+        - ref: mirror_matrix_inner_top
+          shift: [0.5px, 0.5py]
+        - ref: mirror_matrix_inner_home
+          shift: [0.5px, 0.5py]
+        - ref: mirror_matrix_inner_bottom
+          shift: [0.5px, -0.125py]
+        - ref: mirror_matrix_inner_bottom
+          shift: [0.75px, -0.25py]
+        - ref: mirror_matrix_inner_bottom
+          shift: [0.75px, -0.875py]
+        - ref: mirror_matrix_inner_bottom
+          shift: [0.75px, -0.875py]
+        - ref: mirror_thumbs_space_cluster
+          shift: [0.375px, -0.5py]
+        - ref: mirror_thumbs_space_cluster
+          shift: [-1px, -0.5py]
+        - ref: mirror_thumbs_space_cluster
+          shift: [-1px, 0.400py]
+        - ref: mirror_thumbs_space_cluster
+          shift: [-0.25px, 0.400py]
+        - ref: mirror_thumbs_layer_cluster
+          shift: [-0.5px, -0.425py]
+        - ref: mirror_matrix_index_bottom
+          shift: [0px, -0.75py]
+        - ref: mirror_matrix_middle_bottom
+          shift: [0px, -0.625py]
+        - ref: mirror_matrix_ring_bottom
+          shift: [-0.25px, -0.45py]
+        - ref: mirror_matrix_ring_bottom
+          shift: [-0.25px, -0.67py]
+        - ref: mirror_matrix_outer_bottom
+          shift: [-0.5px, -0.5py]
+
+  combo:
+    - name: board_left
+    - operation: subtract
+      name: keys
+pcbs:
+  left:
+    outlines:
+      main:
+        outline: board_left
+    footprints:
+      choc_hotswap:
+        what: choc
+        where: true
+        params:
+          keycaps: true
+          reverse: false
+          hotswap: true
+          from: "{{column_net}}"
+          to: "{{colrow}}"
+      diode:
+        what: diode
+        where: true
+        params:
+          from: "{{colrow}}"
+          to: "{{row_net}}"
+        adjust:
+          shift: [0, -5]
+      promicro:
+        what: promicro
+        params:
+          orientation: "down"
+        where:
+          ref: matrix_outer_num
+          shift: [5, 1]
+          rotate: 0

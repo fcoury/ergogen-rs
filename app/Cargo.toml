@@ -5,7 +5,21 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
+async-recursion = "1.1.1"
+async-trait = "0.1.86"
 axum = "0.8.1"
+lazy_static = "1.5.0"
+maplit = "1.0.2"
+meval = "0.2.0"
+nalgebra = "0.33.2"
+pathdiff = "0.2.3"
+regex = "1.11.1"
+reqwest = { version = "0.12.12", features = ["json"] }
+semver = "1.0.25"
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = "2.0.11"
 tokio = { workspace = true }
 tower = "0.5.2"
 tower-http = { version = "0.6.2", features = ["fs", "trace"] }
