@@ -83,7 +83,7 @@ pub fn button(props: &ButtonProps) -> Html {
         class,
     } = props;
 
-    let mut classes = Classes::from(class.clone());
+    let mut classes = class.clone();
     classes.extend([get_base_button_style(), get_size_style(size)]);
 
     html! {

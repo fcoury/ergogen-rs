@@ -36,7 +36,7 @@ extern "C" {
 }
 
 impl ErgogenContext {
-    pub async fn process_input(&self, input: &str, points_only: bool) -> Option<String> {
+    pub async fn process_input(&self, input: &str) -> Option<String> {
         // Reset error state
         self.set_error.emit(None);
 

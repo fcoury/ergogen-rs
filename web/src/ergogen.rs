@@ -300,7 +300,7 @@ pub fn ergogen() -> Html {
                                         let input = content.get_value();
                                         let context = context.clone();
                                         spawn_local(async move {
-                                            context.process_input(&input, false).await;
+                                            context.process_input(&input).await;
                                         });
                                     })
                                 }>{"Generate"}</Button>
