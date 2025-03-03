@@ -1,5 +1,6 @@
 mod anchor;
 mod cases;
+mod expr;
 mod filter;
 mod io;
 mod operation;
@@ -25,6 +26,9 @@ pub enum Error {
 
     #[error("JSON parsing error: {0}")]
     JsonParse(#[from] serde_json::Error),
+
+    #[error("Expression parsing error: {0}")]
+    ExprParse(#[from] expr::ParserError),
 
     #[error("Invalid config: {0}")]
     Config(String),
@@ -92,7 +96,6 @@ pub async fn process(raw: &str, debug: bool) -> Result<HashMap<String, Value>> {
     // Calculate variables
     tracing::info!("Calculating variables...");
     let units = units::parse(&config)?;
-    tracing::info!("Units: {:#?}", units);
 
     if debug {
         results.insert("units".to_string(), serde_json::to_value(&units).unwrap());
