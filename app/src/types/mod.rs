@@ -1,16 +1,19 @@
 mod aggregator;
 mod anchor;
 mod config;
+mod points;
 mod preprocess;
 mod template;
 mod zone;
+
+use std::fmt;
 
 use anchor::{Anchor, Shift};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use template::process_templates;
-use zone::{Column, Row, Zone};
+use zone::{Column, Zone};
 
 use crate::{expr::evaluate_expression, Error, Result};
 
@@ -35,6 +38,12 @@ pub enum Unit {
     Expression(String),
 }
 
+impl Default for Unit {
+    fn default() -> Self {
+        Unit::Number(0.0)
+    }
+}
+
 impl Unit {
     fn eval(&self, units: &IndexMap<String, f64>) -> EvalResult {
         match self {
@@ -56,11 +65,45 @@ impl Unit {
             _ => None,
         }
     }
+
+    fn eval_as_number(&self, name: &str, units: &IndexMap<String, f64>) -> Result<f64> {
+        match self.eval(units) {
+            EvalResult::Number(num) => Ok(num),
+            EvalResult::Ref(expr) => Err(Error::UnitParse(name.to_owned(), expr)),
+        }
+    }
+}
+
+impl fmt::Display for Unit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Unit::Number(num) => write!(f, "{}", num),
+            Unit::Expression(expr) => write!(f, "{}", expr),
+        }
+    }
 }
 
 enum EvalResult {
     Number(f64),
     Ref(String),
+}
+
+impl fmt::Display for EvalResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EvalResult::Number(num) => write!(f, "{}", num),
+            EvalResult::Ref(expr) => write!(f, "{}", expr),
+        }
+    }
+}
+
+impl EvalResult {
+    fn as_number(&self) -> Option<f64> {
+        match self {
+            EvalResult::Number(num) => Some(*num),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::{preprocess::preprocess, Meta, Points, Unit, Units};
-use crate::{units::evaluate_mathnum, Error, Result};
+use crate::{types::zone::Point, units::evaluate_mathnum, Error, Result};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -119,16 +119,25 @@ impl Config {
             let mut zone = zone.clone();
             zone.name = Some(name.to_string());
 
+            // extracting keys that are handled here, not at the zone render level
             let anchor = match zone.anchor {
                 Some(ref anchor) => {
                     let name = format!("points.zones.{name}.anchor");
                     println!("  - parsing anchor {name}...");
-                    Some(anchor.parse(name, &points, None, false, &units)?)
+                    anchor.parse(name, &points, None, false, &units)?
                 }
-                None => None,
+                None => Point::default(),
             };
 
-            let new_points = zone.render(self, zone.anchor.as_ref())?;
+            let mirror = zone.mirror.unwrap_or_default();
+            zone.anchor = None;
+            zone.rotate = None;
+            zone.mirror = None;
+
+            // creating new points
+            let new_points = zone.render(self, anchor, &units)?;
+
+            // simplifying the names in individual point "zones" and single-key columns
         }
 
         todo!()

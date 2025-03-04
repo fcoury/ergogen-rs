@@ -27,7 +27,7 @@ impl Anchor {
                 ..Default::default()
             },
             Self::Multiple(items) => {
-                let mut current = start.unwrap_or_default();
+                let mut current = start.clone().unwrap_or_default();
                 let mut index = 1;
                 for step in items {
                     let anchor = Anchor::Single(Box::new(step.clone()));
@@ -45,7 +45,7 @@ impl Anchor {
             Self::Single(item) => (**item).clone(),
         };
 
-        let mut point = start.unwrap_or_default();
+        let mut point = start.clone().unwrap_or_default();
 
         if anchor.ref_.is_some() && anchor.aggregate.is_some() {
             return Err(Error::AnchorParse {
@@ -92,23 +92,110 @@ impl Anchor {
         };
 
         let resist = anchor.resist.unwrap_or_default();
-        let rotator = |config: &Unit, _name: String, point: Point| -> Point {
+
+        // TODO: refactor
+        #[allow(clippy::too_many_arguments)]
+        fn rotator(
+            config: &Unit,
+            name: String,
+            point: Point,
+            start: Option<Point>,
+            points: &IndexMap<String, Point>,
+            resist: bool,
+            mirror: bool,
+            units: &IndexMap<String, f64>,
+        ) -> Result<Point> {
             match config.eval(units) {
                 // simple case: number gets added to point rotation
                 crate::types::EvalResult::Number(angle) => {
                     let mut point = point.clone();
                     point.rotate(angle, None, resist);
-                    point
+                    Ok(point)
                 }
                 // recursive case: points turns "towards" target anchor
-                crate::types::EvalResult::Ref(_) => {
-                    // TODO: not sure what to do here
-                    todo!()
+                crate::types::EvalResult::Ref(ref_) => {
+                    let anchor = Anchor::Ref(ref_);
+                    let target = anchor.parse(name.clone(), points, start, mirror, units)?;
+                    let mut point = point.clone();
+                    point.r = Some(point.angle(&target));
+                    Ok(point)
                 }
             }
-        };
+        }
 
-        todo!()
+        if let Some(orient) = anchor.orient {
+            point = rotator(
+                &orient,
+                format!("{name}.orient"),
+                point,
+                start.clone(),
+                points,
+                resist,
+                mirror,
+                units,
+            )?;
+        }
+
+        if let Some(shift) = anchor.shift {
+            match shift {
+                Shift::XY(x, y) => {
+                    let x = x
+                        .eval(units)
+                        .as_number()
+                        .ok_or_else(|| Error::AnchorParse {
+                            name: name.clone(),
+                            message: format!(r#"Invalid shift value for x: "{x}""#),
+                        })?;
+                    let y = y
+                        .eval(units)
+                        .as_number()
+                        .ok_or_else(|| Error::AnchorParse {
+                            name: name.clone(),
+                            message: format!(r#"Invalid shift value for y: "{y}""#),
+                        })?;
+                    point.shift((x, y), Some(resist), None);
+                }
+                Shift::Number(n) => {
+                    let n = n
+                        .eval(units)
+                        .as_number()
+                        .ok_or_else(|| Error::AnchorParse {
+                            name: name.clone(),
+                            message: format!(r#"Invalid shift value: "{n}""#),
+                        })?;
+                    point.shift((n, n), Some(resist), None);
+                }
+            }
+        }
+
+        if let Some(rotate) = anchor.rotate {
+            point = rotator(
+                &rotate,
+                format!("{name}.rotate"),
+                point,
+                start.clone(),
+                points,
+                resist,
+                mirror,
+                units,
+            )?;
+        }
+
+        if let Some(affect) = anchor.affect {
+            let candidate = point.clone();
+            point = start.unwrap_or_default().clone();
+            point.meta = candidate.meta;
+
+            for field in affect {
+                match field {
+                    AffectType::X => point.y = candidate.x,
+                    AffectType::Y => point.y = candidate.y,
+                    AffectType::R => point.r = candidate.r,
+                }
+            }
+        }
+
+        Ok(point)
     }
 }
 

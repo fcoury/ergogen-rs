@@ -40,6 +40,9 @@ pub enum Error {
 
     #[error("{message} in anchor \"{name}\"")]
     AnchorParse { message: String, name: String },
+
+    #[error("Expected a number value in \"{0}\", got \"{1}\"")]
+    UnitParse(String, String),
 }
 
 impl From<serde_yaml::Error> for Error {
