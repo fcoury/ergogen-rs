@@ -1,12 +1,17 @@
 mod anchor;
 mod config;
 mod preprocess;
+mod template;
 mod zone;
 
 use anchor::{Anchor, Shift};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use zone::Zone;
+use serde_json::Value;
+use template::process_templates;
+use zone::{Column, Row, Zone};
+
+use crate::{Error, Result};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Meta {
@@ -45,6 +50,11 @@ enum Asym {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Key {
+    zone: Option<Box<Zone>>,
+    row: Option<String>,
+    col: Option<Box<Column>>,
+    col_name: Option<String>,
+
     /// Column staggering means an extra vertical shift to the starting point of a whole column
     /// compared to the previous one (initially 0, cumulative afterwards). Its default value is 0
     /// (also overrideable with the $default_stagger internal variable).
@@ -155,6 +165,89 @@ impl Key {
             colrow: Some("{{col.name}}_{{row}}".to_string()),
             name: Some("{{zone.name}}_{{colrow}}".to_string()),
             ..Default::default()
+        }
+    }
+
+    pub fn process_templates(&self) -> Result<Key> {
+        let key_obj = serde_json::to_value(self)?;
+        let key_obj = key_obj.as_object().ok_or(Error::TypeError {
+            field: "key".to_owned(),
+            expected: "object".to_owned(),
+        })?;
+
+        println!("      - processing templates in {:#?}", key_obj);
+        let key_obj = process_templates(key_obj);
+
+        Ok(serde_json::from_value(Value::Object(key_obj))?)
+    }
+
+    fn extend(&mut self, other: &Key) {
+        if let Some(stagger) = &other.stagger {
+            self.stagger = Some(stagger.clone());
+        }
+        if let Some(spread) = &other.spread {
+            self.spread = Some(spread.clone());
+        }
+        if let Some(splay) = &other.splay {
+            self.splay = Some(splay.clone());
+        }
+        if let Some(padding) = &other.padding {
+            self.padding = Some(padding.clone());
+        }
+        if let Some(origin) = &other.origin {
+            self.origin = Some(origin.clone());
+        }
+        if let Some(orient) = &other.orient {
+            self.orient = Some(orient.clone());
+        }
+        if let Some(shift) = &other.shift {
+            self.shift = Some(shift.clone());
+        }
+        if let Some(rotate) = &other.rotate {
+            self.rotate = Some(rotate.clone());
+        }
+        if let Some(adjust) = &other.adjust {
+            self.adjust = Some(adjust.clone());
+        }
+        if let Some(bind) = &other.bind {
+            self.bind = Some(bind.clone());
+        }
+        if let Some(autobind) = &other.autobind {
+            self.autobind = Some(autobind.clone());
+        }
+        if let Some(skip) = &other.skip {
+            self.skip = Some(*skip);
+        }
+        if let Some(asym) = &other.asym {
+            self.asym = Some(asym.clone());
+        }
+        if let Some(mirror) = &other.mirror {
+            self.mirror = Some(mirror.clone());
+        }
+        if let Some(colrow) = &other.colrow {
+            self.colrow = Some(colrow.clone());
+        }
+        if let Some(name) = &other.name {
+            self.name = Some(name.clone());
+        }
+        if let Some(width) = &other.width {
+            self.width = Some(width.clone());
+        }
+        if let Some(height) = &other.height {
+            self.height = Some(height.clone());
+        }
+
+        // Handle the meta field specially
+        if let Some(other_meta) = &other.meta {
+            if self.meta.is_none() {
+                // If self has no meta, just clone other's meta
+                self.meta = Some(other_meta.clone());
+            } else if let Some(self_meta) = &mut self.meta {
+                // If both have meta, extend self's meta with other's meta
+                for (key, value) in other_meta {
+                    self_meta.insert(key.clone(), value.clone());
+                }
+            }
         }
     }
 }

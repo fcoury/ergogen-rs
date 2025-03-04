@@ -1,8 +1,9 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
-use super::{config::Config, Anchor, Key, Units};
-use crate::Result;
+use super::{config::Config, template::process_templates, Anchor, Key, Units};
+use crate::{Error, Result};
 
 pub struct Point {
     x: Option<f64>,
@@ -32,10 +33,11 @@ pub struct ParsedMeta {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Zone {
-    anchor: Option<Anchor>,
-    columns: Option<IndexMap<String, Column>>,
-    rows: Option<IndexMap<String, Option<Row>>>,
-    key: Option<Key>,
+    pub name: Option<String>,
+    pub anchor: Option<Anchor>,
+    pub columns: Option<IndexMap<String, Column>>,
+    pub rows: Option<IndexMap<String, Option<Row>>>,
+    pub key: Option<Key>,
 }
 
 impl Zone {
@@ -46,7 +48,7 @@ impl Zone {
     pub fn rows(&self) -> IndexMap<String, Row> {
         let rows = self.rows.clone().unwrap_or_default();
         rows.into_iter()
-            .map(|(k, v)| (k, v.unwrap_or_default()))
+            .map(|(name, row)| (name.clone(), row.unwrap_or(Row { name: Some(name) })))
             .collect()
     }
 
@@ -55,8 +57,10 @@ impl Zone {
     }
 
     pub fn render(&self, config: &Config) -> Result<Point> {
-        for (name, col) in self.columns().iter() {
-            println!("  - processing column {name}...");
+        for (col_name, col) in self.columns().iter() {
+            println!("  - processing column {col_name}...");
+            let mut col = col.clone();
+            col.name = Some(col_name.clone());
 
             // expand the zone wide rows with this column specific ones
             let mut actual_rows = self.rows();
@@ -66,11 +70,14 @@ impl Zone {
                 }
             }
 
-            for (name, row) in actual_rows.iter() {
-                println!("    - processing row {name}...");
-                row.process(config, self, col);
+            let mut keys = vec![];
+            for (row_name, row) in actual_rows.iter_mut() {
+                println!("    - processing row {row_name}...");
+                row.name = Some(row_name.clone());
+                let key = create_key(config, self, &col, col_name, row_name)?;
+
+                keys.push(key);
             }
-            // println!("{:#?}", col);
         }
 
         todo!()
@@ -79,6 +86,7 @@ impl Zone {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Column {
+    name: Option<String>,
     key: Option<Key>,
     rows: Option<IndexMap<String, Option<Row>>>,
 }
@@ -90,20 +98,41 @@ impl Column {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Row {}
-
-impl Default for Row {
-    fn default() -> Self {
-        Self {}
-    }
+pub struct Row {
+    name: Option<String>,
 }
 
-impl Row {
-    pub fn process(&self, config: &Config, zone: &Zone, col: &Column) {
-        let default_key = Key::new_default(&config.units());
-        let global_key = config.points.key.clone().unwrap_or_default();
-        let zone_wide_key = zone.key.clone().unwrap_or_default();
-        let col_key = col.key.clone().unwrap_or_default();
-        todo!("Row::process")
+pub fn create_key(
+    config: &Config,
+    zone: &Zone,
+    col: &Column,
+    col_name: impl ToString,
+    row_name: impl ToString,
+) -> Result<Key> {
+    let mut key = Key::new_default(&config.units());
+
+    key.zone = Some(Box::new(zone.clone()));
+    key.row = Some(row_name.to_string());
+    key.col_name = Some(col_name.to_string());
+    key.col = Some(Box::new(col.clone()));
+
+    // layer the keys
+    if let Some(global_key) = &config.points.key {
+        // global key
+        key.extend(global_key);
     }
+
+    if let Some(zone_wide_key) = &zone.key {
+        // zone-wide key
+        key.extend(zone_wide_key);
+    }
+
+    if let Some(col_key) = &col.key {
+        // column key
+        key.extend(col_key);
+    }
+
+    let res = key.process_templates()?;
+    println!("      - processed key: {res:#?}");
+    Ok(res)
 }

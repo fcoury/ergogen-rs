@@ -20,10 +20,12 @@ impl Config {
         Ok(serde_yaml::from_value(config)?)
     }
 
-    pub fn parse_points(&self) -> Points {
+    pub fn parse_points(&self) -> Result<Points> {
         for (name, zone) in self.points.zones.iter() {
             println!("Processing zone {name}...");
-            let new_points = zone.render(self);
+            let mut zone = zone.clone();
+            zone.name = Some(name.to_string());
+            let new_points = zone.render(self)?;
         }
 
         todo!()
@@ -76,9 +78,10 @@ mod tests {
             let expected = fs::read_to_string(points_file).unwrap();
             let expected: serde_json::Value = serde_json::from_str(&expected).unwrap();
 
-            let actual = config.parse_points();
+            let actual = config.parse_points().unwrap();
 
             println!("{:#?}", expected);
+            println!("{:#?}", actual);
         }
     }
 
