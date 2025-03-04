@@ -5,6 +5,7 @@ use serde_json::{Map, Value};
 use super::{config::Config, template::process_templates, Anchor, Key, Units};
 use crate::{Error, Result};
 
+#[derive(Clone, Debug, Default)]
 pub struct Point {
     x: Option<f64>,
     y: Option<f64>,
@@ -12,6 +13,7 @@ pub struct Point {
     meta: ParsedMeta,
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct ParsedMeta {
     stagger: f64,
     spread: f64,
@@ -52,11 +54,9 @@ impl Zone {
             .collect()
     }
 
-    pub fn anchor(&self, units: &Units) -> Anchor {
-        self.anchor.clone().unwrap_or_default().parse(units)
-    }
+    pub fn render(&self, config: &Config, anchor: Option<&Anchor>) -> Result<Point> {
+        let zone_anchor = anchor.clone();
 
-    pub fn render(&self, config: &Config) -> Result<Point> {
         for (col_name, col) in self.columns().iter() {
             println!("  - processing column {col_name}...");
             let mut col = col.clone();
@@ -132,7 +132,5 @@ pub fn create_key(
         key.extend(col_key);
     }
 
-    let res = key.process_templates()?;
-    println!("      - processed key: {res:#?}");
-    Ok(res)
+    key.process_templates()
 }

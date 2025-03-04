@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::{preprocess::preprocess, Meta, Points, Units};
@@ -21,11 +22,22 @@ impl Config {
     }
 
     pub fn parse_points(&self) -> Result<Points> {
+        let mut points = IndexMap::new();
         for (name, zone) in self.points.zones.iter() {
             println!("Processing zone {name}...");
             let mut zone = zone.clone();
             zone.name = Some(name.to_string());
-            let new_points = zone.render(self)?;
+
+            let anchor = match zone.anchor {
+                Some(ref anchor) => {
+                    let name = format!("points.zones.{name}.anchor");
+                    println!("  - parsing anchor {name}...");
+                    Some(anchor.parse(name, &points, None, false, &self.units())?)
+                }
+                None => None,
+            };
+
+            let new_points = zone.render(self, zone.anchor.as_ref())?;
         }
 
         todo!()

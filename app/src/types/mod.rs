@@ -18,7 +18,7 @@ pub struct Meta {
     engine: Option<String>,
     name: Option<String>,
     version: Option<String>,
-    r#ref: Option<String>,
+    ref_: Option<String>,
     author: Option<String>,
     url: Option<String>,
     footprint: Option<String>,
@@ -175,7 +175,6 @@ impl Key {
             expected: "object".to_owned(),
         })?;
 
-        println!("      - processing templates in {:#?}", key_obj);
         let key_obj = process_templates(key_obj);
 
         Ok(serde_json::from_value(Value::Object(key_obj))?)
@@ -254,7 +253,7 @@ impl Key {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Mirror {
-    r#ref: Option<String>,
+    ref_: Option<String>,
     distance: Option<Unit>,
     asym: Option<String>,
 }

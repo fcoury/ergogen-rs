@@ -37,6 +37,9 @@ pub enum Error {
 
     #[error("Value error: {0}")]
     ValueError(String),
+
+    #[error("{message} in anchor \"{name}\"")]
+    AnchorParse { message: String, name: String },
 }
 
 impl From<serde_yaml::Error> for Error {

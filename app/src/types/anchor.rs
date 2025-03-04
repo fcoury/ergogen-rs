@@ -1,24 +1,98 @@
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{Unit, Units};
+use super::{zone::Point, Unit, Units};
+use crate::{Error, Result};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Anchor {
+    Ref(String),
     Single(Box<AnchorItem>),
     Multiple(Vec<AnchorItem>),
 }
 
 impl Anchor {
-    pub fn parse(&self, units: &Units) -> Anchor {
+    pub fn parse(
+        &self,
+        name: String,
+        points: &IndexMap<String, Point>,
+        start: Option<Point>,
+        mirror: bool,
+        units: &Units,
+    ) -> Result<Point> {
+        let anchor = match self {
+            Self::Ref(_) => AnchorItem {
+                ref_: Some(self.clone()),
+                ..Default::default()
+            },
+            Self::Multiple(items) => {
+                let mut current = start.unwrap_or_default();
+                let mut index = 1;
+                for step in items {
+                    let anchor = Anchor::Single(Box::new(step.clone()));
+                    current = anchor.parse(
+                        format!("{}[{}]", name, index),
+                        points,
+                        Some(current),
+                        mirror,
+                        units,
+                    )?;
+                    index += 1;
+                }
+                return Ok(current);
+            }
+            Self::Single(item) => (**item).clone(),
+        };
+
+        let mut point = start.unwrap_or_default();
+
+        if anchor.ref_.is_some() && anchor.aggregate.is_some() {
+            return Err(Error::AnchorParse {
+                name: name.clone(),
+                message: format!(
+                    r#"Fields "ref" and "aggregate" cannot appear together in anchor "{name}"!"#
+                ),
+            });
+        }
+
+        match anchor.ref_ {
+            Some(Anchor::Ref(ref_)) => {
+                let parsed_ref = handle_mirror_ref(&ref_, mirror);
+                let Some(ref_point) = points.get(&parsed_ref) else {
+                    return Err(Error::AnchorParse {
+                        name: name.clone(),
+                        message: format!(r#"Unknown point reference "{parsed_ref}""#),
+                    });
+                };
+                point = ref_point.clone();
+            }
+            Some(anchor) => {
+                point = anchor.parse(name.clone(), points, Some(point), mirror, units)?;
+            }
+            None => {}
+        }
+
+        if let Some(agg) = anchor.aggregate {
+            // HERE: Implement aggregate
+        };
+
         todo!()
+    }
+}
+
+fn handle_mirror_ref(ref_: &str, mirror: bool) -> String {
+    if mirror {
+        ref_.strip_prefix("mirror_").unwrap_or(ref_).to_string()
+    } else {
+        ref_.to_string()
     }
 }
 
 impl Default for Anchor {
     fn default() -> Self {
         Self::Single(Box::new(AnchorItem {
-            r#ref: None,
+            ref_: None,
             aggregate: None,
             orient: None,
             shift: None,
@@ -29,13 +103,13 @@ impl Default for Anchor {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct AnchorItem {
     /// starting point from where the anchor will perform its additional modifications. This field
     /// is parsed as an anchor itself, recursively. So in its easiest form, it can be a string to
     /// designate an existing starting point by name (more on names later), but it can also be a
     /// full nested anchor if so desired.
-    r#ref: Option<String>,
+    ref_: Option<Anchor>,
 
     /// Alternative to ref when the combination of several locations is required as the starting
     /// point for further adjustment. They're mutually exclusive, so we can use either ref or
