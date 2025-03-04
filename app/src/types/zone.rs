@@ -17,17 +17,20 @@ impl Point {
         (self.x.unwrap_or_default(), self.y.unwrap_or_default())
     }
 
-    pub fn set_p(&mut self, x: f64, y: f64) {
-        self.x = Some(x);
-        self.y = Some(y);
+    pub fn set_p(&mut self, p: (f64, f64)) {
+        self.x = Some(p.0);
+        self.y = Some(p.1);
     }
 
     pub fn rotate(&mut self, angle: f64, origin: Option<(f64, f64)>, resist: bool) -> &mut Self {
-        let mirrored = self.meta.as_ref().map_or(false, |meta| meta.mirrored);
+        let mirrored = self.meta.as_ref().is_some_and(|meta| meta.mirrored);
         let angle = angle * if !resist && mirrored { -1.0 } else { 1.0 };
-        if let Some(_origin) = origin {
-            // TODO: this.set_p(makerjs.point.rotate(self, angle, origin));
-            todo!("waiting for maker-rs");
+        if let Some(origin) = origin {
+            self.set_p(maker_rs::point::rotate(
+                self.clone().into(),
+                angle,
+                Some(origin),
+            ));
         }
         self.r = Some(self.r.unwrap_or_default() + angle);
         self
@@ -50,15 +53,15 @@ impl Point {
         let relative = relative.unwrap_or(true);
         let resist = resist.unwrap_or(false);
 
-        let x = if !resist && self.meta.as_ref().map_or(false, |meta| meta.mirrored) {
+        let x = if !resist && self.meta.as_ref().is_some_and(|meta| meta.mirrored) {
             -x
         } else {
             x
         };
 
         if relative {
-            // TODO: (self.x, self.y) = makerjs.point.rotate([x, y], this.r);
-            todo!("waiting for maker-rs");
+            let (x, y) = maker_rs::point::rotate((x, y), self.r.unwrap_or_default(), None);
+            (self.x, self.y) = (Some(x), Some(y));
         }
 
         self.x = Some(self.x.unwrap_or_default() + x);

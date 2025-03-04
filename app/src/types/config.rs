@@ -136,6 +136,7 @@ impl Config {
 
             // creating new points
             let new_points = zone.render(self, anchor, &units)?;
+            println!("{:#?}", new_points);
 
             // simplifying the names in individual point "zones" and single-key columns
         }
