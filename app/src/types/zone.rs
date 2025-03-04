@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{config::Config, Anchor, Key, Unit};
+use super::{config::Config, Anchor, Asym, Key, Unit};
 use crate::{types::points::apply_rotations, Result};
 
 #[derive(Clone, Debug, Default)]
@@ -77,7 +77,7 @@ impl From<Point> for (f64, f64) {
 pub struct ParsedMeta {
     stagger: f64,
     spread: f64,
-    origin: [f64; 2],
+    origin: (f64, f64),
     orient: f64,
     shift: (f64, f64),
     rotate: f64,
@@ -87,11 +87,80 @@ pub struct ParsedMeta {
     padding: f64,
     autobind: f64,
     skip: bool,
-    asym: String,
+    asym: Option<Asym>,
     colrow: String,
     name: String,
     mirrored: bool,
     // zone: ParsedZone,
+}
+
+impl ParsedMeta {
+    fn from(key: Key, units: &IndexMap<String, f64>) -> Result<Self> {
+        let mut meta = ParsedMeta::default();
+        let key_name = key.name.unwrap_or("key".to_string());
+
+        if let Some(stagger) = key.stagger {
+            meta.stagger = stagger.eval_as_number(&format!("{key_name}.stagger"), units)?;
+        }
+
+        if let Some(spread) = key.spread {
+            meta.spread = spread.eval_as_number(&format!("{key_name}.spread"), units)?;
+        }
+
+        if let Some(origin) = key.origin {
+            let (x, y) = origin;
+            let x = x.eval_as_number("key.origin.x", units)?;
+            let y = y.eval_as_number("key.origin.y", units)?;
+            meta.origin = (x, y);
+        }
+
+        if let Some(orient) = key.orient {
+            meta.orient = orient.eval_as_number(&format!("{key_name}.orient"), units)?;
+        }
+
+        if let Some(shift) = key.shift {
+            meta.shift = shift.eval_as_numbers(&format!("{key_name}.shift"), units)?;
+        }
+
+        if let Some(rotate) = key.rotate {
+            meta.rotate = rotate.eval_as_number(&format!("{key_name}.rotate"), units)?;
+        }
+
+        if let Some(width) = key.width {
+            meta.width = width.eval_as_number(&format!("{key_name}.rotate"), units)?;
+        }
+
+        if let Some(height) = key.height {
+            meta.height = height.eval_as_number(&format!("{key_name}.height"), units)?;
+        }
+
+        if let Some(padding) = key.padding {
+            meta.padding = padding.eval_as_number(&format!("{key_name}.padding"), units)?;
+        }
+
+        if let Some(autobind) = key.autobind {
+            meta.autobind = autobind.eval_as_number(&format!("{key_name}.autobind"), units)?;
+        }
+
+        if let Some(skip) = key.skip {
+            meta.skip = skip;
+        }
+
+        meta.asym = key.asym;
+
+        if let Some(colrow) = key.colrow {
+            meta.colrow = colrow;
+        }
+
+        meta.name = key_name;
+
+        // TODO: How to handle mirroring here?
+        // if let Some(mirrored) = key.mirror {
+        //     meta.mirrored = mirrored;
+        // }
+
+        Ok(meta)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -123,7 +192,7 @@ impl Zone {
         anchor: Point,
         units: &IndexMap<String, f64>,
     ) -> Result<IndexMap<String, Point>> {
-        // let mut points = IndexMap::new();
+        let mut points = IndexMap::new();
         let mut rotations = Vec::new();
         let mut zone_anchor = anchor.clone();
 
@@ -185,20 +254,22 @@ impl Zone {
             }
 
             for key in keys {
+                let key_name = key.name.clone().unwrap_or_default();
+
                 // copy the current column anchor
                 let meta = running_anchor.meta.clone().unwrap_or_default();
                 let mut point = running_anchor.clone();
 
                 // apply cumulative per-key adjustments
-                if let Some(orient) = key.orient {
-                    let orient = orient.eval_as_number("key.orient", units)?;
+                if let Some(orient) = &key.orient {
+                    let orient = orient.eval_as_number(&format!("{key_name}.orient"), units)?;
                     point.r = Some(point.r.unwrap_or_default() + orient);
                 }
 
                 point.shift(meta.shift, None, None);
 
-                if let Some(rotate) = key.rotate {
-                    let rotate = rotate.eval_as_number("key.rotate", units)?;
+                if let Some(rotate) = &key.rotate {
+                    let rotate = rotate.eval_as_number(&format!("{key_name}.rotate"), units)?;
                     point.r = Some(point.r.unwrap_or_default() + rotate);
                 }
 
@@ -206,11 +277,33 @@ impl Zone {
                 running_anchor = point.clone();
 
                 // apply independent adjustments
-                // point =
+                if let Some(adjust) = &key.adjust {
+                    point = adjust.parse(
+                        format!("{key_name}.adjust"),
+                        &IndexMap::new(),
+                        None,
+                        false,
+                        units,
+                    )?;
+                }
+
+                // save the key
+                let padding = key
+                    .padding
+                    .clone()
+                    .unwrap_or_default()
+                    .eval_as_number("key.padding", units)?;
+                point.meta = Some(ParsedMeta::from(key, units)?);
+                points.insert(key_name, point);
+
+                // advance the running anchor to the next position
+                running_anchor.shift((0.0, padding), None, None);
             }
+
+            first_col = false;
         }
 
-        todo!()
+        Ok(points)
     }
 }
 

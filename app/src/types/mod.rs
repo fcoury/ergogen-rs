@@ -148,7 +148,7 @@ pub struct Key {
     /// internal variable).
     padding: Option<Unit>,
 
-    origin: Option<[Unit; 2]>,
+    origin: Option<(Unit, Unit)>,
 
     /// The names might be familiar from the anchor section. And indeed, they do behave very
     /// similarly – only they are interpreted cumulatively within a column. The current key orients
@@ -223,7 +223,7 @@ impl Key {
             stagger: units.get("$default_stagger").cloned(),
             spread: units.get("$default_spread").cloned(),
             splay: units.get("$default_splay").cloned(),
-            origin: Some([Unit::Number(0.0), Unit::Number(0.0)]),
+            origin: Some((Unit::Number(0.0), Unit::Number(0.0))),
             orient: Some(Unit::Number(0.0)),
             shift: Some(Shift::XY(Unit::Number(0.0), Unit::Number(0.0))),
             rotate: Some(Unit::Number(0.0)),
@@ -327,7 +327,7 @@ impl Key {
 pub struct Mirror {
     ref_: Option<String>,
     distance: Option<Unit>,
-    asym: Option<String>,
+    asym: Option<Asym>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

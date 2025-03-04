@@ -323,6 +323,40 @@ pub enum Shift {
     Number(Unit),
 }
 
+impl Shift {
+    pub fn eval_as_numbers(&self, name: &str, units: &IndexMap<String, f64>) -> Result<(f64, f64)> {
+        match self {
+            Shift::XY(x, y) => {
+                let x = x
+                    .eval(units)
+                    .as_number()
+                    .ok_or_else(|| Error::AnchorParse {
+                        name: name.to_owned(),
+                        message: format!(r#"Invalid shift value for x: "{x}""#),
+                    })?;
+                let y = y
+                    .eval(units)
+                    .as_number()
+                    .ok_or_else(|| Error::AnchorParse {
+                        name: name.to_owned(),
+                        message: format!(r#"Invalid shift value for y: "{y}""#),
+                    })?;
+                Ok((x, y))
+            }
+            Shift::Number(n) => {
+                let n = n
+                    .eval(units)
+                    .as_number()
+                    .ok_or_else(|| Error::AnchorParse {
+                        name: name.to_owned(),
+                        message: format!(r#"Invalid shift value: "{n}""#),
+                    })?;
+                Ok((n, n))
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AffectType {
     X,
