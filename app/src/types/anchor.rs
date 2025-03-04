@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{zone::Point, Unit, Units};
+use super::{aggregator::average, zone::Point, Unit, Units};
 use crate::{Error, Result};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -19,7 +19,7 @@ impl Anchor {
         points: &IndexMap<String, Point>,
         start: Option<Point>,
         mirror: bool,
-        units: &Units,
+        units: &IndexMap<String, f64>,
     ) -> Result<Point> {
         let anchor = match self {
             Self::Ref(_) => AnchorItem {
@@ -74,7 +74,38 @@ impl Anchor {
         }
 
         if let Some(agg) = anchor.aggregate {
-            // HERE: Implement aggregate
+            let mut parts = vec![];
+
+            for (index, part) in agg.parts.iter().enumerate() {
+                let part = Anchor::Single(Box::new(part.clone()));
+                parts.push(part.parse(
+                    format!("{}[{}]", name, index),
+                    points,
+                    Some(point.clone()),
+                    mirror,
+                    units,
+                )?);
+
+                let method = agg.method.clone().unwrap_or_default();
+                point = method.apply(&agg, format!("{name}.aggregate"), &parts);
+            }
+        };
+
+        let resist = anchor.resist.unwrap_or_default();
+        let rotator = |config: &Unit, _name: String, point: Point| -> Point {
+            match config.eval(units) {
+                // simple case: number gets added to point rotation
+                crate::types::EvalResult::Number(angle) => {
+                    let mut point = point.clone();
+                    point.rotate(angle, None, resist);
+                    point
+                }
+                // recursive case: points turns "towards" target anchor
+                crate::types::EvalResult::Ref(_) => {
+                    // TODO: not sure what to do here
+                    todo!()
+                }
+            }
         };
 
         todo!()
@@ -177,9 +208,19 @@ pub struct AnchorItem {
     resist: Option<bool>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub enum AggregateMethod {
+    #[default]
     Average,
+}
+
+impl AggregateMethod {
+    // TODO: may need to extract a trait with parts and method to make methods generic
+    fn apply(&self, _agg: &Aggregate, _name: String, parts: &[Point]) -> Point {
+        match self {
+            Self::Average => average(parts),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

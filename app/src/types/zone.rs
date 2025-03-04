@@ -7,10 +7,31 @@ use crate::{Error, Result};
 
 #[derive(Clone, Debug, Default)]
 pub struct Point {
-    x: Option<f64>,
-    y: Option<f64>,
-    r: Option<f64>,
-    meta: ParsedMeta,
+    pub x: Option<f64>,
+    pub y: Option<f64>,
+    pub r: Option<f64>,
+    pub meta: Option<ParsedMeta>,
+}
+
+impl Point {
+    pub fn p(&self) -> (f64, f64) {
+        (self.x.unwrap_or_default(), self.y.unwrap_or_default())
+    }
+
+    pub fn set_p(&mut self, x: f64, y: f64) {
+        self.x = Some(x);
+        self.y = Some(y);
+    }
+
+    pub fn rotate(&mut self, angle: f64, origin: Option<(f64, f64)>, resist: bool) -> &mut Self {
+        let mirrored = self.meta.as_ref().map_or(false, |meta| meta.mirrored);
+        let angle = angle * if !resist && mirrored { -1.0 } else { 1.0 };
+        if let Some(origin) = origin {
+            // TODO: this.set_p(makerjs.point.rotate(self, angle, origin));
+        }
+        self.r = Some(self.r.unwrap_or_default() + angle);
+        self
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -30,6 +51,7 @@ pub struct ParsedMeta {
     asym: String,
     colrow: String,
     name: String,
+    mirrored: bool,
     // zone: ParsedZone,
 }
 

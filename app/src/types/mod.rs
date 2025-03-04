@@ -1,3 +1,4 @@
+mod aggregator;
 mod anchor;
 mod config;
 mod preprocess;
@@ -11,7 +12,7 @@ use serde_json::Value;
 use template::process_templates;
 use zone::{Column, Row, Zone};
 
-use crate::{Error, Result};
+use crate::{expr::evaluate_expression, Error, Result};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Meta {
@@ -32,6 +33,34 @@ pub type Units = IndexMap<String, Unit>;
 pub enum Unit {
     Number(f64),
     Expression(String),
+}
+
+impl Unit {
+    fn eval(&self, units: &IndexMap<String, f64>) -> EvalResult {
+        match self {
+            Unit::Number(num) => EvalResult::Number(*num),
+            Unit::Expression(expr) => match evaluate_expression(expr, units) {
+                Ok(num) => EvalResult::Number(num),
+                Err(_) => EvalResult::Ref(expr.clone()),
+            },
+        }
+    }
+
+    fn is_number(&self) -> bool {
+        matches!(self, Unit::Number(_))
+    }
+
+    fn as_number(&self) -> Option<f64> {
+        match self {
+            Unit::Number(num) => Some(*num),
+            _ => None,
+        }
+    }
+}
+
+enum EvalResult {
+    Number(f64),
+    Ref(String),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -293,10 +293,109 @@ impl Parser {
 
 pub fn evaluate_expression(
     expression: &str,
-    variables: IndexMap<String, f64>,
+    variables: &IndexMap<String, f64>,
 ) -> Result<f64, ParserError> {
     let mut parser = Parser::new(expression, variables.clone())?;
     parser.parse()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_expression(expression: &str, variables: IndexMap<String, f64>) -> f64 {
+        evaluate_expression(expression, &variables).unwrap()
+    }
+
+    #[test]
+    fn test_simple_expressions() {
+        let variables = IndexMap::new();
+
+        assert_eq!(test_expression("2 + 2", variables.clone()), 4.0);
+        assert_eq!(test_expression("30 * 0.5", variables.clone()), 15.0);
+        assert_eq!(test_expression("8 / 2", variables.clone()), 4.0);
+        assert_eq!(test_expression("19 - 1", variables.clone()), 18.0);
+    }
+
+    #[test]
+    fn test_variable_expressions() {
+        let mut variables = IndexMap::new();
+        variables.insert("U".to_string(), 20.0);
+
+        assert_eq!(test_expression("2*U", variables.clone()), 40.0);
+        assert_eq!(test_expression("4.5*U", variables.clone()), 90.0);
+        assert_eq!(test_expression("U/2", variables.clone()), 10.0);
+        assert_eq!(test_expression("U + 15", variables.clone()), 35.0);
+        assert_eq!(test_expression("2*U + 5", variables.clone()), 45.0);
+        assert_eq!(test_expression("(U + 10) / 2", variables.clone()), 15.0);
+    }
+
+    #[test]
+    fn test_error_cases() {
+        let variables = IndexMap::new();
+
+        assert!(matches!(
+            evaluate_expression("2 + * 3", &variables),
+            Err(ParserError::SyntaxError(_))
+        ));
+        assert!(matches!(
+            evaluate_expression("3 / 0", &variables),
+            Err(ParserError::DivisionByZero)
+        ));
+        assert!(matches!(
+            evaluate_expression("X + 5", &variables),
+            Err(ParserError::UndefinedVariable(_))
+        ));
+        assert!(matches!(
+            evaluate_expression("2 + 2)", &variables),
+            Err(ParserError::SyntaxError(_))
+        ));
+    }
+
+    #[test]
+    fn test_expression_with_variables() {
+        let mut variables = IndexMap::new();
+        variables.insert("U".to_string(), 20.0);
+        variables.insert("V".to_string(), 10.0);
+
+        assert_eq!(test_expression("U + V", variables.clone()), 30.0);
+        assert_eq!(test_expression("U - V", variables.clone()), 10.0);
+        assert_eq!(test_expression("U * V", variables.clone()), 200.0);
+        assert_eq!(test_expression("U / V", variables.clone()), 2.0);
+    }
+
+    #[test]
+    fn test_expression_with_custom_units() {
+        let mut variables = IndexMap::new();
+        variables.insert("U".to_string(), 20.0);
+        variables.insert("custom_unit".to_string(), 25.5);
+
+        assert_eq!(test_expression("0.5custom_unit", variables.clone()), 12.75);
+        assert_eq!(test_expression("0.5*custom_unit", variables.clone()), 12.75);
+        assert_eq!(test_expression("custom_unit+U", variables.clone()), 45.5);
+    }
+
+    #[test]
+    fn test_expression_with_variables_and_custom_units() {
+        let mut variables = IndexMap::new();
+        variables.insert("U".to_string(), 20.0);
+        variables.insert("custom_unit".to_string(), 25.5);
+
+        assert_eq!(test_expression("custom_unit+U", variables.clone()), 45.5);
+        assert_eq!(test_expression("2*U", variables.clone()), 40.0);
+        assert_eq!(test_expression("U*custom_unit", variables.clone()), 510.0);
+    }
+
+    #[test]
+    fn test_expression_with_custom_notation() {
+        let mut variables = IndexMap::new();
+        variables.insert("U".to_string(), 20.0);
+        variables.insert("custom_unit".to_string(), 25.5);
+
+        assert_eq!(test_expression("0.5px", variables.clone()), 20.0);
+        assert_eq!(test_expression("2U", variables.clone()), 40.0);
+        assert_eq!(test_expression("custom_unit+U", variables.clone()), 45.5);
+    }
 }
 
 // // Example usage
