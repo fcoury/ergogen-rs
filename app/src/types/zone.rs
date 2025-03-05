@@ -1,10 +1,10 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{config::Config, Anchor, Asym, Key, Unit};
+use super::{config::Config, Anchor, Asym, Key, Mirror, Unit};
 use crate::{types::points::apply_rotations, Result};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Point {
     pub x: Option<f64>,
     pub y: Option<f64>,
@@ -34,6 +34,12 @@ impl Point {
         }
         self.r = Some(self.r.unwrap_or_default() + angle);
         self
+    }
+
+    pub fn rotated(&self, angle: f64, origin: Option<(f64, f64)>, resist: bool) -> Self {
+        let mut point = self.clone();
+        point.rotate(angle, origin, resist);
+        point
     }
 
     pub fn angle(&self, other: &Point) -> f64 {
@@ -76,7 +82,7 @@ impl From<Point> for (f64, f64) {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ParsedMeta {
     stagger: f64,
     spread: f64,
@@ -173,7 +179,7 @@ pub struct Zone {
     pub columns: Option<IndexMap<String, Column>>,
     pub rows: Option<IndexMap<String, Option<Row>>>,
     pub key: Option<Key>,
-    pub mirror: Option<bool>,
+    pub mirror: Option<Mirror>,
     pub rotate: Option<Unit>,
 }
 
@@ -220,6 +226,10 @@ impl Zone {
                 row.name = Some(row_name.clone());
                 let key = create_key(config, self, &col, col_name, row_name)?;
                 keys.push(key);
+            }
+
+            if keys.is_empty() {
+                continue;
             }
 
             if !first_col {

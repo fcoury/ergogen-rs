@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{preprocess::preprocess, Meta, Points, Unit, Units};
+use super::{preprocess::preprocess, Meta, Mirror, Points, Unit, Units};
 use crate::{types::zone::Point, units::evaluate_mathnum, Error, Result};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -10,6 +10,7 @@ pub struct Config {
     pub units: Option<Units>,
     pub variables: Option<Units>,
     pub points: Points,
+    pub rotate: Option<Unit>,
 }
 
 impl Config {
@@ -111,9 +112,18 @@ impl Config {
         Ok(units)
     }
 
-    pub fn parse_points(&self) -> Result<Points> {
+    pub fn parse_points(&self) -> Result<IndexMap<String, Point>> {
+        // const global_rotate = a.sane(config.rotate || 0, 'points.rotate', 'number')(units)
+        let global_rotate = match &self.rotate {
+            Some(rotate) => {
+                let rotate = rotate.eval_as_number("points.rotate", &self.resolve_units()?)?;
+                Some(rotate)
+            }
+            None => None,
+        };
         let mut points = IndexMap::new();
         let units = self.resolve_units()?;
+
         for (name, zone) in self.points.zones.iter() {
             println!("Processing zone {name}...");
             let mut zone = zone.clone();
@@ -129,17 +139,108 @@ impl Config {
                 None => Point::default(),
             };
 
-            let mirror = zone.mirror.unwrap_or_default();
+            let mirror = zone.mirror;
             zone.anchor = None;
             zone.rotate = None;
             zone.mirror = None;
 
             // creating new points
             let new_points = zone.render(self, anchor, &units)?;
-            println!("{:#?}", new_points);
 
             // simplifying the names in individual point "zones" and single-key columns
+            let mut renamed_points = IndexMap::new();
+            for (name, point) in new_points.into_iter() {
+                let name = name.strip_suffix("_default").unwrap_or(&name);
+                renamed_points.insert(name.to_string(), point);
+            }
+
+            // adjusting new points
+            for (new_name, new_point) in renamed_points.iter_mut() {
+                if points.contains_key(new_name) {
+                    return Err(Error::Config(format!(
+                        "Key \"{new_name}\" defined more than once!",
+                    )));
+                }
+
+                if let Some(ref rotate) = zone.rotate {
+                    let rotate = rotate.eval_as_number(
+                        &format!(
+                            "zone \"{}\" rotation",
+                            zone.name.clone().unwrap_or_default()
+                        ),
+                        &units,
+                    )?;
+                    new_point.rotate(rotate, None, false);
+                }
+            }
+
+            // adding new points so that they can be referenced from now on
+            points.extend(renamed_points);
+
+            // TODO: per-zone mirroring for the new keys
+            // let axis = self.parse_axis(
+            //     mirror,
+            //     format!("points.zones.{name}.mirror"),
+            //     &points,
+            //     &units,
+            // )?;
+            //
+            // if (axis !== undefined) {
+            //   const mirrored_points = {}
+            //   for (const new_point of Object.values(new_points)) {
+            //     const [mname, mp] = perform_mirror(new_point, axis)
+            //     if (mp) {
+            //       mirrored_points[mname] = mp
+            //     }
+            //   }
+            //   points = Object.assign(points, mirrored_points)
+            // }
         }
+
+        // applying global rotation
+        if let Some(global_rotate) = global_rotate {
+            points = points
+                .iter()
+                .map(|(name, p)| (name.clone(), p.rotated(global_rotate, None, false)))
+                .collect();
+        }
+
+        // global mirroring for points that haven't been mirrored yet
+        // const global_axis = parse_axis(global_mirror, `points.mirror`, points, units)
+        // const global_mirrored_points = {}
+        // for (const point of Object.values(points)) {
+        //   if (global_axis !== undefined && point.meta.mirrored === undefined) {
+        //     const [mname, mp] = perform_mirror(point, global_axis)
+        //     if (mp) {
+        //       global_mirrored_points[mname] = mp
+        //     }
+        //   }
+        // }
+        // points = Object.assign(points, global_mirrored_points)
+        //
+        // removing temporary points
+        // const filtered = {}
+        // for (const [k, p] of Object.entries(points)) {
+        //   if (p.meta.skip) continue
+        //   filtered[k] = p
+        // }
+        //
+        // apply autobind
+        // perform_autobind(filtered, units)
+
+        Ok(points)
+    }
+
+    pub fn parse_axis(
+        &self,
+        mirror: Option<Mirror>,
+        name: String,
+        points: &IndexMap<String, Point>,
+        units: &IndexMap<String, f64>,
+    ) -> Result<Point> {
+        // let Some(mirror) = mirror else {
+        //     return Ok(mirror.into());
+        // };
 
         todo!()
     }
@@ -152,6 +253,9 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use std::{fs, path::Path};
+
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
 
     use super::*;
 
@@ -184,17 +288,19 @@ mod tests {
             let points_file = parent.join(format!("{file_stem}___points.json"));
 
             if !points_file.exists() {
+                println!("skipping {:?}", points_file);
                 continue;
             }
 
-            println!("reading {:?}", points_file);
+            println!("Reading {:?}", points_file);
             let expected = fs::read_to_string(points_file).unwrap();
             let expected: serde_json::Value = serde_json::from_str(&expected).unwrap();
 
             let actual = config.parse_points().unwrap();
 
-            println!("{:#?}", expected);
-            println!("{:#?}", actual);
+            assert_json_eq!(expected, json!(actual));
+            // println!("expected: {:#?}", expected);
+            // println!("actual: {:#?}", actual);
         }
     }
 
