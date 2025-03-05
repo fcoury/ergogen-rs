@@ -1,9 +1,10 @@
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
 use super::{Asym, Key};
 use crate::Result;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Point {
     pub x: Option<f64>,
     pub y: Option<f64>,
@@ -33,6 +34,12 @@ impl Point {
         }
         self.r = Some(self.r.unwrap_or_default() + angle);
         self
+    }
+
+    pub fn rotated(&self, angle: f64, origin: Option<(f64, f64)>, resist: bool) -> Self {
+        let mut point = self.clone();
+        point.rotate(angle, origin, resist);
+        point
     }
 
     pub fn angle(&self, other: &Point) -> f64 {
@@ -75,7 +82,7 @@ impl From<Point> for (f64, f64) {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ParsedMeta {
     stagger: f64,
     spread: f64,

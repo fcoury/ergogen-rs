@@ -251,20 +251,6 @@ impl Config {
         todo!()
     }
 
-    pub fn parse_axis(
-        &self,
-        mirror: Option<Mirror>,
-        name: String,
-        points: &IndexMap<String, Point>,
-        units: &IndexMap<String, f64>,
-    ) -> Result<Point> {
-        // let Some(mirror) = mirror else {
-        //     return Ok(mirror.into());
-        // };
-
-        todo!()
-    }
-
     pub fn units(&self) -> Units {
         self.units.clone().unwrap_or_default()
     }
