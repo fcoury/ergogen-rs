@@ -195,6 +195,12 @@ impl Config {
             //   }
             //   points = Object.assign(points, mirrored_points)
             // }
+            let axis = self.parse_axis(
+                mirror,
+                format!("points.zones.{name}.mirror"),
+                &points,
+                &units,
+            )?;
         }
 
         // applying global rotation
@@ -229,6 +235,20 @@ impl Config {
         // perform_autobind(filtered, units)
 
         Ok(points)
+    }
+
+    pub fn parse_axis(
+        &self,
+        mirror: Option<Mirror>,
+        name: String,
+        points: &IndexMap<String, Point>,
+        units: &IndexMap<String, f64>,
+    ) -> Result<Point> {
+        // let Some(mirror) = mirror else {
+        //     return Ok(mirror.into());
+        // };
+
+        todo!()
     }
 
     pub fn parse_axis(

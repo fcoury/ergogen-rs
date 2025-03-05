@@ -1,6 +1,7 @@
 mod aggregator;
 mod anchor;
 mod config;
+mod point;
 mod points;
 mod preprocess;
 mod template;
@@ -21,15 +22,22 @@ use crate::{expr::evaluate_expression, Error, Result};
 pub struct Meta {
     engine: Option<String>,
     name: Option<String>,
-    version: Option<String>,
+    version: Option<StringOrFloat>,
     ref_: Option<String>,
     author: Option<String>,
     url: Option<String>,
     footprint: Option<String>,
-    switch: Option<String>,
+    switch: Option<serde_yaml::Value>,
 }
 
 pub type Units = IndexMap<String, Unit>;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum StringOrFloat {
+    String(String),
+    Float(f64),
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]

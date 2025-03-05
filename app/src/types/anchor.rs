@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{aggregator::average, zone::Point, Unit, Units};
+use super::{aggregator::average, zone::Point, Unit};
 use crate::{Error, Result};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -21,6 +21,7 @@ impl Anchor {
         mirror: bool,
         units: &IndexMap<String, f64>,
     ) -> Result<Point> {
+        //     a.unexpected(raw, name, ['ref', 'aggregate', 'orient', 'shift', 'rotate', 'affect', 'resist'])
         let anchor = match self {
             Self::Ref(_) => AnchorItem {
                 ref_: Some(self.clone()),
@@ -223,10 +224,12 @@ impl Default for Anchor {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct AnchorItem {
-    /// starting point from where the anchor will perform its additional modifications. This field
+    /// Starting point from where the anchor will perform its additional modifications. This field
     /// is parsed as an anchor itself, recursively. So in its easiest form, it can be a string to
     /// designate an existing starting point by name (more on names later), but it can also be a
     /// full nested anchor if so desired.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "ref")]
     ref_: Option<Anchor>,
 
     /// Alternative to ref when the combination of several locations is required as the starting
@@ -240,6 +243,7 @@ pub struct AnchorItem {
     /// can be omitted for now.
     ///
     /// Note: Averaging applies to both the x/y coordinates and the r rotation.
+    #[serde(skip_serializing_if = "Option::is_none")]
     aggregate: Option<Aggregate>,
 
     /// Kind of pre-rotation, meaning it happens before any shifting is done. The value can be:
@@ -248,6 +252,7 @@ pub struct AnchorItem {
     ///   in-progress point calculation; or
     /// - a sub-anchor, in which case the point "turns towards" the point we reference (meaning its
     ///   rotations will be exactly set to hit that point if a line was projected from it).
+    #[serde(skip_serializing_if = "Option::is_none")]
     orient: Option<Unit>,
 
     /// Shifting (or, more formally, translating) the point on the XY plane. The value can be:
@@ -260,10 +265,12 @@ pub struct AnchorItem {
     /// right, negative x shifts to the left, positive y shifts up, negative y shifts down. But if
     /// r=90° (so the point is "looking left", as, remember, rotation works counter-clockwise),
     /// then a positive x shift would move it upward.
+    #[serde(skip_serializing_if = "Option::is_none")]
     shift: Option<Shift>,
 
     /// Kind of post-rotation after shifting, as opposed to how orient was the pre-rotation.
     /// Otherwise, it works the exact same way.
+    #[serde(skip_serializing_if = "Option::is_none")]
     rotate: Option<Unit>,
 
     /// Specify an override to what fields we want to affect during the current anchor calculation.
@@ -282,6 +289,7 @@ pub struct AnchorItem {
     /// current anchor calculation. You can do so using a multi-anchor (see above), referencing the
     /// existing point in the second part, and then declare affect: "r" to prevent it from
     /// overwriting anything else, thereby setting just the rotation.
+    #[serde(skip_serializing_if = "Option::is_none")]
     affect: Option<Vec<AffectType>>,
 
     /// States that we do not want the special treatment usually afforded to mirrored points. We'll
@@ -292,13 +300,17 @@ pub struct AnchorItem {
     /// cases, too. But if we don't want this behavior, (say, because PCB footprints go on the
     /// same, upward facing side of the board, no matter the half) we can resist the special
     /// treatment
+    #[serde(skip_serializing_if = "Option::is_none")]
     resist: Option<bool>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub enum AggregateMethod {
     #[default]
+    #[serde(rename = "average")]
     Average,
+    #[serde(rename = "intersect")]
+    Intersect,
 }
 
 impl AggregateMethod {
@@ -306,6 +318,7 @@ impl AggregateMethod {
     fn apply(&self, _agg: &Aggregate, _name: String, parts: &[Point]) -> Point {
         match self {
             Self::Average => average(parts),
+            Self::Intersect => todo!(),
         }
     }
 }
@@ -359,7 +372,47 @@ impl Shift {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AffectType {
+    #[serde(rename = "x")]
     X,
+    #[serde(rename = "y")]
     Y,
+    #[serde(rename = "r")]
     R,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serialize_anchor() {
+        let anchor = Anchor::Multiple(vec![AnchorItem {
+            ref_: Some(Anchor::Ref("thumb_far_home".to_string())),
+            shift: Some(Shift::XY(
+                Unit::Expression("-ks * 0.725 - 0.028".to_string()),
+                Unit::Expression("-kp * 0.48 + 0.023".to_string()),
+            )),
+            affect: Some(vec![AffectType::X, AffectType::Y]),
+            ..Default::default()
+        }]);
+
+        let serialized = serde_json::to_string_pretty(&anchor).unwrap();
+        println!("{}", serialized);
+        let deserialized: Anchor = serde_json::from_str(&serialized).unwrap();
+        println!("{:#?}", deserialized);
+    }
+
+    #[test]
+    fn deserialize_anchor() {
+        let anchor = r#"
+        - aggregate:
+            method: intersect
+            parts:
+              - ref: mcu_cover_top_left
+              - ref: mcu_cover_bottom_right
+        "#;
+
+        let deserialized: Anchor = serde_yaml::from_str(anchor).unwrap();
+        println!("{:#?}", deserialized);
+    }
 }
