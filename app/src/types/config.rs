@@ -260,8 +260,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_parse_real() {
+        let config = include_str!("../../fixtures/zeph.yaml");
+        let config = Config::parse(config).unwrap();
+        println!("{:#?}", config);
+    }
+
+    #[test]
     fn test_parse() {
-        for file in fs::read_dir("tests/points").unwrap() {
+        for file in fs::read_dir("fixtures/points").unwrap() {
             let Ok(file) = file else {
                 continue;
             };
@@ -306,56 +313,56 @@ mod tests {
 
     #[test]
     fn parse_basic() {
-        let config = include_str!("../../tests/points/basic_2x2.yaml");
+        let config = include_str!("../../fixtures/points/basic_2x2.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn parse_with_adjustments() {
-        let config = include_str!("../../tests/points/adjustments.yaml");
+        let config = include_str!("../../fixtures/points/adjustments.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn parse_autobind() {
-        let config = include_str!("../../tests/points/autobind.yaml");
+        let config = include_str!("../../fixtures/points/autobind.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn test_parse_default() {
-        let config = include_str!("../../tests/points/default.yaml");
+        let config = include_str!("../../fixtures/points/default.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn test_parse_mirrors() {
-        let config = include_str!("../../tests/points/mirrors.yaml");
+        let config = include_str!("../../fixtures/points/mirrors.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn test_parse_rotations() {
-        let config = include_str!("../../tests/points/rotations.yaml");
+        let config = include_str!("../../fixtures/points/rotations.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn test_parse_samename() {
-        let config = include_str!("../../tests/points/samename.yaml");
+        let config = include_str!("../../fixtures/points/samename.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn test_parse_units() {
-        let config = include_str!("../../tests/points/units.yaml");
+        let config = include_str!("../../fixtures/points/units.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
@@ -363,7 +370,7 @@ mod tests {
     #[test]
     #[ignore = "$unset is not implemented"]
     fn test_parse_unset() {
-        let config = include_str!("../../tests/points/overrides.yaml");
+        let config = include_str!("../../fixtures/points/overrides.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
