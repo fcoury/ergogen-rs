@@ -7,11 +7,10 @@ pub struct Rotation {
 }
 
 pub fn apply_rotations(rotations: &[Rotation], angle: f64, origin: &Point) -> Rotation {
-    let mut candidate = origin;
+    let mut candidate = origin.clone();
 
     for r in rotations.iter() {
-        // TODO: candidate = makerjs.point.rotate(candidate, r.angle, r.origin);
-        todo!("waiting for maker-rs");
+        candidate = candidate.rotated(r.angle, Some(r.origin.p()), false);
     }
 
     Rotation {
