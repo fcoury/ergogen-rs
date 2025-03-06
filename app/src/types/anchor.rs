@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{aggregator::average, zone::Point, Unit};
+use super::{aggregator::average, zone::Point, Asym, Unit};
 use crate::{Error, Result};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -10,6 +10,178 @@ pub enum Anchor {
     Ref(String),
     Single(Box<AnchorItem>),
     Multiple(Vec<AnchorItem>),
+}
+
+pub trait Anchored {
+    fn ref_(&self) -> Option<Anchor>;
+    fn aggregate(&self) -> Option<Aggregate>;
+    fn orient(&self) -> Option<Unit>;
+    fn shift(&self) -> Option<Shift>;
+    fn rotate(&self) -> Option<Unit>;
+    fn affect(&self) -> Option<Vec<AffectType>>;
+    fn resist(&self) -> Option<bool>;
+    fn asym(&self) -> Option<Asym>;
+}
+
+pub fn parse_anchored(
+    anchor: &dyn Anchored,
+    name: String,
+    points: &IndexMap<String, Point>,
+    start: Option<Point>,
+    mirror: bool,
+    units: &IndexMap<String, f64>,
+) -> Result<Point> {
+    let mut point = start.clone().unwrap_or_default();
+
+    if anchor.ref_().is_some() && anchor.aggregate().is_some() {
+        return Err(Error::AnchorParse {
+            name: name.clone(),
+            message: format!(
+                r#"Fields "ref" and "aggregate" cannot appear together in anchor "{name}"!"#
+            ),
+        });
+    }
+
+    match anchor.ref_() {
+        Some(Anchor::Ref(ref_)) => {
+            let parsed_ref = handle_mirror_ref(&ref_, mirror);
+            let Some(ref_point) = points.get(&parsed_ref) else {
+                return Err(Error::AnchorParse {
+                    name: name.clone(),
+                    message: format!(r#"Unknown point reference "{parsed_ref}""#),
+                });
+            };
+            point = ref_point.clone();
+        }
+        Some(anchor) => {
+            point = anchor.parse(name.clone(), points, Some(point), mirror, units)?;
+        }
+        None => {}
+    }
+
+    if let Some(agg) = anchor.aggregate() {
+        let mut parts = vec![];
+
+        for (index, part) in agg.parts.iter().enumerate() {
+            let part = Anchor::Single(Box::new(part.clone()));
+            parts.push(part.parse(
+                format!("{}[{}]", name, index),
+                points,
+                Some(point.clone()),
+                mirror,
+                units,
+            )?);
+
+            let method = agg.method.clone().unwrap_or_default();
+            point = method.apply(&agg, format!("{name}.aggregate"), &parts);
+        }
+    };
+
+    let resist = anchor.resist().unwrap_or_default();
+
+    // TODO: refactor
+    #[allow(clippy::too_many_arguments)]
+    fn rotator(
+        config: &Unit,
+        name: String,
+        point: Point,
+        start: Option<Point>,
+        points: &IndexMap<String, Point>,
+        resist: bool,
+        mirror: bool,
+        units: &IndexMap<String, f64>,
+    ) -> Result<Point> {
+        match config.eval(units) {
+            // simple case: number gets added to point rotation
+            crate::types::EvalResult::Number(angle) => {
+                let mut point = point.clone();
+                point.rotate(angle, None, resist);
+                Ok(point)
+            }
+            // recursive case: points turns "towards" target anchor
+            crate::types::EvalResult::Ref(ref_) => {
+                let anchor = Anchor::Ref(ref_);
+                let target = anchor.parse(name.clone(), points, start, mirror, units)?;
+                let mut point = point.clone();
+                point.r = Some(point.angle(&target));
+                Ok(point)
+            }
+        }
+    }
+
+    if let Some(orient) = anchor.orient() {
+        point = rotator(
+            &orient,
+            format!("{name}.orient"),
+            point,
+            start.clone(),
+            points,
+            resist,
+            mirror,
+            units,
+        )?;
+    }
+
+    if let Some(shift) = anchor.shift() {
+        match shift {
+            Shift::XY(x, y) => {
+                let x = x
+                    .eval(units)
+                    .as_number()
+                    .ok_or_else(|| Error::AnchorParse {
+                        name: name.clone(),
+                        message: format!(r#"Invalid shift value for x: "{x}""#),
+                    })?;
+                let y = y
+                    .eval(units)
+                    .as_number()
+                    .ok_or_else(|| Error::AnchorParse {
+                        name: name.clone(),
+                        message: format!(r#"Invalid shift value for y: "{y}""#),
+                    })?;
+                point.shift((x, y), Some(resist), None);
+            }
+            Shift::Number(n) => {
+                let n = n
+                    .eval(units)
+                    .as_number()
+                    .ok_or_else(|| Error::AnchorParse {
+                        name: name.clone(),
+                        message: format!(r#"Invalid shift value: "{n}""#),
+                    })?;
+                point.shift((n, n), Some(resist), None);
+            }
+        }
+    }
+
+    if let Some(rotate) = anchor.rotate() {
+        point = rotator(
+            &rotate,
+            format!("{name}.rotate"),
+            point,
+            start.clone(),
+            points,
+            resist,
+            mirror,
+            units,
+        )?;
+    }
+
+    if let Some(affect) = anchor.affect() {
+        let candidate = point.clone();
+        point = start.unwrap_or_default().clone();
+        point.meta = candidate.meta;
+
+        for field in affect {
+            match field {
+                AffectType::X => point.y = candidate.x,
+                AffectType::Y => point.y = candidate.y,
+                AffectType::R => point.r = candidate.r,
+            }
+        }
+    }
+
+    Ok(point)
 }
 
 impl Anchor {
@@ -46,157 +218,7 @@ impl Anchor {
             Self::Single(item) => (**item).clone(),
         };
 
-        let mut point = start.clone().unwrap_or_default();
-
-        if anchor.ref_.is_some() && anchor.aggregate.is_some() {
-            return Err(Error::AnchorParse {
-                name: name.clone(),
-                message: format!(
-                    r#"Fields "ref" and "aggregate" cannot appear together in anchor "{name}"!"#
-                ),
-            });
-        }
-
-        match anchor.ref_ {
-            Some(Anchor::Ref(ref_)) => {
-                let parsed_ref = handle_mirror_ref(&ref_, mirror);
-                let Some(ref_point) = points.get(&parsed_ref) else {
-                    return Err(Error::AnchorParse {
-                        name: name.clone(),
-                        message: format!(r#"Unknown point reference "{parsed_ref}""#),
-                    });
-                };
-                point = ref_point.clone();
-            }
-            Some(anchor) => {
-                point = anchor.parse(name.clone(), points, Some(point), mirror, units)?;
-            }
-            None => {}
-        }
-
-        if let Some(agg) = anchor.aggregate {
-            let mut parts = vec![];
-
-            for (index, part) in agg.parts.iter().enumerate() {
-                let part = Anchor::Single(Box::new(part.clone()));
-                parts.push(part.parse(
-                    format!("{}[{}]", name, index),
-                    points,
-                    Some(point.clone()),
-                    mirror,
-                    units,
-                )?);
-
-                let method = agg.method.clone().unwrap_or_default();
-                point = method.apply(&agg, format!("{name}.aggregate"), &parts);
-            }
-        };
-
-        let resist = anchor.resist.unwrap_or_default();
-
-        // TODO: refactor
-        #[allow(clippy::too_many_arguments)]
-        fn rotator(
-            config: &Unit,
-            name: String,
-            point: Point,
-            start: Option<Point>,
-            points: &IndexMap<String, Point>,
-            resist: bool,
-            mirror: bool,
-            units: &IndexMap<String, f64>,
-        ) -> Result<Point> {
-            match config.eval(units) {
-                // simple case: number gets added to point rotation
-                crate::types::EvalResult::Number(angle) => {
-                    let mut point = point.clone();
-                    point.rotate(angle, None, resist);
-                    Ok(point)
-                }
-                // recursive case: points turns "towards" target anchor
-                crate::types::EvalResult::Ref(ref_) => {
-                    let anchor = Anchor::Ref(ref_);
-                    let target = anchor.parse(name.clone(), points, start, mirror, units)?;
-                    let mut point = point.clone();
-                    point.r = Some(point.angle(&target));
-                    Ok(point)
-                }
-            }
-        }
-
-        if let Some(orient) = anchor.orient {
-            point = rotator(
-                &orient,
-                format!("{name}.orient"),
-                point,
-                start.clone(),
-                points,
-                resist,
-                mirror,
-                units,
-            )?;
-        }
-
-        if let Some(shift) = anchor.shift {
-            match shift {
-                Shift::XY(x, y) => {
-                    let x = x
-                        .eval(units)
-                        .as_number()
-                        .ok_or_else(|| Error::AnchorParse {
-                            name: name.clone(),
-                            message: format!(r#"Invalid shift value for x: "{x}""#),
-                        })?;
-                    let y = y
-                        .eval(units)
-                        .as_number()
-                        .ok_or_else(|| Error::AnchorParse {
-                            name: name.clone(),
-                            message: format!(r#"Invalid shift value for y: "{y}""#),
-                        })?;
-                    point.shift((x, y), Some(resist), None);
-                }
-                Shift::Number(n) => {
-                    let n = n
-                        .eval(units)
-                        .as_number()
-                        .ok_or_else(|| Error::AnchorParse {
-                            name: name.clone(),
-                            message: format!(r#"Invalid shift value: "{n}""#),
-                        })?;
-                    point.shift((n, n), Some(resist), None);
-                }
-            }
-        }
-
-        if let Some(rotate) = anchor.rotate {
-            point = rotator(
-                &rotate,
-                format!("{name}.rotate"),
-                point,
-                start.clone(),
-                points,
-                resist,
-                mirror,
-                units,
-            )?;
-        }
-
-        if let Some(affect) = anchor.affect {
-            let candidate = point.clone();
-            point = start.unwrap_or_default().clone();
-            point.meta = candidate.meta;
-
-            for field in affect {
-                match field {
-                    AffectType::X => point.y = candidate.x,
-                    AffectType::Y => point.y = candidate.y,
-                    AffectType::R => point.r = candidate.r,
-                }
-            }
-        }
-
-        Ok(point)
+        parse_anchored(&anchor, name, points, start, mirror, units)
     }
 }
 
@@ -304,6 +326,40 @@ pub struct AnchorItem {
     resist: Option<bool>,
 }
 
+impl Anchored for AnchorItem {
+    fn ref_(&self) -> Option<Anchor> {
+        self.ref_.clone()
+    }
+
+    fn aggregate(&self) -> Option<Aggregate> {
+        self.aggregate.clone()
+    }
+
+    fn orient(&self) -> Option<Unit> {
+        self.orient.clone()
+    }
+
+    fn shift(&self) -> Option<Shift> {
+        self.shift.clone()
+    }
+
+    fn rotate(&self) -> Option<Unit> {
+        self.rotate.clone()
+    }
+
+    fn affect(&self) -> Option<Vec<AffectType>> {
+        self.affect.clone()
+    }
+
+    fn resist(&self) -> Option<bool> {
+        self.resist
+    }
+
+    fn asym(&self) -> Option<Asym> {
+        None
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub enum AggregateMethod {
     #[default]
@@ -370,7 +426,7 @@ impl Shift {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum AffectType {
     #[serde(rename = "x")]
     X,

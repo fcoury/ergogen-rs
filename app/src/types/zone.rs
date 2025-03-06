@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{config::Config, Anchor, Asym, Key, Mirror, Unit};
+use super::{config::Config, Anchor, Asym, Bind, Key, Mirror, Unit};
 use crate::{types::points::apply_rotations, Result};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -13,6 +13,10 @@ pub struct Point {
 }
 
 impl Point {
+    pub fn is_skip(&self) -> bool {
+        self.meta.as_ref().is_some_and(|meta| meta.skip)
+    }
+
     pub fn p(&self) -> (f64, f64) {
         (self.x.unwrap_or_default(), self.y.unwrap_or_default())
     }
@@ -74,6 +78,81 @@ impl Point {
         self.y = Some(self.y.unwrap_or_default() + y);
         self
     }
+
+    pub fn mirror(&mut self, x_axis: f64) -> &mut Self {
+        let x = self.x.unwrap_or_default();
+        self.x = Some(2.0 * x_axis - x);
+        self
+    }
+
+    pub fn mirrored(&self, x_axis: f64) -> Self {
+        let x = self.x.unwrap_or_default();
+        let x = 2.0 * x_axis - x;
+
+        Point {
+            x: Some(x),
+            y: self.y,
+            r: self.r,
+            meta: self.meta.clone(),
+        }
+    }
+
+    pub fn meta_bind(&self, units: &IndexMap<String, f64>) -> Result<Option<[f64; 4]>> {
+        let option_result = self
+            .meta
+            .as_ref()
+            .and_then(|meta| meta.bind.as_ref())
+            .map(|bind| bind.resolve(units));
+
+        match option_result {
+            Some(result) => result.map(Some),
+            None => Ok(None),
+        }
+    }
+
+    pub fn meta_col_name(&self) -> &str {
+        self.meta.as_ref().map_or("", |meta| meta.colrow.as_str())
+    }
+
+    pub fn meta_zone_columns(&self) -> IndexMap<String, Column> {
+        self.meta.as_ref().map_or(IndexMap::new(), |meta| {
+            meta.zone
+                .as_ref()
+                .map_or(IndexMap::new(), |zone| zone.columns())
+        })
+    }
+}
+
+pub fn perform_mirror(point: &Point, axis: f64) -> (String, Option<Point>) {
+    let Some(meta) = &point.meta else {
+        return ("".to_string(), None);
+    };
+
+    let mut meta = meta.clone();
+    meta.mirrored = false;
+
+    if let Some(asym) = meta.asym {
+        if asym.is_source() {
+            return ("".to_string(), None);
+        }
+    }
+
+    let mut mirrored_point = point.mirrored(axis);
+
+    let mirrored_name = format!("mirror_{}", meta.colrow);
+    let mut new_meta = meta.clone();
+    new_meta.colrow = mirrored_name.clone();
+    new_meta.mirrored = true;
+    if let Some(asym) = new_meta.asym {
+        if asym.is_clone() {
+            new_meta.skip = true;
+        }
+    }
+
+    // TODO: we're missing this mp.meta = prep.extend(mp.meta, mp.meta.mirror || {});
+    mirrored_point.meta = Some(new_meta);
+
+    (mirrored_name, Some(mirrored_point.clone()))
 }
 
 impl From<Point> for (f64, f64) {
@@ -84,27 +163,35 @@ impl From<Point> for (f64, f64) {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ParsedMeta {
-    stagger: f64,
-    spread: f64,
-    origin: (f64, f64),
-    orient: f64,
-    shift: (f64, f64),
-    rotate: f64,
+    pub stagger: f64,
+    pub spread: f64,
+    pub origin: (f64, f64),
+    pub orient: f64,
+    pub shift: (f64, f64),
+    pub rotate: f64,
     // TODO: adjust: {}
-    width: f64,
-    height: f64,
-    padding: f64,
-    autobind: f64,
-    skip: bool,
-    asym: Option<Asym>,
-    colrow: String,
-    name: String,
-    mirrored: bool,
+    pub width: f64,
+    pub height: f64,
+    pub padding: f64,
+    pub autobind: f64,
+    pub skip: bool,
+    pub asym: Option<Asym>,
+    pub colrow: String,
+    pub name: String,
+    pub mirrored: bool,
     // zone: ParsedZone,
+    pub zone: Option<Zone>,
+    pub bind: Option<Bind>,
 }
 
 impl ParsedMeta {
-    fn from(key: Key, units: &IndexMap<String, f64>) -> Result<Self> {
+    pub fn zone_name(&self) -> String {
+        self.zone
+            .as_ref()
+            .map_or("".to_string(), |zone| zone.name.clone().unwrap_or_default())
+    }
+
+    fn from(zone: &Zone, key: Key, units: &IndexMap<String, f64>) -> Result<Self> {
         let mut meta = ParsedMeta::default();
         let key_name = key.name.unwrap_or("key".to_string());
 
@@ -162,6 +249,7 @@ impl ParsedMeta {
         }
 
         meta.name = key_name;
+        meta.zone = Some(zone.clone());
 
         // TODO: How to handle mirroring here?
         // if let Some(mirrored) = key.mirror {
@@ -174,12 +262,19 @@ impl ParsedMeta {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Zone {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub anchor: Option<Anchor>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub columns: Option<IndexMap<String, Column>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rows: Option<IndexMap<String, Option<Row>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<Key>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mirror: Option<Mirror>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rotate: Option<Unit>,
 }
 
@@ -306,7 +401,7 @@ impl Zone {
                     .clone()
                     .unwrap_or_default()
                     .eval_as_number("key.padding", units)?;
-                point.meta = Some(ParsedMeta::from(key, units)?);
+                point.meta = Some(ParsedMeta::from(self, key, units)?);
                 points.insert(key_name, point);
 
                 // advance the running anchor to the next position
@@ -322,8 +417,11 @@ impl Zone {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Column {
+    #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     key: Option<Key>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     rows: Option<IndexMap<String, Option<Row>>>,
 }
 
@@ -335,6 +433,7 @@ impl Column {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Row {
+    #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<String>,
 }
 

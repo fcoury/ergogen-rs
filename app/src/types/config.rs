@@ -1,19 +1,37 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{preprocess::preprocess, Meta, Mirror, Points, Unit, Units};
-use crate::{types::zone::Point, units::evaluate_mathnum, Error, Result};
+use super::{preprocess::preprocess, yaml::preprocess_extends, Meta, Mirror, Points, Unit, Units};
+use crate::{
+    types::{
+        anchor::parse_anchored,
+        zone::{perform_mirror, Point},
+    },
+    units::evaluate_mathnum,
+    Error, Result,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub meta: Option<Meta>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub units: Option<Units>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub variables: Option<Units>,
     pub points: Points,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rotate: Option<Unit>,
 }
 
 impl Config {
+    pub fn process(config: impl ToString) -> Result<IndexMap<String, Point>> {
+        let config = preprocess_extends(config.to_string())?;
+        let config = Config::parse(config)?;
+        config.resolve_units()?;
+        config.parse_points()
+    }
+
     pub fn parse(config: impl ToString) -> Result<Self> {
         let config = config.to_string();
         let config = serde_yaml::from_str(&config)?;
@@ -124,6 +142,7 @@ impl Config {
         let mut points = IndexMap::new();
         let units = self.resolve_units()?;
 
+        // rendering zones
         for (name, zone) in self.points.zones.iter() {
             println!("Processing zone {name}...");
             let mut zone = zone.clone();
@@ -175,32 +194,25 @@ impl Config {
             }
 
             // adding new points so that they can be referenced from now on
-            points.extend(renamed_points);
+            points.extend(renamed_points.clone());
 
-            // TODO: per-zone mirroring for the new keys
-            // let axis = self.parse_axis(
-            //     mirror,
-            //     format!("points.zones.{name}.mirror"),
-            //     &points,
-            //     &units,
-            // )?;
-            //
-            // if (axis !== undefined) {
-            //   const mirrored_points = {}
-            //   for (const new_point of Object.values(new_points)) {
-            //     const [mname, mp] = perform_mirror(new_point, axis)
-            //     if (mp) {
-            //       mirrored_points[mname] = mp
-            //     }
-            //   }
-            //   points = Object.assign(points, mirrored_points)
-            // }
-            let axis = self.parse_axis(
+            // per-zone mirroring for the new keys
+            if let Some(axis) = self.parse_axis(
                 mirror,
                 format!("points.zones.{name}.mirror"),
                 &points,
                 &units,
-            )?;
+            )? {
+                let mut mirrored_points = IndexMap::new();
+                for (_new_name, new_point) in renamed_points.iter() {
+                    let (mname, mp) = perform_mirror(new_point, axis);
+                    if let Some(mp) = mp {
+                        mirrored_points.insert(mname, mp);
+                    }
+                }
+
+                points.extend(mirrored_points);
+            }
         }
 
         // applying global rotation
@@ -212,27 +224,35 @@ impl Config {
         }
 
         // global mirroring for points that haven't been mirrored yet
-        // const global_axis = parse_axis(global_mirror, `points.mirror`, points, units)
-        // const global_mirrored_points = {}
-        // for (const point of Object.values(points)) {
-        //   if (global_axis !== undefined && point.meta.mirrored === undefined) {
-        //     const [mname, mp] = perform_mirror(point, global_axis)
-        //     if (mp) {
-        //       global_mirrored_points[mname] = mp
-        //     }
-        //   }
-        // }
-        // points = Object.assign(points, global_mirrored_points)
-        //
+        let global_mirror = self.points.mirror.clone();
+        let global_axis =
+            self.parse_axis(global_mirror, "points.mirror".to_string(), &points, &units)?;
+        let global_mirrored_points: IndexMap<_, _> = points
+            .iter()
+            .filter_map(|(_, point)| {
+                if let Some(meta) = &point.meta {
+                    if meta.mirrored {
+                        let (mirrored_name, mirrored_point) = perform_mirror(point, global_axis?);
+                        mirrored_point.map(|mirrored_point| (mirrored_name, mirrored_point))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        points.extend(global_mirrored_points);
+
         // removing temporary points
-        // const filtered = {}
-        // for (const [k, p] of Object.entries(points)) {
-        //   if (p.meta.skip) continue
-        //   filtered[k] = p
-        // }
-        //
+        points = points
+            .into_iter()
+            .filter(|(_, point)| !point.is_skip())
+            .collect();
+
         // apply autobind
-        // perform_autobind(filtered, units)
+        perform_autobind(&mut points, units)?;
 
         Ok(points)
     }
@@ -243,17 +263,165 @@ impl Config {
         name: String,
         points: &IndexMap<String, Point>,
         units: &IndexMap<String, f64>,
-    ) -> Result<Point> {
-        // let Some(mirror) = mirror else {
-        //     return Ok(mirror.into());
-        // };
+    ) -> Result<Option<f64>> {
+        let Some(mirror) = mirror else {
+            return Ok(None);
+        };
 
-        todo!()
+        let axis = parse_anchored(&mirror, name.clone(), points, None, false, units)?;
+        let mut axis_x = axis.x.unwrap_or_default();
+
+        if let Some(distance) = mirror.distance {
+            let distance = distance.eval_as_number(&format!("{name}.distance"), units)?;
+            axis_x += distance / 2.0;
+        }
+
+        Ok(Some(axis_x))
     }
 
     pub fn units(&self) -> Units {
         self.units.clone().unwrap_or_default()
     }
+}
+
+fn mirrorzone(p: &Point) -> String {
+    let mirrored = match &p.meta {
+        Some(meta) => meta.mirrored,
+        None => false,
+    };
+    let zone_name = match &p.meta {
+        Some(meta) => meta.zone_name(),
+        None => "".to_string(),
+    };
+
+    let prefix = if mirrored { "mirror_" } else { "" };
+    format!("{}{}", prefix, zone_name)
+}
+
+pub fn perform_autobind(
+    points: &mut IndexMap<String, Point>,
+    units: IndexMap<String, f64>,
+) -> Result<()> {
+    let mut bounds = IndexMap::new();
+    let mut col_lists = IndexMap::new();
+
+    // round one: get column upper/lower bounds and per-zone column lists
+    perform_autobind_round1(points, &mut bounds, &mut col_lists)?;
+    // round two: apply autobind as appropriate
+    perform_autobind_round2(points, &bounds, &col_lists, &units)?;
+
+    Ok(())
+}
+
+fn perform_autobind_round1(
+    points: &mut IndexMap<String, Point>,
+    bounds: &mut IndexMap<String, IndexMap<String, (f64, f64)>>,
+    col_lists: &mut IndexMap<String, Vec<String>>,
+) -> Result<()> {
+    for (_, point) in points.iter_mut() {
+        let zone = mirrorzone(point);
+        let col = point.meta_col_name();
+
+        if !bounds.contains_key(&zone) {
+            bounds.insert(zone.clone(), IndexMap::new());
+        }
+        if !bounds[&zone].contains_key(col) {
+            bounds
+                .get_mut(&zone)
+                .unwrap()
+                .insert(col.to_string(), (f64::INFINITY, f64::NEG_INFINITY));
+        }
+        if !col_lists.contains_key(&zone) {
+            let value: Vec<_> = point.meta_zone_columns().keys().cloned().collect();
+            col_lists.insert(zone.clone(), value);
+        }
+
+        let (min, max) = bounds.get_mut(&zone).unwrap().get_mut(col).unwrap();
+        *min = min.min(point.y.unwrap_or_default());
+        *max = max.max(point.y.unwrap_or_default());
+    }
+
+    Ok(())
+}
+
+fn perform_autobind_round2(
+    points: &mut IndexMap<String, Point>,
+    bounds: &IndexMap<String, IndexMap<String, (f64, f64)>>,
+    col_lists: &IndexMap<String, Vec<String>>,
+    units: &IndexMap<String, f64>,
+) -> Result<()> {
+    for (_, point) in points.iter_mut() {
+        let autobind = point.meta.as_ref().map(|meta| meta.autobind);
+        if let Some(autobind) = autobind {
+            let zone = mirrorzone(point);
+            let col = point.meta_col_name();
+            let col_list = col_lists[zone.as_str()].clone();
+            let col_bounds = bounds[zone.as_str()][col];
+
+            let Some(mut bind) = point.meta_bind(units)? else {
+                continue;
+            };
+
+            // up
+            if bind[0] == -1.0 {
+                if point.y.unwrap_or_default() < col_bounds.1 {
+                    bind[0] = autobind;
+                } else {
+                    bind[0] = 0.0;
+                }
+            }
+
+            // down
+            if bind[2] == -1.0 {
+                if point.y.unwrap_or_default() > col_bounds.0 {
+                    bind[2] = autobind;
+                } else {
+                    bind[2] = 0.0;
+                }
+            }
+
+            // left
+            if bind[3] == -1.0 {
+                bind[3] = 0.0;
+                let col_index = col_list.iter().position(|c| *c == col).unwrap_or_default();
+                if col_index > 0 {
+                    if let Some(left) = bounds.get(&zone) {
+                        let col_name = col_list[col_index - 1].clone();
+                        if let Some(left) = left.get(col_name.as_str()) {
+                            if left.0 <= point.y.unwrap_or_default()
+                                && point.y.unwrap_or_default() <= left.1
+                            {
+                                bind[3] = autobind;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // right
+            if bind[1] == -1.0 {
+                bind[1] = 0.0;
+                let col_index = col_list.iter().position(|c| *c == col).unwrap_or_default();
+                if col_index < col_list.len() - 1 {
+                    if let Some(right) = bounds.get(&zone) {
+                        let col_name = col_list[col_index + 1].clone();
+                        if let Some(right) = right.get(col_name.as_str()) {
+                            if right.0 <= point.y.unwrap_or_default()
+                                && point.y.unwrap_or_default() <= right.1
+                            {
+                                bind[1] = autobind;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let meta = point.meta.as_mut().unwrap();
+            meta.bind = Some(bind.into());
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -268,8 +436,18 @@ mod tests {
     #[test]
     fn test_parse_real() {
         let config = include_str!("../../fixtures/zeph.yaml");
-        let config = Config::parse(config).unwrap();
-        println!("{:#?}", config);
+        let config = Config::process(config).unwrap();
+
+        let ours = serde_json::to_value(config).unwrap();
+        fs::write(
+            "fixtures/zeph___output.json",
+            serde_json::to_string_pretty(&ours).unwrap(),
+        )
+        .unwrap();
+        let theirs = include_str!("../../fixtures/zeph___points.json");
+        let theirs: serde_json::Value = serde_json::from_str(theirs).unwrap();
+
+        assert_json_eq!(theirs, ours);
     }
 
     #[test]

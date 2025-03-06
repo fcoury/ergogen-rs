@@ -1,15 +1,22 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{Asym, Key};
+use super::{
+    anchor::{AffectType, Aggregate, Anchor, Anchored, Shift},
+    Asym, Key, Unit,
+};
 use crate::Result;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Point {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub x: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub y: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub r: Option<f64>,
-    pub meta: Option<ParsedMeta>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta: Option<AnchorInfo>,
 }
 
 impl Point {
@@ -83,29 +90,34 @@ impl From<Point> for (f64, f64) {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct ParsedMeta {
-    stagger: f64,
-    spread: f64,
-    origin: (f64, f64),
-    orient: f64,
-    shift: (f64, f64),
-    rotate: f64,
+pub struct AnchorInfo {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ref_: Option<Anchor>,
+    pub stagger: f64,
+    pub spread: f64,
+    pub origin: (f64, f64),
+    pub orient: f64,
+    pub shift: (f64, f64),
+    pub rotate: f64,
     // TODO: adjust: {}
-    width: f64,
-    height: f64,
-    padding: f64,
-    autobind: f64,
-    skip: bool,
-    asym: Option<Asym>,
-    colrow: String,
-    name: String,
-    mirrored: bool,
+    pub width: f64,
+    pub height: f64,
+    pub padding: f64,
+    pub autobind: f64,
+    pub skip: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asym: Option<Asym>,
+    pub colrow: String,
+    pub name: String,
+    pub mirrored: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub affect: Option<Vec<AffectType>>,
     // zone: ParsedZone,
 }
 
-impl ParsedMeta {
+impl AnchorInfo {
     fn from(key: Key, units: &IndexMap<String, f64>) -> Result<Self> {
-        let mut meta = ParsedMeta::default();
+        let mut meta = AnchorInfo::default();
         let key_name = key.name.unwrap_or("key".to_string());
 
         if let Some(stagger) = key.stagger {
@@ -169,5 +181,42 @@ impl ParsedMeta {
         // }
 
         Ok(meta)
+    }
+}
+
+impl Anchored for AnchorInfo {
+    fn ref_(&self) -> Option<Anchor> {
+        self.ref_.clone()
+    }
+
+    fn aggregate(&self) -> Option<Aggregate> {
+        None
+    }
+
+    fn orient(&self) -> Option<Unit> {
+        Some(Unit::Number(self.orient))
+    }
+
+    fn shift(&self) -> Option<Shift> {
+        let x = Unit::Number(self.shift.0);
+        let y = Unit::Number(self.shift.1);
+        Some(Shift::XY(x, y))
+    }
+
+    fn rotate(&self) -> Option<Unit> {
+        Some(Unit::Number(self.rotate))
+    }
+
+    fn affect(&self) -> Option<Vec<AffectType>> {
+        self.affect.clone()
+    }
+
+    fn resist(&self) -> Option<bool> {
+        // TODO: do we need this?
+        None
+    }
+
+    fn asym(&self) -> Option<Asym> {
+        self.asym
     }
 }
