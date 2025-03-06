@@ -46,9 +46,16 @@ pub fn parse_anchored(
         Some(Anchor::Ref(ref_)) => {
             let parsed_ref = handle_mirror_ref(&ref_, mirror);
             let Some(ref_point) = points.get(&parsed_ref) else {
+                let known_points = points
+                    .keys()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 return Err(Error::AnchorParse {
                     name: name.clone(),
-                    message: format!(r#"Unknown point reference "{parsed_ref}""#),
+                    message: format!(
+                        r#"Unknown point reference "{parsed_ref}". Known points: {known_points}"#
+                    ),
                 });
             };
             point = ref_point.clone();
