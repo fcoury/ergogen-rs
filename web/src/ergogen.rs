@@ -60,6 +60,7 @@ fn get_error_style() -> Style {
     .unwrap()
 }
 
+#[allow(unused)]
 fn get_split_style() -> Style {
     style!(
         r#"
@@ -83,6 +84,7 @@ fn get_split_style() -> Style {
     .unwrap()
 }
 
+#[allow(unused)]
 fn get_left_split_pane_style() -> Style {
     style!(
         r#"
@@ -93,6 +95,7 @@ fn get_left_split_pane_style() -> Style {
     .unwrap()
 }
 
+#[allow(unused)]
 fn get_right_split_pane_style() -> Style {
     style!(
         r#"

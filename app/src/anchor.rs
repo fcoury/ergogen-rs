@@ -1,344 +1,533 @@
 use indexmap::IndexMap;
-use nalgebra::{Point2, Vector2};
-use serde_json::Value;
-use std::f64::consts::PI;
+use serde::{Deserialize, Serialize};
 
-use crate::{point::Point, Error, Result};
+use crate::{
+    aggregator::average,
+    types::{Asym, Unit},
+    zone::Point,
+};
+use crate::{Error, Result};
 
-/// Convert a reference to its mirrored version or vice versa
-pub fn mirror_ref(reference: &str, mirror: bool) -> String {
-    if mirror {
-        if reference.starts_with("mirror_") {
-            reference[7..].to_string()
-        } else {
-            format!("mirror_{}", reference)
-        }
-    } else {
-        reference.to_string()
-    }
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Anchor {
+    Ref(String),
+    Single(Box<AnchorItem>),
+    Multiple(Vec<AnchorItem>),
 }
 
-/// Common fields for all aggregators
-const AGGREGATOR_COMMON: [&str; 2] = ["parts", "method"];
+pub trait Anchored {
+    fn ref_(&self) -> Option<Anchor>;
+    fn aggregate(&self) -> Option<Aggregate>;
+    fn orient(&self) -> Option<Unit>;
+    fn shift(&self) -> Option<Shift>;
+    fn rotate(&self) -> Option<Unit>;
+    fn affect(&self) -> Option<Vec<AffectType>>;
+    fn resist(&self) -> Option<bool>;
+    fn asym(&self) -> Option<Asym>;
+}
 
-/// Parse an anchor configuration and return a point
-pub fn parse(
-    raw: &Value,
-    name: &str,
+pub trait AnchoredDebug: Anchored + std::fmt::Debug {}
+
+impl<T: Anchored + std::fmt::Debug> AnchoredDebug for T {}
+
+pub fn parse_anchored(
+    anchor: &dyn AnchoredDebug,
+    name: String,
     points: &IndexMap<String, Point>,
-    start: Option<&Point>,
+    start: Option<Point>,
     mirror: bool,
     units: &IndexMap<String, f64>,
 ) -> Result<Point> {
-    // Default starting point
-    let start = start.cloned().unwrap_or_else(Point::default);
+    let mut point = start.clone().unwrap_or_default();
 
-    // Handle different anchor types
-    match raw {
-        // String reference
-        Value::String(s) => parse(
-            &Value::Object(serde_json::Map::from_iter(vec![(
-                "ref".to_string(),
-                Value::String(s.clone()),
-            )])),
-            name,
-            points,
-            Some(&start),
-            mirror,
-            units,
-        ),
+    if anchor.ref_().is_some() && anchor.aggregate().is_some() {
+        return Err(Error::AnchorParse {
+            name: name.clone(),
+            message: format!(
+                r#"Fields "ref" and "aggregate" cannot appear together in anchor "{name}"!"#
+            ),
+        });
+    }
 
-        // Array of successive anchors
-        Value::Array(arr) => {
-            let mut current = start.clone();
-            for (i, step) in arr.iter().enumerate() {
-                current = parse(
-                    step,
-                    &format!("{}[{}]", name, i + 1),
-                    points,
-                    Some(&current),
-                    mirror,
-                    units,
-                )?;
-            }
-            Ok(current)
+    match anchor.ref_() {
+        Some(Anchor::Ref(ref_)) => {
+            let parsed_ref = handle_mirror_ref(&ref_, mirror);
+            let Some(ref_point) = points.get(&parsed_ref) else {
+                let known_points = points
+                    .keys()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                return Err(Error::AnchorParse {
+                    name: name.clone(),
+                    message: format!(
+                        r#"Unknown point reference "{parsed_ref}". Known points: {known_points}"#
+                    ),
+                });
+            };
+            point = ref_point.clone();
+        }
+        Some(anchor) => {
+            point = anchor.parse(name.clone(), points, Some(point), mirror, units)?;
+        }
+        None => {}
+    }
+
+    if let Some(agg) = anchor.aggregate() {
+        let mut parts = vec![];
+
+        for (index, part) in agg.parts.iter().enumerate() {
+            let part = Anchor::Single(Box::new(part.clone()));
+            parts.push(part.parse(
+                format!("{}[{}]", name, index),
+                points,
+                Some(point.clone()),
+                mirror,
+                units,
+            )?);
         }
 
-        // Object with anchor properties
-        Value::Object(obj) => {
-            let mut point = start.clone();
+        let method = agg.method.clone().unwrap_or_default();
+        point = method.apply(&agg, format!("{name}.aggregate"), &parts)?;
+    };
 
-            // Check if we have a reference or aggregate (they are mutually exclusive)
-            if obj.contains_key("ref") && obj.contains_key("aggregate") {
-                return Err(Error::Config(format!(
-                    "Fields \"ref\" and \"aggregate\" cannot appear together in anchor \"{}\"!",
-                    name
-                )));
+    let resist = anchor.resist().unwrap_or_default();
+
+    // TODO: refactor
+    #[allow(clippy::too_many_arguments)]
+    fn rotator(
+        config: &Unit,
+        name: String,
+        point: Point,
+        start: Option<Point>,
+        points: &IndexMap<String, Point>,
+        resist: bool,
+        mirror: bool,
+        units: &IndexMap<String, f64>,
+    ) -> Result<Point> {
+        match config.eval(units) {
+            // simple case: number gets added to point rotation
+            crate::types::EvalResult::Number(angle) => {
+                let mut point = point.clone();
+                point.rotate(angle, None, resist);
+                Ok(point)
             }
-
-            // Handle reference
-            if let Some(reference) = obj.get("ref") {
-                match reference {
-                    // String reference
-                    Value::String(ref_str) => {
-                        let parsed_ref = mirror_ref(ref_str, mirror);
-                        if let Some(referenced_point) = points.get(&parsed_ref) {
-                            point = referenced_point.clone();
-                        } else {
-                            return Err(Error::Config(format!(
-                                "Unknown point reference \"{}\" in anchor \"{}\"!",
-                                parsed_ref, name
-                            )));
-                        }
-                    }
-                    // Recursive reference parsing
-                    _ => {
-                        point = parse(
-                            reference,
-                            &format!("{}.ref", name),
-                            points,
-                            Some(&start),
-                            mirror,
-                            units,
-                        )?;
-                    }
-                }
+            // recursive case: points turns "towards" target anchor
+            crate::types::EvalResult::Ref(ref_) => {
+                let anchor = Anchor::Ref(ref_);
+                let target = anchor.parse(name.clone(), points, start, mirror, units)?;
+                let mut point = point.clone();
+                point.r = Some(point.angle(&target));
+                Ok(point)
             }
+        }
+    }
 
-            // Handle aggregation
-            if let Some(Value::Object(agg_obj)) = obj.get("aggregate") {
-                // Get aggregation method
-                let method = agg_obj
-                    .get("method")
-                    .and_then(|m| m.as_str())
-                    .unwrap_or("average");
+    if let Some(orient) = anchor.orient() {
+        point = rotator(
+            &orient,
+            format!("{name}.orient"),
+            point,
+            start.clone(),
+            points,
+            resist,
+            mirror,
+            units,
+        )?;
+    }
 
-                // Get parts to aggregate
-                let parts = match agg_obj.get("parts") {
-                    Some(Value::Array(parts_arr)) => parts_arr,
-                    _ => {
-                        return Err(Error::Config(format!(
-                            "Field \"{}.aggregate.parts\" must be an array!",
-                            name
-                        )))
-                    }
-                };
+    if let Some(shift) = anchor.shift() {
+        match shift {
+            Shift::XY(x, y) => {
+                let x = x
+                    .eval(units)
+                    .as_number()
+                    .ok_or_else(|| Error::AnchorParse {
+                        name: name.clone(),
+                        message: format!(r#"Invalid shift value for x: "{x}""#),
+                    })?;
+                let y = y
+                    .eval(units)
+                    .as_number()
+                    .ok_or_else(|| Error::AnchorParse {
+                        name: name.clone(),
+                        message: format!(r#"Invalid shift value for y: "{y}""#),
+                    })?;
+                point.shift((x, y), Some(resist), None);
+            }
+            Shift::Number(n) => {
+                let n = n
+                    .eval(units)
+                    .as_number()
+                    .ok_or_else(|| Error::AnchorParse {
+                        name: name.clone(),
+                        message: format!(r#"Invalid shift value: "{n}""#),
+                    })?;
+                point.shift((n, n), Some(resist), None);
+            }
+        }
+    }
 
-                // Parse each part
-                let mut parsed_parts = Vec::new();
-                for (i, part) in parts.iter().enumerate() {
-                    let parsed = parse(
-                        part,
-                        &format!("{}.aggregate.parts[{}]", name, i + 1),
+    if let Some(rotate) = anchor.rotate() {
+        point = rotator(
+            &rotate,
+            format!("{name}.rotate"),
+            point,
+            start.clone(),
+            points,
+            resist,
+            mirror,
+            units,
+        )?;
+    }
+
+    if let Some(affect) = anchor.affect() {
+        let candidate = point.clone();
+        point = start.unwrap_or_default().clone();
+        point.meta = candidate.meta;
+
+        for field in affect {
+            match field {
+                AffectType::X => point.y = candidate.x,
+                AffectType::Y => point.y = candidate.y,
+                AffectType::R => point.r = candidate.r,
+            }
+        }
+    }
+
+    Ok(point)
+}
+
+impl Anchor {
+    pub fn parse(
+        &self,
+        name: String,
+        points: &IndexMap<String, Point>,
+        start: Option<Point>,
+        mirror: bool,
+        units: &IndexMap<String, f64>,
+    ) -> Result<Point> {
+        //     a.unexpected(raw, name, ['ref', 'aggregate', 'orient', 'shift', 'rotate', 'affect', 'resist'])
+        let anchor = match self {
+            Self::Ref(_) => AnchorItem {
+                ref_: Some(self.clone()),
+                ..Default::default()
+            },
+            Self::Multiple(items) => {
+                let mut current = start.clone().unwrap_or_default();
+                let mut index = 1;
+                for step in items {
+                    let anchor = Anchor::Single(Box::new(step.clone()));
+                    current = anchor.parse(
+                        format!("{}[{}]", name, index),
                         points,
-                        Some(&start),
+                        Some(current),
                         mirror,
                         units,
                     )?;
-                    parsed_parts.push(parsed);
+                    index += 1;
                 }
-
-                // Apply aggregation method
-                match method {
-                    "average" => {
-                        if parsed_parts.is_empty() {
-                            point = Point::default();
-                        } else {
-                            let len = parsed_parts.len() as f64;
-                            let mut x = 0.0;
-                            let mut y = 0.0;
-                            let mut r = 0.0;
-
-                            for part in &parsed_parts {
-                                x += part.x;
-                                y += part.y;
-                                r += part.r;
-                            }
-
-                            point = Point::new(x / len, y / len, r / len, IndexMap::new());
-                        }
-                    }
-                    "intersect" => {
-                        if parsed_parts.len() != 2 {
-                            return Err(Error::Config(format!(
-                                "Intersect expects exactly two parts, but got {}!",
-                                parsed_parts.len()
-                            )));
-                        }
-
-                        // Get the two points
-                        let p1 = &parsed_parts[0];
-                        let p2 = &parsed_parts[1];
-
-                        // Create lines from the points
-
-                        // Line 1: from point 1 along its Y axis (rotated)
-                        let p1_origin = Point2::new(p1.x, p1.y);
-                        let p1_vec = Vector2::new(0.0, -1.0); // Up direction
-                        let p1_rot = p1.r * PI / 180.0;
-                        let p1_dir = nalgebra::Rotation2::new(p1_rot) * p1_vec;
-
-                        // Line 2: from point 2 along its Y axis (rotated)
-                        let p2_origin = Point2::new(p2.x, p2.y);
-                        let p2_vec = Vector2::new(0.0, -1.0); // Up direction
-                        let p2_rot = p2.r * PI / 180.0;
-                        let p2_dir = nalgebra::Rotation2::new(p2_rot) * p2_vec;
-
-                        // Calculate intersection
-                        // For two lines represented as p1 + t1 * dir1 and p2 + t2 * dir2
-                        // Solve for t1 and t2
-                        let det = p1_dir.x * p2_dir.y - p1_dir.y * p2_dir.x;
-
-                        if det.abs() < 1e-10 {
-                            return Err(Error::Config(format!(
-                                "The points under \"{}.parts\" do not intersect!",
-                                name
-                            )));
-                        }
-
-                        let dx = p2_origin.x - p1_origin.x;
-                        let dy = p2_origin.y - p1_origin.y;
-
-                        let t1 = (dx * p2_dir.y - dy * p2_dir.x) / det;
-
-                        // Calculate intersection point
-                        let intersection_x = p1_origin.x + t1 * p1_dir.x;
-                        let intersection_y = p1_origin.y + t1 * p1_dir.y;
-
-                        point = Point::new(intersection_x, intersection_y, 0.0, IndexMap::new());
-                    }
-                    _ => {
-                        return Err(Error::Config(format!(
-                            "Unknown aggregator method \"{}\" in anchor \"{}\"!",
-                            method, name
-                        )));
-                    }
-                }
+                return Ok(current);
             }
+            Self::Single(item) => (**item).clone(),
+        };
 
-            // Apply transformations
+        parse_anchored(&anchor, name, points, start, mirror, units)
+    }
+}
 
-            // Orient: rotate to look at another point or by a specified angle
-            if let Some(orient) = obj.get("orient") {
-                match orient {
-                    Value::Number(n) => {
-                        if let Some(angle) = n.as_f64() {
-                            let resist =
-                                obj.get("resist").and_then(|r| r.as_bool()).unwrap_or(false);
-                            point.rotate(angle, None, resist);
-                        }
-                    }
-                    _ => {
-                        // Orient towards another point
-                        let target = parse(
-                            orient,
-                            &format!("{}.orient", name),
-                            points,
-                            Some(&start),
-                            mirror,
-                            units,
-                        )?;
-                        point.r = point.angle(&target);
-                    }
+fn handle_mirror_ref(ref_: &str, mirror: bool) -> String {
+    if mirror {
+        ref_.strip_prefix("mirror_").unwrap_or(ref_).to_string()
+    } else {
+        ref_.to_string()
+    }
+}
+
+impl Default for Anchor {
+    fn default() -> Self {
+        Self::Single(Box::new(AnchorItem {
+            ref_: None,
+            aggregate: None,
+            orient: None,
+            shift: None,
+            rotate: None,
+            affect: None,
+            resist: None,
+        }))
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct AnchorItem {
+    /// Starting point from where the anchor will perform its additional modifications. This field
+    /// is parsed as an anchor itself, recursively. So in its easiest form, it can be a string to
+    /// designate an existing starting point by name (more on names later), but it can also be a
+    /// full nested anchor if so desired.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "ref")]
+    ref_: Option<Anchor>,
+
+    /// Alternative to ref when the combination of several locations is required as the starting
+    /// point for further adjustment. They're mutually exclusive, so we can use either ref or
+    /// aggregate in any given anchor. The aggregate field is always an object, containing:
+    ///
+    /// - a parts array containing the sub-anchors we want to aggregate, and
+    /// - a method string to indicate how we want to aggregate them.
+    ///
+    /// The only method implemented so far is average, which is the default anyway, so the method
+    /// can be omitted for now.
+    ///
+    /// Note: Averaging applies to both the x/y coordinates and the r rotation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    aggregate: Option<Aggregate>,
+
+    /// Kind of pre-rotation, meaning it happens before any shifting is done. The value can be:
+    ///
+    /// - a number, in which case that number is simply added to the current rotation of the
+    ///   in-progress point calculation; or
+    /// - a sub-anchor, in which case the point "turns towards" the point we reference (meaning its
+    ///   rotations will be exactly set to hit that point if a line was projected from it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    orient: Option<Unit>,
+
+    /// Shifting (or, more formally, translating) the point on the XY plane. The value can be:
+    ///
+    /// - a array of exactly two numbers, specifying the x and y shift, respectively, or
+    /// - a single number, which would get parsed as [number, number].
+    ///
+    /// Caution: It's important that shifting happens according to the current rotation of the
+    /// point. By default, a 0° rotation is "looking up", so that positive x shifts move it to the
+    /// right, negative x shifts to the left, positive y shifts up, negative y shifts down. But if
+    /// r=90° (so the point is "looking left", as, remember, rotation works counter-clockwise),
+    /// then a positive x shift would move it upward.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shift: Option<Shift>,
+
+    /// Kind of post-rotation after shifting, as opposed to how orient was the pre-rotation.
+    /// Otherwise, it works the exact same way.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rotate: Option<Unit>,
+
+    /// Specify an override to what fields we want to affect during the current anchor calculation.
+    /// The value can be:
+    ///
+    /// - a string containing a subset of the characters x, y, or r only; or
+    /// - an array containing a subset of the one letter strings "x", "y", or "r" only.
+    ///
+    /// Tip: Let's say you have a point rotated 45° and want to shift is "visually right". You
+    /// could either reset its rotation via orient, then shift, then reset the rotation with
+    /// rotate; or, you could do the shift and then declare that this whole anchor only affects
+    /// "x". The amount of shifting wouldn't be the same, but the important thing is that you could
+    /// constrain the movement to the X axis this way.
+    ///
+    /// Or let's say you want to copy the rotation of another, already existing point into your
+    /// current anchor calculation. You can do so using a multi-anchor (see above), referencing the
+    /// existing point in the second part, and then declare affect: "r" to prevent it from
+    /// overwriting anything else, thereby setting just the rotation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    affect: Option<Vec<AffectType>>,
+
+    /// States that we do not want the special treatment usually afforded to mirrored points. We'll
+    /// get to mirroring in a second, but from an anchor perspective, all we need to know is that
+    /// shifting and orienting/rotating are all mirrored for mirrored points, to keep things
+    /// symmetric. So if we specify a shift of [1, 1] on a mirrored point, what actually gets
+    /// applied is [-1, 1], and rotations are clockwise (read, counter-counter-clockwise) in those
+    /// cases, too. But if we don't want this behavior, (say, because PCB footprints go on the
+    /// same, upward facing side of the board, no matter the half) we can resist the special
+    /// treatment
+    #[serde(skip_serializing_if = "Option::is_none")]
+    resist: Option<bool>,
+}
+
+impl Anchored for AnchorItem {
+    fn ref_(&self) -> Option<Anchor> {
+        self.ref_.clone()
+    }
+
+    fn aggregate(&self) -> Option<Aggregate> {
+        self.aggregate.clone()
+    }
+
+    fn orient(&self) -> Option<Unit> {
+        self.orient.clone()
+    }
+
+    fn shift(&self) -> Option<Shift> {
+        self.shift.clone()
+    }
+
+    fn rotate(&self) -> Option<Unit> {
+        self.rotate.clone()
+    }
+
+    fn affect(&self) -> Option<Vec<AffectType>> {
+        self.affect.clone()
+    }
+
+    fn resist(&self) -> Option<bool> {
+        self.resist
+    }
+
+    fn asym(&self) -> Option<Asym> {
+        None
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub enum AggregateMethod {
+    #[default]
+    #[serde(rename = "average")]
+    Average,
+    #[serde(rename = "intersect")]
+    Intersect,
+}
+
+impl AggregateMethod {
+    // TODO: may need to extract a trait with parts and method to make methods generic
+    fn apply(&self, _agg: &Aggregate, name: String, parts: &[Point]) -> Result<Point> {
+        match self {
+            Self::Average => Ok(average(parts)),
+            Self::Intersect => {
+                // a line is generated from a point by taking their
+                // (rotated) Y axis. The line is not extended to
+                // +/- Infinity as that doesn't work with makerjs.
+                // An arbitrary offset of 1 meter is considered
+                // sufficient for practical purposes, and the point
+                // coordinates are used as pivot point for the rotation.
+                fn get_line_from_point(
+                    point: &Point,
+                    offset: Option<f64>,
+                ) -> maker_rs::paths::Line {
+                    let offset = offset.unwrap_or(1000.0);
+                    let x = point.x.unwrap_or_default();
+                    let y = point.y.unwrap_or_default();
+                    let origin = (x, y);
+                    let p1 = (x, y - offset);
+                    let p2 = (x, y + offset);
+
+                    let line = maker_rs::paths::Line {
+                        origin: p1,
+                        end: p2,
+                    };
+
+                    maker_rs::path::rotate(&line, point.r.unwrap_or_default(), Some(origin))
                 }
-            }
 
-            // Shift: move the point by a specified amount
-            if let Some(shift) = obj.get("shift") {
-                let resist = obj.get("resist").and_then(|r| r.as_bool()).unwrap_or(false);
+                let line1 = get_line_from_point(&parts[0], None);
+                let line2 = get_line_from_point(&parts[1], None);
+                let intersection_points = maker_rs::path::intersection(&line1, &line2, None);
 
-                match shift {
-                    Value::Array(arr) => {
-                        if arr.len() >= 2 {
-                            if let (Some(Value::Number(x)), Some(Value::Number(y))) =
-                                (arr.get(0), arr.get(1))
-                            {
-                                if let (Some(x_val), Some(y_val)) = (x.as_f64(), y.as_f64()) {
-                                    point.shift([x_val, y_val], true, resist);
-                                }
-                            }
-                        }
-                    }
-                    Value::Number(n) => {
-                        if let Some(val) = n.as_f64() {
-                            point.shift([val, val], true, resist);
-                        }
-                    }
-                    _ => {
-                        // TODO: Handle expressions or other formats
-                    }
+                if intersection_points.is_empty() {
+                    return Err(Error::AnchorParse {
+                        name: name.clone(),
+                        message: format!("The points under \"{name}.parts\" do not intersect!"),
+                    });
                 }
+
+                let intersection_point = intersection_points.first().unwrap();
+
+                Ok(Point {
+                    x: Some(intersection_point.0),
+                    y: Some(intersection_point.1),
+                    ..Default::default()
+                })
             }
-
-            // Rotate: rotate by a specified angle
-            if let Some(rotate) = obj.get("rotate") {
-                let resist = obj.get("resist").and_then(|r| r.as_bool()).unwrap_or(false);
-
-                match rotate {
-                    Value::Number(n) => {
-                        if let Some(angle) = n.as_f64() {
-                            point.rotate(angle, None, resist);
-                        }
-                    }
-                    _ => {
-                        // Rotate towards another point
-                        let target = parse(
-                            rotate,
-                            &format!("{}.rotate", name),
-                            points,
-                            Some(&start),
-                            mirror,
-                            units,
-                        )?;
-                        point.r = point.angle(&target);
-                    }
-                }
-            }
-
-            // Affect: selectively apply x, y, or r from the calculated point to the starting point
-            if let Some(affect) = obj.get("affect") {
-                let candidate = point.clone();
-                point = start.clone();
-
-                let affect_list = match affect {
-                    Value::String(s) => s.chars().collect::<Vec<char>>(),
-                    Value::Array(arr) => {
-                        let mut chars = Vec::new();
-                        for item in arr {
-                            if let Value::String(s) = item {
-                                for c in s.chars() {
-                                    chars.push(c);
-                                }
-                            }
-                        }
-                        chars
-                    }
-                    _ => Vec::new(),
-                };
-
-                for c in affect_list {
-                    match c {
-                        'x' => point.x = candidate.x,
-                        'y' => point.y = candidate.y,
-                        'r' => point.r = candidate.r,
-                        _ => {
-                            return Err(Error::Config(format!(
-                                "Invalid affect value '{}' in \"{}.affect\". Expected 'x', 'y', or 'r'.",
-                                c,
-                                name
-                            )));
-                        }
-                    }
-                }
-            }
-
-            Ok(point)
         }
+    }
+}
 
-        // Other types
-        _ => Err(Error::Config(format!(
-            "Anchor \"{}\" must be a string, array, or object!",
-            name
-        ))),
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Aggregate {
+    parts: Vec<AnchorItem>,
+    method: Option<AggregateMethod>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Shift {
+    XY(Unit, Unit),
+    Number(Unit),
+}
+
+impl Shift {
+    pub fn eval_as_numbers(&self, name: &str, units: &IndexMap<String, f64>) -> Result<(f64, f64)> {
+        match self {
+            Shift::XY(x, y) => {
+                let x = x
+                    .eval(units)
+                    .as_number()
+                    .ok_or_else(|| Error::AnchorParse {
+                        name: name.to_owned(),
+                        message: format!(r#"Invalid shift value for x: "{x}""#),
+                    })?;
+                let y = y
+                    .eval(units)
+                    .as_number()
+                    .ok_or_else(|| Error::AnchorParse {
+                        name: name.to_owned(),
+                        message: format!(r#"Invalid shift value for y: "{y}""#),
+                    })?;
+                Ok((x, y))
+            }
+            Shift::Number(n) => {
+                let n = n
+                    .eval(units)
+                    .as_number()
+                    .ok_or_else(|| Error::AnchorParse {
+                        name: name.to_owned(),
+                        message: format!(r#"Invalid shift value: "{n}""#),
+                    })?;
+                Ok((n, n))
+            }
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub enum AffectType {
+    #[serde(rename = "x")]
+    X,
+    #[serde(rename = "y")]
+    Y,
+    #[serde(rename = "r")]
+    R,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serialize_anchor() {
+        let anchor = Anchor::Multiple(vec![AnchorItem {
+            ref_: Some(Anchor::Ref("thumb_far_home".to_string())),
+            shift: Some(Shift::XY(
+                Unit::Expression("-ks * 0.725 - 0.028".to_string()),
+                Unit::Expression("-kp * 0.48 + 0.023".to_string()),
+            )),
+            affect: Some(vec![AffectType::X, AffectType::Y]),
+            ..Default::default()
+        }]);
+
+        let serialized = serde_json::to_string_pretty(&anchor).unwrap();
+        println!("{}", serialized);
+        let deserialized: Anchor = serde_json::from_str(&serialized).unwrap();
+        println!("{:#?}", deserialized);
+    }
+
+    #[test]
+    fn deserialize_anchor() {
+        let anchor = r#"
+        - aggregate:
+            method: intersect
+            parts:
+              - ref: mcu_cover_top_left
+              - ref: mcu_cover_bottom_right
+        "#;
+
+        let deserialized: Anchor = serde_yaml::from_str(anchor).unwrap();
+        println!("{:#?}", deserialized);
     }
 }

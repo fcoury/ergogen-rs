@@ -48,7 +48,7 @@ struct Lexer {
 impl Lexer {
     fn new(input: &str) -> Self {
         let chars: Vec<char> = input.chars().collect();
-        let current_char = chars.get(0).copied();
+        let current_char = chars.first().copied();
 
         Lexer {
             input: chars,
@@ -76,7 +76,7 @@ impl Lexer {
         let mut has_decimal = false;
 
         while let Some(c) = self.current_char {
-            if c.is_digit(10) {
+            if c.is_ascii_digit() {
                 result.push(c);
                 self.advance();
             } else if c == '.' && !has_decimal {
@@ -115,7 +115,7 @@ impl Lexer {
                 continue;
             }
 
-            if c.is_digit(10) || c == '.' {
+            if c.is_ascii_digit() || c == '.' {
                 return Ok(Token::Number(self.number()?));
             }
 

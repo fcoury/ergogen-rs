@@ -1,22 +1,13 @@
-mod aggregator;
-mod anchor;
-mod config;
-mod point;
-mod points;
-mod preprocess;
-mod template;
-mod yaml;
-mod zone;
-
 use std::fmt;
 
-use anchor::{Anchor, Anchored, Shift};
 use indexmap::IndexMap;
-use point::AnchorInfo;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use template::process_templates;
-use zone::{Column, Zone};
+
+use crate::anchor::{AffectType, Aggregate, Anchor, Anchored, Shift};
+use crate::point::AnchorInfo;
+use crate::template::process_templates;
+use crate::zone::{Column, Zone};
 
 use crate::{expr::evaluate_expression, Error, Result};
 
@@ -63,7 +54,7 @@ impl Default for Unit {
 }
 
 impl Unit {
-    fn eval(&self, units: &IndexMap<String, f64>) -> EvalResult {
+    pub fn eval(&self, units: &IndexMap<String, f64>) -> EvalResult {
         match self {
             Unit::Number(num) => EvalResult::Number(*num),
             Unit::Expression(expr) => match evaluate_expression(expr, units) {
@@ -73,18 +64,18 @@ impl Unit {
         }
     }
 
-    fn is_number(&self) -> bool {
+    pub fn is_number(&self) -> bool {
         matches!(self, Unit::Number(_))
     }
 
-    fn as_number(&self) -> Option<f64> {
+    pub fn as_number(&self) -> Option<f64> {
         match self {
             Unit::Number(num) => Some(*num),
             _ => None,
         }
     }
 
-    fn eval_as_number(&self, name: &str, units: &IndexMap<String, f64>) -> Result<f64> {
+    pub fn eval_as_number(&self, name: &str, units: &IndexMap<String, f64>) -> Result<f64> {
         match self.eval(units) {
             EvalResult::Number(num) => Ok(num),
             EvalResult::Ref(expr) => Err(Error::UnitParse(name.to_owned(), expr)),
@@ -112,19 +103,19 @@ impl Bind {
     pub fn resolve(&self, units: &IndexMap<String, f64>) -> Result<[f64; 4]> {
         match self {
             Bind::Number(num) => {
-                let num = num.eval(&units).resolve_as_number("bind")?;
+                let num = num.eval(units).resolve_as_number("bind")?;
                 Ok([num, num, num, num])
             }
             Bind::HorizontalVertical(hor, ver) => {
-                let hor = hor.eval(&units).resolve_as_number("bind")?;
-                let ver = ver.eval(&units).resolve_as_number("bind")?;
+                let hor = hor.eval(units).resolve_as_number("bind")?;
+                let ver = ver.eval(units).resolve_as_number("bind")?;
                 Ok([ver, hor, ver, hor])
             }
             Bind::TopRightBottomLeft(top, right, bottom, left) => {
-                let top = top.eval(&units).resolve_as_number("bind")?;
-                let right = right.eval(&units).resolve_as_number("bind")?;
-                let bottom = bottom.eval(&units).resolve_as_number("bind")?;
-                let left = left.eval(&units).resolve_as_number("bind")?;
+                let top = top.eval(units).resolve_as_number("bind")?;
+                let right = right.eval(units).resolve_as_number("bind")?;
+                let bottom = bottom.eval(units).resolve_as_number("bind")?;
+                let left = left.eval(units).resolve_as_number("bind")?;
                 Ok([top, right, bottom, left])
             }
         }
@@ -142,7 +133,7 @@ impl From<[f64; 4]> for Bind {
     }
 }
 
-enum EvalResult {
+pub enum EvalResult {
     Number(f64),
     Ref(String),
 }
@@ -157,14 +148,14 @@ impl fmt::Display for EvalResult {
 }
 
 impl EvalResult {
-    fn as_number(&self) -> Option<f64> {
+    pub fn as_number(&self) -> Option<f64> {
         match self {
             EvalResult::Number(num) => Some(*num),
             _ => None,
         }
     }
 
-    fn resolve_as_number(&self, name: &str) -> Result<f64> {
+    pub fn resolve_as_number(&self, name: &str) -> Result<f64> {
         self.as_number().ok_or(Error::TypeError {
             field: name.to_owned(),
             expected: "number".to_owned(),
@@ -174,11 +165,11 @@ impl EvalResult {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Points {
-    zones: IndexMap<String, Zone>,
+    pub zones: IndexMap<String, Zone>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    key: Option<Key>,
+    pub key: Option<Key>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    mirror: Option<Mirror>,
+    pub mirror: Option<Mirror>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -208,41 +199,41 @@ impl Asym {
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Key {
     #[serde(skip_serializing_if = "Option::is_none")]
-    zone: Option<Box<Zone>>,
+    pub zone: Option<Box<Zone>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    row: Option<String>,
+    pub row: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    col: Option<Box<Column>>,
+    pub col: Option<Box<Column>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    col_name: Option<String>,
+    pub col_name: Option<String>,
 
     /// Column staggering means an extra vertical shift to the starting point of a whole column
     /// compared to the previous one (initially 0, cumulative afterwards). Its default value is 0
     /// (also overrideable with the $default_stagger internal variable).
     #[serde(skip_serializing_if = "Option::is_none")]
-    stagger: Option<Unit>,
+    pub stagger: Option<Unit>,
 
     /// Once a column has been laid out, spread (the horizontal space between this column and the
     /// next) is applied before the layout of the next column begins. Its default value is u (also
     /// overrideable with the $default_spread internal variable).
     #[serde(skip_serializing_if = "Option::is_none")]
-    spread: Option<Unit>,
+    pub spread: Option<Unit>,
 
     /// As a kind of companion to spread, splay applies a rotation (around an optional origin) to
     /// the starting point of a new column. Its default value is 0 (also overrideable with the
     /// $default_splay internal variable), and it rotates around the default origin of [0,
     /// 0] (meaning the center of where the first key in the column would go).
     #[serde(skip_serializing_if = "Option::is_none")]
-    splay: Option<Unit>,
+    pub splay: Option<Unit>,
 
     /// Once a point within a column is determined, padding represents the vertical gap between it
     /// and the next row. Its default value is u (also overrideable with the $default_padding
     /// internal variable).
     #[serde(skip_serializing_if = "Option::is_none")]
-    padding: Option<Unit>,
+    pub padding: Option<Unit>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    origin: Option<(Unit, Unit)>,
+    pub origin: Option<(Unit, Unit)>,
 
     /// The names might be familiar from the anchor section. And indeed, they do behave very
     /// similarly – only they are interpreted cumulatively within a column. The current key orients
@@ -250,17 +241,17 @@ pub struct Key {
     /// only positions itself, but provides the starting point for the next row within the column
     /// (to which the above padding can be applied).
     #[serde(skip_serializing_if = "Option::is_none")]
-    orient: Option<Unit>,
+    pub orient: Option<Unit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    shift: Option<Shift>,
+    pub shift: Option<Shift>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    rotate: Option<Unit>,
+    pub rotate: Option<Unit>,
 
     /// This field is also used to adjust individual points – but, as opposed to the above trio,
     /// it's parsed as an actual anchor, and it applies independently, affecting only the current
     /// key and not the cumulative column layout.
     #[serde(skip_serializing_if = "Option::is_none")]
-    adjust: Option<Anchor>,
+    pub adjust: Option<Anchor>,
 
     /// Represents the amount of directional "reach" each key has when it tries to bind with its
     /// neighbors to form a contiguous shape. For a more in-depth explanation, check the outlines
@@ -269,36 +260,36 @@ pub struct Key {
     /// left reach, respectively – similarly to how CSS would assign things). The default is no
     /// bind (represented by -1, to differentiate from 0 length reaches).
     #[serde(skip_serializing_if = "Option::is_none")]
-    bind: Option<Bind>,
+    pub bind: Option<Bind>,
 
     /// Enables automatically assigned binding in relevant direction to combine traditional
     /// keywells. For a more in-depth explanation, check the outlines section. Its default value is
     /// 10 (also overrideable with the $default_autobind internal variable).
     #[serde(skip_serializing_if = "Option::is_none")]
-    autobind: Option<Unit>,
+    pub autobind: Option<Unit>,
 
     /// This field signals that the current point is just a "helper" and should not be included in
     /// the output. This can happen when a real point is more easily calculable through a "stepping
     /// stone", but then we don't actually want the stepping stone to be a key itself. The default
     /// is, of course, false.
     #[serde(skip_serializing_if = "Option::is_none")]
-    skip: Option<bool>,
+    pub skip: Option<bool>,
 
     /// Determines which side of the keyboard the key should belong to (see Mirroring). Its default
     /// value is both.
     #[serde(skip_serializing_if = "Option::is_none")]
-    asym: Option<Asym>,
+    pub asym: Option<Asym>,
 
     /// Provides a way to override any key-level attributes for mirrored keys (see Mirroring).
     /// Empty by default.
     #[serde(skip_serializing_if = "Option::is_none")]
-    mirror: Option<Mirror>,
+    pub mirror: Option<Mirror>,
 
     /// Built-in convenience variable to store a concatenated name of the column and the row,
     /// uniquely identifying a key within a zone. Its value is {{col.name}}_{{row}}, built through
     /// templating (see below).
     #[serde(skip_serializing_if = "Option::is_none")]
-    colrow: Option<String>,
+    pub colrow: Option<String>,
 
     /// The name of the key that identifies it uniquely not just within its zone, but globally. Its
     /// default value is {{zone.name}}_{{colrow}}, built through templating (see below). note
@@ -308,7 +299,7 @@ pub struct Key {
     /// default suffices are always trimmed. So for single key zones, the name of the key is
     /// equivalent to the name of the zone.
     #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
+    pub name: Option<String>,
 
     /// width / height: Helper values to signify the keycap width/height intended for the current
     /// position(s).
@@ -317,16 +308,16 @@ pub struct Key {
     /// positions. For actual outlines to be cut (or used as a basis for cases), see the outlines
     /// section.
     #[serde(skip_serializing_if = "Option::is_none")]
-    width: Option<Unit>,
+    pub width: Option<Unit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    height: Option<Unit>,
+    pub height: Option<Unit>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    meta: Option<IndexMap<String, serde_json::Value>>,
+    pub meta: Option<IndexMap<String, serde_json::Value>>,
 }
 
 impl Key {
-    fn new_default(units: &Units) -> Self {
+    pub fn new_default(units: &Units) -> Self {
         Self {
             stagger: units.get("$default_stagger").cloned(),
             spread: units.get("$default_spread").cloned(),
@@ -360,7 +351,7 @@ impl Key {
         Ok(serde_json::from_value(Value::Object(key_obj))?)
     }
 
-    fn extend(&mut self, other: &Key) {
+    pub fn extend(&mut self, other: &Key) {
         if let Some(stagger) = &other.stagger {
             self.stagger = Some(stagger.clone());
         }
@@ -398,7 +389,7 @@ impl Key {
             self.skip = Some(*skip);
         }
         if let Some(asym) = &other.asym {
-            self.asym = Some(asym.clone());
+            self.asym = Some(*asym);
         }
         if let Some(mirror) = &other.mirror {
             self.mirror = Some(mirror.clone());
@@ -441,13 +432,10 @@ pub struct Mirror {
 
 impl Anchored for Mirror {
     fn ref_(&self) -> Option<Anchor> {
-        match &self.ref_ {
-            Some(ref_) => Some(Anchor::Ref(ref_.to_string())),
-            None => None,
-        }
+        self.ref_.as_ref().map(|ref_| Anchor::Ref(ref_.to_string()))
     }
 
-    fn aggregate(&self) -> Option<anchor::Aggregate> {
+    fn aggregate(&self) -> Option<Aggregate> {
         None
     }
 
@@ -463,7 +451,7 @@ impl Anchored for Mirror {
         self.anchor.rotate()
     }
 
-    fn affect(&self) -> Option<Vec<anchor::AffectType>> {
+    fn affect(&self) -> Option<Vec<AffectType>> {
         self.anchor.affect()
     }
 

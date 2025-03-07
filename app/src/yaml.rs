@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_preprocess_real() -> Result<()> {
-        let yaml_str = include_str!("../../fixtures/zeph.yaml");
+        let yaml_str = include_str!("../fixtures/zeph.yaml");
         let processed = preprocess_extends(yaml_str.to_string())?;
         println!("{}", processed);
 

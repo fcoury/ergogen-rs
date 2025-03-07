@@ -1,13 +1,12 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{preprocess::preprocess, yaml::preprocess_extends, Meta, Mirror, Points, Unit, Units};
+use super::{preprocess::preprocess, yaml::preprocess_extends};
 use crate::{
-    types::{
-        anchor::parse_anchored,
-        zone::{perform_mirror, Point},
-    },
+    anchor::parse_anchored,
+    types::{Meta, Mirror, Points, Unit, Units},
     units::evaluate_mathnum,
+    zone::{perform_mirror, Point},
     Error, Result,
 };
 
@@ -439,7 +438,7 @@ mod tests {
 
     #[test]
     fn test_parse_real() {
-        let config = include_str!("../../fixtures/zeph.yaml");
+        let config = include_str!("../fixtures/zeph.yaml");
         let config = Config::process(config).unwrap();
 
         let ours = serde_json::to_value(config).unwrap();
@@ -448,7 +447,7 @@ mod tests {
             serde_json::to_string_pretty(&ours).unwrap(),
         )
         .unwrap();
-        let theirs = include_str!("../../fixtures/zeph___points.json");
+        let theirs = include_str!("../fixtures/zeph___points.json");
         let theirs: serde_json::Value = serde_json::from_str(theirs).unwrap();
 
         assert_json_eq!(theirs, ours);
@@ -498,56 +497,56 @@ mod tests {
 
     #[test]
     fn parse_basic() {
-        let config = include_str!("../../fixtures/points/basic_2x2.yaml");
+        let config = include_str!("../fixtures/points/basic_2x2.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn parse_with_adjustments() {
-        let config = include_str!("../../fixtures/points/adjustments.yaml");
+        let config = include_str!("../fixtures/points/adjustments.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn parse_autobind() {
-        let config = include_str!("../../fixtures/points/autobind.yaml");
+        let config = include_str!("../fixtures/points/autobind.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn test_parse_default() {
-        let config = include_str!("../../fixtures/points/default.yaml");
+        let config = include_str!("../fixtures/points/default.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn test_parse_mirrors() {
-        let config = include_str!("../../fixtures/points/mirrors.yaml");
+        let config = include_str!("../fixtures/points/mirrors.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn test_parse_rotations() {
-        let config = include_str!("../../fixtures/points/rotations.yaml");
+        let config = include_str!("../fixtures/points/rotations.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn test_parse_samename() {
-        let config = include_str!("../../fixtures/points/samename.yaml");
+        let config = include_str!("../fixtures/points/samename.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
 
     #[test]
     fn test_parse_units() {
-        let config = include_str!("../../fixtures/points/units.yaml");
+        let config = include_str!("../fixtures/points/units.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }
@@ -555,7 +554,7 @@ mod tests {
     #[test]
     #[ignore = "$unset is not implemented"]
     fn test_parse_unset() {
-        let config = include_str!("../../fixtures/points/overrides.yaml");
+        let config = include_str!("../fixtures/points/overrides.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
     }

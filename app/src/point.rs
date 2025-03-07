@@ -1,180 +1,223 @@
 use indexmap::IndexMap;
-use nalgebra::{Point2, Rotation2, Vector2};
 use serde::{Deserialize, Serialize};
-use std::f64::consts::PI;
 
-use crate::utils;
+use super::{
+    anchor::{AffectType, Aggregate, Anchor, Anchored, Shift},
+    types::{Asym, Key, Unit},
+};
+use crate::Result;
 
-/// A point in 2D space with rotation and metadata
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Point {
-    pub x: f64,
-    pub y: f64,
-    pub r: f64,
-    #[serde(default)]
-    pub meta: IndexMap<String, serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub x: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub y: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta: Option<AnchorInfo>,
 }
 
 impl Point {
-    /// Create a new point
-    pub fn new(x: f64, y: f64, r: f64, meta: IndexMap<String, serde_json::Value>) -> Self {
-        Self { x, y, r, meta }
+    pub fn p(&self) -> (f64, f64) {
+        (self.x.unwrap_or_default(), self.y.unwrap_or_default())
     }
 
-    /// Create a default point at the origin
-    pub fn default() -> Self {
-        Self {
-            x: 0.0,
-            y: 0.0,
-            r: 0.0,
-            meta: IndexMap::new(),
-        }
+    pub fn set_p(&mut self, p: (f64, f64)) {
+        self.x = Some(p.0);
+        self.y = Some(p.1);
     }
 
-    /// Create a point from an array [x, y]
-    pub fn from_array(arr: &[f64]) -> Self {
-        if arr.len() >= 2 {
-            Self {
-                x: arr[0],
-                y: arr[1],
-                r: 0.0,
-                meta: IndexMap::new(),
-            }
-        } else {
-            Self::default()
-        }
-    }
-
-    /// Get the point as an array [x, y]
-    pub fn p(&self) -> [f64; 2] {
-        [self.x, self.y]
-    }
-
-    /// Set the point from an array [x, y]
-    pub fn set_p(&mut self, val: [f64; 2]) {
-        self.x = val[0];
-        self.y = val[1];
-    }
-
-    /// Shift the point by the given amount
-    pub fn shift(&mut self, s: [f64; 2], relative: bool, resist: bool) -> &mut Self {
-        let mut shift = s;
-
-        // If mirrored and not resisting, negate the x shift
-        if !resist {
-            if let Some(mirrored) = self.meta.get("mirrored") {
-                if mirrored.as_bool().unwrap_or(false) {
-                    shift[0] *= -1.0;
-                }
-            }
-        }
-
-        // If relative, rotate the shift by the point's rotation
-        if relative {
-            let rotation = Rotation2::new(self.r * PI / 180.0);
-            let shift_vec = Vector2::new(shift[0], shift[1]);
-            let rotated = rotation * shift_vec;
-            shift = [rotated.x, rotated.y];
-        }
-
-        self.x += shift[0];
-        self.y += shift[1];
-
-        self
-    }
-
-    /// Rotate the point by the given angle
-    pub fn rotate(&mut self, angle: f64, origin: Option<[f64; 2]>, resist: bool) -> &mut Self {
-        let mut adjusted_angle = angle;
-
-        // If mirrored and not resisting, negate the angle
-        if !resist {
-            if let Some(mirrored) = self.meta.get("mirrored") {
-                if mirrored.as_bool().unwrap_or(false) {
-                    adjusted_angle *= -1.0;
-                }
-            }
-        }
-
-        // If an origin is provided, rotate around that point
+    pub fn rotate(&mut self, angle: f64, origin: Option<(f64, f64)>, resist: bool) -> &mut Self {
+        let mirrored = self.meta.as_ref().is_some_and(|meta| meta.mirrored);
+        let angle = angle * if !resist && mirrored { -1.0 } else { 1.0 };
         if let Some(origin) = origin {
-            let origin_point = Point2::new(origin[0], origin[1]);
-            let mut point = Point2::new(self.x, self.y);
-
-            let rotation = Rotation2::new(adjusted_angle * PI / 180.0);
-            let translated = point - origin_point.coords;
-            let rotated = rotation * translated;
-            point = Point2::new(origin_point.x + rotated.x, origin_point.y + rotated.y);
-
-            self.x = point.x;
-            self.y = point.y;
+            self.set_p(maker_rs::point::rotate(
+                self.clone().into(),
+                angle,
+                Some(origin),
+            ));
         }
-
-        self.r += adjusted_angle;
-
+        self.r = Some(self.r.unwrap_or_default() + angle);
         self
     }
 
-    /// Mirror the point around the x-coordinate
-    pub fn mirror(&mut self, x: f64) -> &mut Self {
-        self.x = 2.0 * x - self.x;
-        self.r = -self.r;
+    pub fn rotated(&self, angle: f64, origin: Option<(f64, f64)>, resist: bool) -> Self {
+        let mut point = self.clone();
+        point.rotate(angle, origin, resist);
+        point
+    }
+
+    pub fn angle(&self, other: &Point) -> f64 {
+        let dx = other.x.unwrap_or_default() - self.x.unwrap_or_default();
+        let dy = other.y.unwrap_or_default() - self.y.unwrap_or_default();
+
+        -f64::atan2(dy, dx) * (180.0 / std::f64::consts::PI)
+    }
+
+    pub fn shift(
+        &mut self,
+        pos: (f64, f64),
+        relative: Option<bool>,
+        resist: Option<bool>,
+    ) -> &mut Self {
+        let (x, y) = pos;
+        let relative = relative.unwrap_or(true);
+        let resist = resist.unwrap_or(false);
+
+        let x = if !resist && self.meta.as_ref().is_some_and(|meta| meta.mirrored) {
+            -x
+        } else {
+            x
+        };
+
+        if relative {
+            let (x, y) = maker_rs::point::rotate((x, y), self.r.unwrap_or_default(), None);
+            (self.x, self.y) = (Some(x), Some(y));
+        }
+
+        self.x = Some(self.x.unwrap_or_default() + x);
+        self.y = Some(self.y.unwrap_or_default() + y);
         self
     }
+}
 
-    /// Create a deep clone of this point
-    pub fn clone(&self) -> Self {
-        Self {
-            x: self.x,
-            y: self.y,
-            r: self.r,
-            meta: utils::deepcopy(&self.meta),
+impl From<Point> for (f64, f64) {
+    fn from(point: Point) -> Self {
+        (point.x.unwrap_or_default(), point.y.unwrap_or_default())
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct AnchorInfo {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ref_: Option<Anchor>,
+    pub stagger: f64,
+    pub spread: f64,
+    pub origin: (f64, f64),
+    pub orient: f64,
+    pub shift: (f64, f64),
+    pub rotate: f64,
+    // TODO: adjust: {}
+    pub width: f64,
+    pub height: f64,
+    pub padding: f64,
+    pub autobind: f64,
+    pub skip: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asym: Option<Asym>,
+    pub colrow: String,
+    pub name: String,
+    pub mirrored: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub affect: Option<Vec<AffectType>>,
+    // zone: ParsedZone,
+}
+
+impl AnchorInfo {
+    #[allow(unused)]
+    fn from(key: Key, units: &IndexMap<String, f64>) -> Result<Self> {
+        let mut meta = AnchorInfo::default();
+        let key_name = key.name.unwrap_or("key".to_string());
+
+        if let Some(stagger) = key.stagger {
+            meta.stagger = stagger.eval_as_number(&format!("{key_name}.stagger"), units)?;
         }
+
+        if let Some(spread) = key.spread {
+            meta.spread = spread.eval_as_number(&format!("{key_name}.spread"), units)?;
+        }
+
+        if let Some(origin) = key.origin {
+            let (x, y) = origin;
+            let x = x.eval_as_number("key.origin.x", units)?;
+            let y = y.eval_as_number("key.origin.y", units)?;
+            meta.origin = (x, y);
+        }
+
+        if let Some(orient) = key.orient {
+            meta.orient = orient.eval_as_number(&format!("{key_name}.orient"), units)?;
+        }
+
+        if let Some(shift) = key.shift {
+            meta.shift = shift.eval_as_numbers(&format!("{key_name}.shift"), units)?;
+        }
+
+        if let Some(rotate) = key.rotate {
+            meta.rotate = rotate.eval_as_number(&format!("{key_name}.rotate"), units)?;
+        }
+
+        if let Some(width) = key.width {
+            meta.width = width.eval_as_number(&format!("{key_name}.rotate"), units)?;
+        }
+
+        if let Some(height) = key.height {
+            meta.height = height.eval_as_number(&format!("{key_name}.height"), units)?;
+        }
+
+        if let Some(padding) = key.padding {
+            meta.padding = padding.eval_as_number(&format!("{key_name}.padding"), units)?;
+        }
+
+        if let Some(autobind) = key.autobind {
+            meta.autobind = autobind.eval_as_number(&format!("{key_name}.autobind"), units)?;
+        }
+
+        if let Some(skip) = key.skip {
+            meta.skip = skip;
+        }
+
+        meta.asym = key.asym;
+
+        if let Some(colrow) = key.colrow {
+            meta.colrow = colrow;
+        }
+
+        meta.name = key_name;
+
+        // TODO: How to handle mirroring here?
+        // if let Some(mirrored) = key.mirror {
+        //     meta.mirrored = mirrored;
+        // }
+
+        Ok(meta)
+    }
+}
+
+impl Anchored for AnchorInfo {
+    fn ref_(&self) -> Option<Anchor> {
+        self.ref_.clone()
     }
 
-    /// Position a model relative to this point
-    pub fn position<T>(&self, model: T) -> T {
-        // In a full implementation, this would apply rotation and translation
-        // to the model based on this point's position and rotation
-        // For now, we just return the model
-        model
+    fn aggregate(&self) -> Option<Aggregate> {
+        None
     }
 
-    /// Remove the position of this point from a model
-    pub fn unposition<T>(&self, model: T) -> T {
-        // In a full implementation, this would remove this point's rotation and translation
-        // from the model
-        // For now, we just return the model
-        model
+    fn orient(&self) -> Option<Unit> {
+        Some(Unit::Number(self.orient))
     }
 
-    /// Create a rectangle centered at this point
-    pub fn rect(&self, size: f64) -> utils::Rect {
-        let half_size = size / 2.0;
-        let rect = utils::rect(size, size, Some([-half_size, -half_size]));
-
-        // In a full implementation, this would position the rect at this point
-        rect
+    fn shift(&self) -> Option<Shift> {
+        let x = Unit::Number(self.shift.0);
+        let y = Unit::Number(self.shift.1);
+        Some(Shift::XY(x, y))
     }
 
-    /// Calculate the angle to another point
-    pub fn angle(&self, other: &Self) -> f64 {
-        let dx = other.x - self.x;
-        let dy = other.y - self.y;
-        -dy.atan2(dx) * 180.0 / PI
+    fn rotate(&self) -> Option<Unit> {
+        Some(Unit::Number(self.rotate))
     }
 
-    /// Check if this point equals another point
-    pub fn equals(&self, other: &Self) -> bool {
-        self.x == other.x
-            && self.y == other.y
-            && self.r == other.r
-            && match (
-                serde_json::to_string(&self.meta),
-                serde_json::to_string(&other.meta),
-            ) {
-                (Ok(self_meta), Ok(other_meta)) => self_meta == other_meta,
-                _ => false, // If serialization fails, consider them not equal
-            }
+    fn affect(&self) -> Option<Vec<AffectType>> {
+        self.affect.clone()
+    }
+
+    fn resist(&self) -> Option<bool> {
+        // TODO: do we need this?
+        None
+    }
+
+    fn asym(&self) -> Option<Asym> {
+        self.asym
     }
 }

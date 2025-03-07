@@ -1,9 +1,10 @@
 use indexmap::IndexMap;
-use serde_json::{json, Value};
+use serde_json::Value;
 
-use crate::{expr::evaluate_expression, types::Unit, Error, Result};
+use crate::{expr::evaluate_expression, types::Unit, Result};
 
 /// Parse and calculate units from the config
+#[allow(unused)]
 pub fn parse(config: &Value) -> Result<IndexMap<String, f64>> {
     todo!()
     // // Create a default units map
@@ -86,12 +87,14 @@ pub fn parse(config: &Value) -> Result<IndexMap<String, f64>> {
 pub fn evaluate_mathnum(val: &Unit, units: &IndexMap<String, f64>) -> Result<f64> {
     match val {
         Unit::Number(n) => Ok(*n),
-        Unit::Expression(s) => Ok(evaluate_expression(s, &units)?),
+        Unit::Expression(s) => Ok(evaluate_expression(s, units)?),
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::Error;
+
     use super::*;
     use serde_json::json;
 

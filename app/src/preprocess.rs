@@ -74,7 +74,7 @@ fn insert_nested(map: &mut Mapping, path: &[&str], value: Value) -> Result<()> {
                 Value::Mapping(m) => m,
                 _ => {
                     // Convert to a mapping if it's not already one
-                    let mut new_map = Mapping::new();
+                    let new_map = Mapping::new();
                     *existing = Value::Mapping(new_map);
                     match existing {
                         Value::Mapping(m) => m,

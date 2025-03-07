@@ -1,7 +1,7 @@
 use super::zone::Point;
 
 pub fn average(points: &[Point]) -> Point {
-    if points.len() == 0 {
+    if points.is_empty() {
         return Point::default();
     }
 

@@ -1,8 +1,11 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{config::Config, Anchor, Asym, Bind, Key, Mirror, Unit};
-use crate::{types::points::apply_rotations, Result};
+use super::{
+    config::Config,
+    types::{Asym, Bind, Key, Mirror, Unit},
+};
+use crate::{anchor::Anchor, points::apply_rotations, Result};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Point {

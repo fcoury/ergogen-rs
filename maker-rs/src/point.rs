@@ -1,9 +1,4 @@
-use crate::{
-    measure,
-    paths::{self, Line, PathLine},
-    schema::Point,
-    Slope,
-};
+use crate::{measure, paths::PathLine, schema::Point, Slope};
 
 /// Rotate a point.
 ///

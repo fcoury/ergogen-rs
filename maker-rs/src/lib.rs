@@ -19,7 +19,7 @@ impl Slope {
         }
 
         if self.has_slope && other.has_slope {
-            return self.slope - other.slope < std::f64::EPSILON;
+            return (self.slope - other.slope).abs() < f64::EPSILON;
         }
 
         false
@@ -54,6 +54,6 @@ impl PartialEq for Slope {
             .map(|line| (line.origin.1 + line.end.1) / 2.0)
             .collect::<Vec<_>>();
 
-        average_ys[0] - average_ys[1] < std::f64::EPSILON
+        (average_ys[0] - average_ys[1]).abs() < f64::EPSILON
     }
 }

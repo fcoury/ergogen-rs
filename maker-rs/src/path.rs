@@ -1,6 +1,6 @@
 use crate::{
     measure,
-    paths::{Line, Path, PathLine, PathType},
+    paths::{Line, Path, PathType},
     point::{self},
     schema::Point,
 };

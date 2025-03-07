@@ -15,7 +15,7 @@ pub fn line_slope<P: PathLine + Clone>(line: &P) -> Slope {
     let dx = line.end().0 - line.origin().0;
 
     // Check if the line is vertical (or nearly so)
-    if dx.abs() < std::f64::EPSILON {
+    if dx.abs() < f64::EPSILON {
         let line = Line {
             origin: line.origin(),
             end: line.end(),
