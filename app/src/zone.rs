@@ -17,7 +17,9 @@ pub struct Point {
 
 impl Point {
     pub fn is_skip(&self) -> bool {
-        self.meta.as_ref().is_some_and(|meta| meta.skip)
+        self.meta
+            .as_ref()
+            .is_some_and(|meta| meta.skip.unwrap_or_default())
     }
 
     pub fn p(&self) -> (f64, f64) {
@@ -30,7 +32,10 @@ impl Point {
     }
 
     pub fn rotate(&mut self, angle: f64, origin: Option<(f64, f64)>, resist: bool) -> &mut Self {
-        let mirrored = self.meta.as_ref().is_some_and(|meta| meta.mirrored);
+        let mirrored = self
+            .meta
+            .as_ref()
+            .is_some_and(|meta| meta.mirrored.unwrap_or_default());
         let angle = angle * if !resist && mirrored { -1.0 } else { 1.0 };
         if let Some(origin) = origin {
             self.set_p(maker_rs::point::rotate(
@@ -66,7 +71,12 @@ impl Point {
         let relative = relative.unwrap_or(true);
         let resist = resist.unwrap_or(false);
 
-        let x = if !resist && self.meta.as_ref().is_some_and(|meta| meta.mirrored) {
+        let x = if !resist
+            && self
+                .meta
+                .as_ref()
+                .is_some_and(|meta| meta.mirrored.unwrap_or_default())
+        {
             -x
         } else {
             x
@@ -113,8 +123,10 @@ impl Point {
         }
     }
 
-    pub fn meta_col_name(&self) -> &str {
-        self.meta.as_ref().map_or("", |meta| meta.colrow.as_str())
+    pub fn meta_col_name(&self) -> String {
+        self.meta.as_ref().map_or("".to_string(), |meta| {
+            meta.colrow.clone().unwrap_or_default()
+        })
     }
 
     pub fn meta_zone_columns(&self) -> IndexMap<String, Column> {
@@ -132,7 +144,7 @@ pub fn perform_mirror(point: &Point, axis: f64) -> (String, Option<Point>) {
     };
 
     let mut meta = meta.clone();
-    meta.mirrored = false;
+    meta.mirrored = Some(false);
 
     if let Some(asym) = meta.asym {
         if asym.is_source() {
@@ -142,13 +154,13 @@ pub fn perform_mirror(point: &Point, axis: f64) -> (String, Option<Point>) {
 
     let mut mirrored_point = point.mirrored(axis);
 
-    let mirrored_name = format!("mirror_{}", meta.colrow);
+    let mirrored_name = format!("mirror_{}", meta.colrow.clone().unwrap_or_default());
     let mut new_meta = meta.clone();
-    new_meta.colrow = mirrored_name.clone();
-    new_meta.mirrored = true;
+    new_meta.colrow = Some(mirrored_name.clone());
+    new_meta.mirrored = Some(true);
     if let Some(asym) = new_meta.asym {
         if asym.is_clone() {
-            new_meta.skip = true;
+            new_meta.skip = Some(true);
         }
     }
 
@@ -166,24 +178,41 @@ impl From<Point> for (f64, f64) {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ParsedMeta {
-    pub stagger: f64,
-    pub spread: f64,
-    pub origin: (f64, f64),
-    pub orient: f64,
-    pub shift: (f64, f64),
-    pub rotate: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stagger: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spread: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub origin: Option<(f64, f64)>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub orient: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shift: Option<(f64, f64)>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rotate: Option<f64>,
     // TODO: adjust: {}
-    pub width: f64,
-    pub height: f64,
-    pub padding: f64,
-    pub autobind: f64,
-    pub skip: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub height: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub padding: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub autobind: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skip: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub asym: Option<Asym>,
-    pub colrow: String,
-    pub name: String,
-    pub mirrored: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub colrow: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mirrored: Option<bool>,
     // zone: ParsedZone,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub zone: Option<Zone>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bind: Option<Bind>,
 }
 
@@ -199,59 +228,59 @@ impl ParsedMeta {
         let key_name = key.name.unwrap_or("key".to_string());
 
         if let Some(stagger) = key.stagger {
-            meta.stagger = stagger.eval_as_number(&format!("{key_name}.stagger"), units)?;
+            meta.stagger = Some(stagger.eval_as_number(&format!("{key_name}.stagger"), units)?);
         }
 
         if let Some(spread) = key.spread {
-            meta.spread = spread.eval_as_number(&format!("{key_name}.spread"), units)?;
+            meta.spread = Some(spread.eval_as_number(&format!("{key_name}.spread"), units)?);
         }
 
         if let Some(origin) = key.origin {
             let (x, y) = origin;
             let x = x.eval_as_number("key.origin.x", units)?;
             let y = y.eval_as_number("key.origin.y", units)?;
-            meta.origin = (x, y);
+            meta.origin = Some((x, y));
         }
 
         if let Some(orient) = key.orient {
-            meta.orient = orient.eval_as_number(&format!("{key_name}.orient"), units)?;
+            meta.orient = Some(orient.eval_as_number(&format!("{key_name}.orient"), units)?);
         }
 
         if let Some(shift) = key.shift {
-            meta.shift = shift.eval_as_numbers(&format!("{key_name}.shift"), units)?;
+            meta.shift = Some(shift.eval_as_numbers(&format!("{key_name}.shift"), units)?);
         }
 
         if let Some(rotate) = key.rotate {
-            meta.rotate = rotate.eval_as_number(&format!("{key_name}.rotate"), units)?;
+            meta.rotate = Some(rotate.eval_as_number(&format!("{key_name}.rotate"), units)?);
         }
 
         if let Some(width) = key.width {
-            meta.width = width.eval_as_number(&format!("{key_name}.rotate"), units)?;
+            meta.width = Some(width.eval_as_number(&format!("{key_name}.rotate"), units)?);
         }
 
         if let Some(height) = key.height {
-            meta.height = height.eval_as_number(&format!("{key_name}.height"), units)?;
+            meta.height = Some(height.eval_as_number(&format!("{key_name}.height"), units)?);
         }
 
         if let Some(padding) = key.padding {
-            meta.padding = padding.eval_as_number(&format!("{key_name}.padding"), units)?;
+            meta.padding = Some(padding.eval_as_number(&format!("{key_name}.padding"), units)?);
         }
 
         if let Some(autobind) = key.autobind {
-            meta.autobind = autobind.eval_as_number(&format!("{key_name}.autobind"), units)?;
+            meta.autobind = Some(autobind.eval_as_number(&format!("{key_name}.autobind"), units)?);
         }
 
         if let Some(skip) = key.skip {
-            meta.skip = skip;
+            meta.skip = Some(skip);
         }
 
         meta.asym = key.asym;
 
         if let Some(colrow) = key.colrow {
-            meta.colrow = colrow;
+            meta.colrow = Some(colrow);
         }
 
-        meta.name = key_name;
+        meta.name = Some(key_name);
         meta.zone = Some(zone.clone());
 
         // TODO: How to handle mirroring here?
@@ -388,7 +417,7 @@ impl Zone {
                     point.r = Some(point.r.unwrap_or_default() + orient);
                 }
 
-                point.shift(meta.shift, None, None);
+                point.shift(meta.shift.unwrap_or_default(), None, None);
 
                 if let Some(rotate) = &key.rotate {
                     let rotate = rotate.eval_as_number(&format!("{key_name}.rotate"), units)?;

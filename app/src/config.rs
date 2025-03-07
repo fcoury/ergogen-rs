@@ -25,14 +25,19 @@ pub struct Config {
 
 impl Config {
     pub fn process(config: impl ToString) -> Result<IndexMap<String, Point>> {
+        println!("Preprocessing config...");
         let config = preprocess_extends(config.to_string())?;
+        println!("Parsing config...");
         let config = Config::parse(config)?;
+        println!("Resolving units...");
         config.resolve_units()?;
+        println!("Parsing points...");
         config.parse_points()
     }
 
     pub fn parse(config: impl ToString) -> Result<Self> {
         let config = config.to_string();
+        println!("Config: {}", config);
         let config = serde_yaml::from_str(&config)?;
         let config = preprocess(config)?;
 
@@ -234,7 +239,7 @@ impl Config {
             .iter()
             .filter_map(|(_, point)| {
                 if let Some(meta) = &point.meta {
-                    if meta.mirrored {
+                    if meta.mirrored.unwrap_or_default() {
                         let (mirrored_name, mirrored_point) = perform_mirror(point, global_axis?);
                         mirrored_point.map(|mirrored_point| (mirrored_name, mirrored_point))
                     } else {
@@ -289,7 +294,7 @@ impl Config {
 
 fn mirrorzone(p: &Point) -> String {
     let mirrored = match &p.meta {
-        Some(meta) => meta.mirrored,
+        Some(meta) => meta.mirrored.unwrap_or_default(),
         None => false,
     };
     let zone_name = match &p.meta {
@@ -328,7 +333,7 @@ fn perform_autobind_round1(
         if !bounds.contains_key(&zone) {
             bounds.insert(zone.clone(), IndexMap::new());
         }
-        if !bounds[&zone].contains_key(col) {
+        if !bounds[&zone].contains_key(&col) {
             bounds
                 .get_mut(&zone)
                 .unwrap()
@@ -339,7 +344,7 @@ fn perform_autobind_round1(
             col_lists.insert(zone.clone(), value);
         }
 
-        let (min, max) = bounds.get_mut(&zone).unwrap().get_mut(col).unwrap();
+        let (min, max) = bounds.get_mut(&zone).unwrap().get_mut(&col).unwrap();
         *min = min.min(point.y.unwrap_or_default());
         *max = max.max(point.y.unwrap_or_default());
     }
@@ -359,7 +364,7 @@ fn perform_autobind_round2(
             let zone = mirrorzone(point);
             let col = point.meta_col_name();
             let col_list = col_lists[zone.as_str()].clone();
-            let col_bounds = bounds[zone.as_str()][col];
+            let col_bounds = bounds[zone.as_str()][&col];
 
             let Some(mut bind) = point.meta_bind(units)? else {
                 continue;
@@ -368,7 +373,7 @@ fn perform_autobind_round2(
             // up
             if bind[0] == -1.0 {
                 if point.y.unwrap_or_default() < col_bounds.1 {
-                    bind[0] = autobind;
+                    bind[0] = autobind.unwrap_or_default();
                 } else {
                     bind[0] = 0.0;
                 }
@@ -377,7 +382,7 @@ fn perform_autobind_round2(
             // down
             if bind[2] == -1.0 {
                 if point.y.unwrap_or_default() > col_bounds.0 {
-                    bind[2] = autobind;
+                    bind[2] = autobind.unwrap_or_default();
                 } else {
                     bind[2] = 0.0;
                 }
@@ -394,7 +399,7 @@ fn perform_autobind_round2(
                             if left.0 <= point.y.unwrap_or_default()
                                 && point.y.unwrap_or_default() <= left.1
                             {
-                                bind[3] = autobind;
+                                bind[3] = autobind.unwrap_or_default();
                             }
                         }
                     }
@@ -412,7 +417,7 @@ fn perform_autobind_round2(
                             if right.0 <= point.y.unwrap_or_default()
                                 && point.y.unwrap_or_default() <= right.1
                             {
-                                bind[1] = autobind;
+                                bind[1] = autobind.unwrap_or_default();
                             }
                         }
                     }
@@ -437,7 +442,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_real() {
+    fn test_parse_absolem() {
+        let config = include_str!("../fixtures/absolem.yaml");
+        let config = Config::process(config).unwrap();
+
+        let ours = serde_json::to_value(config).unwrap();
+        fs::write(
+            "fixtures/absolem___output.json",
+            serde_json::to_string_pretty(&ours).unwrap(),
+        )
+        .unwrap();
+        let theirs = include_str!("../fixtures/absolem___points.json");
+        let theirs: serde_json::Value = serde_json::from_str(theirs).unwrap();
+
+        assert_json_eq!(theirs, ours);
+    }
+
+    #[test]
+    fn test_parse_zeph() {
         let config = include_str!("../fixtures/zeph.yaml");
         let config = Config::process(config).unwrap();
 
