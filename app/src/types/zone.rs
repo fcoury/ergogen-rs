@@ -301,7 +301,11 @@ impl Zone {
         let mut zone_anchor = anchor.clone();
 
         let mut first_col = true;
-        for (col_name, col) in self.columns().iter() {
+        let mut columns = self.columns();
+        if columns.is_empty() {
+            columns.insert("default".to_string(), Column::default());
+        }
+        for (col_name, col) in columns.iter() {
             println!("  - processing column {col_name}...");
             let mut col = col.clone();
             col.name = Some(col_name.clone());
@@ -313,6 +317,14 @@ impl Zone {
                     actual_rows.insert(name.clone(), row.clone());
                 }
             }
+            if actual_rows.is_empty() {
+                actual_rows.insert(
+                    "default".to_string(),
+                    Row {
+                        name: Some("".to_string()),
+                    },
+                );
+            }
 
             // getting key config through the 5-level extension
             let mut keys = vec![];
@@ -323,30 +335,29 @@ impl Zone {
                 keys.push(key);
             }
 
-            if keys.is_empty() {
-                continue;
-            }
+            let default_key = Key::default();
+            let first_key = keys.first().unwrap_or(&default_key);
 
             if !first_col {
                 // TODO: avoid the clone here, maybe the key can calculate its spread, taking unit?
-                let spread = keys[0]
+                let spread = first_key
                     .clone()
                     .spread
                     .unwrap_or_default()
-                    .eval_as_number("keys[0].spread", units)?;
+                    .eval_as_number("first_key.spread", units)?;
                 zone_anchor.x = Some(zone_anchor.x.unwrap_or_default() + spread);
             }
             // TODO: avoid the clone here, maybe the key can calculate its stagger, taking unit?
-            let stagger = keys[0]
+            let stagger = first_key
                 .clone()
                 .stagger
                 .unwrap_or_default()
-                .eval_as_number("keys[0].stagger", units)?;
+                .eval_as_number("first_key.stagger", units)?;
             zone_anchor.y = Some(anchor.y.unwrap_or_default() + stagger);
 
             // applying col-level rotation (cumulatively, for the next columns as well)
             let col_anchor = zone_anchor.clone();
-            if let Some(splay) = &keys[0].splay {
+            if let Some(splay) = &first_key.splay {
                 let splay = splay.eval_as_number("keys[0].splay", units)?;
                 // TODO: avoid the clone here if possible on a refactor
                 let current_rotations = rotations.clone();
@@ -411,11 +422,12 @@ impl Zone {
             first_col = false;
         }
 
+        println!("total points: {}", points.len());
         Ok(points)
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Column {
     #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<String>,

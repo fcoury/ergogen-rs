@@ -152,7 +152,6 @@ impl Config {
             let anchor = match zone.anchor {
                 Some(ref anchor) => {
                     let name = format!("points.zones.{name}.anchor");
-                    println!("  - parsing anchor {name}...");
                     anchor.parse(name, &points, None, false, &units)?
                 }
                 None => Point::default(),
@@ -169,7 +168,12 @@ impl Config {
             // simplifying the names in individual point "zones" and single-key columns
             let mut renamed_points = IndexMap::new();
             for (name, point) in new_points.into_iter() {
-                let name = name.strip_suffix("_default").unwrap_or(&name);
+                let name = if name.ends_with("_default") {
+                    // remove everything after the first "_default"
+                    name.split_once("_default").unwrap().0
+                } else {
+                    name.as_str()
+                };
                 renamed_points.insert(name.to_string(), point);
             }
 
@@ -469,7 +473,6 @@ mod tests {
                 continue;
             }
 
-            println!("Parsing {:?}", file.path());
             let contents = fs::read_to_string(file.path()).unwrap();
             let config = Config::parse(contents).unwrap();
 
@@ -479,11 +482,9 @@ mod tests {
             let points_file = parent.join(format!("{file_stem}___points.json"));
 
             if !points_file.exists() {
-                println!("skipping {:?}", points_file);
                 continue;
             }
 
-            println!("Reading {:?}", points_file);
             let expected = fs::read_to_string(points_file).unwrap();
             let expected: serde_json::Value = serde_json::from_str(&expected).unwrap();
 

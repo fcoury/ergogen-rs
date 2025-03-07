@@ -23,8 +23,12 @@ pub trait Anchored {
     fn asym(&self) -> Option<Asym>;
 }
 
+pub trait AnchoredDebug: Anchored + std::fmt::Debug {}
+
+impl<T: Anchored + std::fmt::Debug> AnchoredDebug for T {}
+
 pub fn parse_anchored(
-    anchor: &dyn Anchored,
+    anchor: &dyn AnchoredDebug,
     name: String,
     points: &IndexMap<String, Point>,
     start: Option<Point>,
@@ -78,10 +82,10 @@ pub fn parse_anchored(
                 mirror,
                 units,
             )?);
-
-            let method = agg.method.clone().unwrap_or_default();
-            point = method.apply(&agg, format!("{name}.aggregate"), &parts);
         }
+
+        let method = agg.method.clone().unwrap_or_default();
+        point = method.apply(&agg, format!("{name}.aggregate"), &parts)?;
     };
 
     let resist = anchor.resist().unwrap_or_default();
@@ -378,10 +382,54 @@ pub enum AggregateMethod {
 
 impl AggregateMethod {
     // TODO: may need to extract a trait with parts and method to make methods generic
-    fn apply(&self, _agg: &Aggregate, _name: String, parts: &[Point]) -> Point {
+    fn apply(&self, _agg: &Aggregate, name: String, parts: &[Point]) -> Result<Point> {
         match self {
-            Self::Average => average(parts),
-            Self::Intersect => todo!(),
+            Self::Average => Ok(average(parts)),
+            Self::Intersect => {
+                // a line is generated from a point by taking their
+                // (rotated) Y axis. The line is not extended to
+                // +/- Infinity as that doesn't work with makerjs.
+                // An arbitrary offset of 1 meter is considered
+                // sufficient for practical purposes, and the point
+                // coordinates are used as pivot point for the rotation.
+                fn get_line_from_point(
+                    point: &Point,
+                    offset: Option<f64>,
+                ) -> maker_rs::paths::Line {
+                    let offset = offset.unwrap_or(1000.0);
+                    let x = point.x.unwrap_or_default();
+                    let y = point.y.unwrap_or_default();
+                    let origin = (x, y);
+                    let p1 = (x, y - offset);
+                    let p2 = (x, y + offset);
+
+                    let line = maker_rs::paths::Line {
+                        origin: p1,
+                        end: p2,
+                    };
+
+                    maker_rs::path::rotate(&line, point.r.unwrap_or_default(), Some(origin))
+                }
+
+                let line1 = get_line_from_point(&parts[0], None);
+                let line2 = get_line_from_point(&parts[1], None);
+                let intersection_points = maker_rs::path::intersection(&line1, &line2, None);
+
+                if intersection_points.is_empty() {
+                    return Err(Error::AnchorParse {
+                        name: name.clone(),
+                        message: format!("The points under \"{name}.parts\" do not intersect!"),
+                    });
+                }
+
+                let intersection_point = intersection_points.first().unwrap();
+
+                Ok(Point {
+                    x: Some(intersection_point.0),
+                    y: Some(intersection_point.1),
+                    ..Default::default()
+                })
+            }
         }
     }
 }
