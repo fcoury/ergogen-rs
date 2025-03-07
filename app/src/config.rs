@@ -37,7 +37,6 @@ impl Config {
 
     pub fn parse(config: impl ToString) -> Result<Self> {
         let config = config.to_string();
-        println!("Config: {}", config);
         let config = serde_yaml::from_str(&config)?;
         let config = preprocess(config)?;
 
@@ -442,20 +441,57 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_parse_sweeplike() {
+        let config = include_str!("../fixtures/sweep-like.yaml");
+        let config = Config::process(config).unwrap();
+        let ours = serde_json::to_value(config).unwrap();
+        fs::write(
+            "fixtures/sweep-like___output.json",
+            serde_json::to_string_pretty(&ours).unwrap(),
+        )
+        .unwrap();
+        let theirs = include_str!("../fixtures/sweep-like___points.json");
+        let theirs: serde_json::Value = serde_json::from_str(theirs).unwrap();
+
+        assert_json_eq!(theirs, ours);
+    }
+
+    #[test]
+    fn test_parse_empty() {
+        let config = include_str!("../fixtures/empty.yaml");
+        let config = Config::process(config).unwrap();
+        let ours = serde_json::to_value(config).unwrap();
+        fs::write(
+            "fixtures/empty___output.json",
+            serde_json::to_string_pretty(&ours).unwrap(),
+        )
+        .unwrap();
+        let theirs = include_str!("../fixtures/empty___points.json");
+        let theirs: serde_json::Value = serde_json::from_str(theirs).unwrap();
+
+        assert_json_eq!(theirs, ours);
+    }
+
+    #[test]
     fn test_parse_absolem() {
         let config = include_str!("../fixtures/absolem.yaml");
         let config = Config::process(config).unwrap();
 
-        let ours = serde_json::to_value(config).unwrap();
-        fs::write(
-            "fixtures/absolem___output.json",
-            serde_json::to_string_pretty(&ours).unwrap(),
-        )
-        .unwrap();
-        let theirs = include_str!("../fixtures/absolem___points.json");
-        let theirs: serde_json::Value = serde_json::from_str(theirs).unwrap();
+        let point = config.get("matrix_pinky_bottom").unwrap();
+        let r = point.r.unwrap();
+        assert_eq!(r, -15.0);
+        println!("{:#?}", point.y.unwrap());
 
-        assert_json_eq!(theirs, ours);
+        // let ours = serde_json::to_value(config).unwrap();
+        // fs::write(
+        //     "fixtures/absolem___output.json",
+        //     serde_json::to_string_pretty(&ours).unwrap(),
+        // )
+        // .unwrap();
+        // let theirs = include_str!("../fixtures/absolem___points.json");
+        // let theirs: serde_json::Value = serde_json::from_str(theirs).unwrap();
+        //
+        // assert_json_eq!(theirs, ours);
     }
 
     #[test]

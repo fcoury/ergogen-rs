@@ -67,11 +67,11 @@ impl Point {
         relative: Option<bool>,
         resist: Option<bool>,
     ) -> &mut Self {
-        let (x, y) = pos;
+        let (mut x, mut y) = pos;
         let relative = relative.unwrap_or(true);
         let resist = resist.unwrap_or(false);
 
-        let x = if !resist
+        x = if !resist
             && self
                 .meta
                 .as_ref()
@@ -83,8 +83,7 @@ impl Point {
         };
 
         if relative {
-            let (x, y) = maker_rs::point::rotate((x, y), self.r.unwrap_or_default(), None);
-            (self.x, self.y) = (Some(x), Some(y));
+            (x, y) = maker_rs::point::rotate((x, y), self.r.unwrap_or_default(), None);
         }
 
         self.x = Some(self.x.unwrap_or_default() + x);
@@ -338,12 +337,16 @@ impl Zone {
             columns.insert("default".to_string(), Column::default());
         }
         for (col_name, col) in columns.iter() {
-            println!("  - processing column {col_name}...");
             let mut col = col.clone();
             col.name = Some(col_name.clone());
 
             // combining row data from zone-wide defs and col-specific defs
             let mut actual_rows = self.rows();
+            let col_rows = col.rows();
+            let col_rows = col_rows
+                .iter()
+                .filter_map(|(name, row)| row.as_ref().map(|row| (name.clone(), row.clone())));
+            actual_rows.extend(col_rows);
             for (name, row) in col.rows().iter() {
                 if let Some(row) = row {
                     actual_rows.insert(name.clone(), row.clone());
@@ -361,7 +364,6 @@ impl Zone {
             // getting key config through the 5-level extension
             let mut keys = vec![];
             for (row_name, row) in actual_rows.iter_mut() {
-                println!("    - processing row {row_name}...");
                 row.name = Some(row_name.clone());
                 let key = create_key(config, self, &col, col_name, row_name)?;
                 keys.push(key);
@@ -408,8 +410,9 @@ impl Zone {
                 let key_name = key.name.clone().unwrap_or_default();
 
                 // copy the current column anchor
-                let meta = running_anchor.meta.clone().unwrap_or_default();
+                // let meta = running_anchor.meta.clone().unwrap_or_default();
                 let mut point = running_anchor.clone();
+                // println!("meta before: {:?}", meta);
 
                 // apply cumulative per-key adjustments
                 if let Some(orient) = &key.orient {
@@ -417,7 +420,13 @@ impl Zone {
                     point.r = Some(point.r.unwrap_or_default() + orient);
                 }
 
-                point.shift(meta.shift.unwrap_or_default(), None, None);
+                // println!("meta: {:?}", meta);
+                let shift = key
+                    .shift
+                    .clone()
+                    .unwrap_or_default()
+                    .eval_as_numbers(&format!("{key_name}.shift"), units)?;
+                point.shift(shift, None, None);
 
                 if let Some(rotate) = &key.rotate {
                     let rotate = rotate.eval_as_number(&format!("{key_name}.rotate"), units)?;
@@ -432,7 +441,7 @@ impl Zone {
                     point = adjust.parse(
                         format!("{key_name}.adjust"),
                         &IndexMap::new(),
-                        None,
+                        Some(point),
                         false,
                         units,
                     )?;
@@ -443,7 +452,7 @@ impl Zone {
                     .padding
                     .clone()
                     .unwrap_or_default()
-                    .eval_as_number("key.padding", units)?;
+                    .eval_as_number(&format!("{key_name}.padding"), units)?;
                 point.meta = Some(ParsedMeta::from(self, key, units)?);
                 points.insert(key_name, point);
 
@@ -454,7 +463,6 @@ impl Zone {
             first_col = false;
         }
 
-        println!("total points: {}", points.len());
         Ok(points)
     }
 }

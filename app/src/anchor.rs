@@ -485,6 +485,12 @@ impl Shift {
     }
 }
 
+impl Default for Shift {
+    fn default() -> Self {
+        Self::Number(Unit::Number(0.0))
+    }
+}
+
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum AffectType {
     #[serde(rename = "x")]

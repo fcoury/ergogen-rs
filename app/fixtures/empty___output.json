@@ -1,0 +1,26 @@
+{
+  "matrix": {
+    "meta": {
+      "asym": "both",
+      "colrow": "default_default",
+      "name": "matrix_default_default",
+      "orient": 0.0,
+      "origin": [
+        0.0,
+        0.0
+      ],
+      "rotate": 0.0,
+      "shift": [
+        0.0,
+        0.0
+      ],
+      "skip": false,
+      "zone": {
+        "name": "matrix"
+      }
+    },
+    "r": 0.0,
+    "x": 0.0,
+    "y": 0.0
+  }
+}
