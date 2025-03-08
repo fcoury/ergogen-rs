@@ -20,8 +20,6 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variables: Option<Units>,
     pub points: Points,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub rotate: Option<Unit>,
 }
 
 impl Config {
@@ -134,7 +132,7 @@ impl Config {
 
     pub fn parse_points(&self) -> Result<IndexMap<String, Point>> {
         // const global_rotate = a.sane(config.rotate || 0, 'points.rotate', 'number')(units)
-        let global_rotate = match &self.rotate {
+        let global_rotate = match &self.points.rotate {
             Some(rotate) => {
                 let rotate = rotate.eval_as_number("points.rotate", &self.resolve_units()?)?;
                 Some(rotate)
@@ -146,7 +144,6 @@ impl Config {
 
         // rendering zones
         for (name, zone) in self.points.zones.iter() {
-            println!("Processing zone {name}...");
             let mut zone = zone.clone();
             zone.name = Some(name.to_string());
 
@@ -159,6 +156,7 @@ impl Config {
                 None => Point::default(),
             };
 
+            let rotate = zone.rotate.clone();
             let mirror = zone.mirror;
             zone.anchor = None;
             zone.rotate = None;
@@ -187,7 +185,7 @@ impl Config {
                     )));
                 }
 
-                if let Some(ref rotate) = zone.rotate {
+                if let Some(ref rotate) = rotate {
                     let rotate = rotate.eval_as_number(
                         &format!(
                             "zone \"{}\" rotation",
@@ -479,8 +477,7 @@ mod tests {
 
         let point = config.get("matrix_inner_bottom").unwrap();
         let r = point.r.unwrap();
-        assert_eq!(r, -56.0);
-        println!("{:#?}", point.y.unwrap());
+        assert_eq!(r, -20.0);
 
         // let ours = serde_json::to_value(config).unwrap();
         // fs::write(
@@ -616,5 +613,56 @@ mod tests {
         let config = include_str!("../fixtures/points/overrides.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
+    }
+
+    #[test]
+    fn test_persist_global_rotation() {
+        let config = Config {
+            meta: None,
+            variables: None,
+            points: Points {
+                zones: IndexMap::new(),
+                key: None,
+                mirror: None,
+                rotate: Some(Unit::Number(-20.0)),
+            },
+            units: None,
+        };
+
+        let config = serde_yaml::to_string(&config).unwrap();
+        println!("{}", config);
+    }
+
+    #[test]
+    fn test_parse_global_rotation() {
+        let config = r#"
+meta:
+  engine: 4.1.0
+points:
+  zones:
+    matrix:
+      anchor:
+        rotate: 5
+      columns:
+        pinky:
+        ring:
+          key.splay: -5
+          key.origin: [-12, -19]
+          key.stagger: 12
+        middle:
+          key.stagger: 5
+        index:
+          key.stagger: -6
+        inner:
+          key.stagger: -2
+      rows:
+        bottom:
+  rotate: -20
+  mirror:
+    ref: matrix_pinky_bottom
+    distance: 223.7529778
+"#;
+        let config = Config::parse(config).unwrap();
+        assert_eq!(config.points.rotate.unwrap(), Unit::Number(-20.0));
     }
 }

@@ -94,7 +94,6 @@ impl Zone {
             columns.insert("default".to_string(), Column::default());
         }
         for (col_name, col) in columns.iter() {
-            println!("  - Processing column: {col_name}...");
             let mut col = col.clone();
             col.name = Some(col_name.clone());
 
@@ -112,9 +111,7 @@ impl Zone {
             // getting key config through the 5-level extension
             let mut keys = vec![];
             for row_name in actual_rows.iter_mut() {
-                println!("    - Processing row: {row_name}...");
                 let key = create_key(config, self, &col, col_name, row_name, units)?;
-                println!("      - adding key: {:?}", key.name);
                 keys.push(key);
             }
 
@@ -122,37 +119,37 @@ impl Zone {
             let first_key = keys.first().unwrap_or(&default_key);
 
             if !first_col {
-                // TODO: avoid the clone here, maybe the key can calculate its spread, taking unit?
-                let spread = first_key.spread.unwrap_or_default();
-                zone_anchor.x = Some(zone_anchor.x.unwrap_or_default() + spread);
+                if let Some(spread) = first_key.spread {
+                    zone_anchor.x = Some(zone_anchor.x.unwrap_or_default() + spread);
+                }
             }
-            // TODO: avoid the clone here, maybe the key can calculate its stagger, taking unit?
-            let stagger = first_key.clone().stagger.unwrap_or_default();
-            zone_anchor.y = Some(anchor.y.unwrap_or_default() + stagger);
+            if let Some(stagger) = first_key.stagger {
+                zone_anchor.y = Some(zone_anchor.y.unwrap_or_default() + stagger);
+            }
 
             // applying col-level rotation (cumulatively, for the next columns as well)
             let col_anchor = zone_anchor.clone();
             if let Some(splay) = &first_key.splay {
                 if splay != &0.0 {
+                    let mut col_anchor = col_anchor.clone();
                     // TODO: avoid the clone here if possible on a refactor
                     let current_rotations = rotations.clone();
-                    let origin = keys[0].origin.unwrap_or_default();
-                    let mut col_anchor = col_anchor.clone();
-                    col_anchor.shift(origin, Some(false), None);
+
+                    if let Some(origin) = &first_key.origin {
+                        col_anchor.shift(*origin, Some(false), None);
+                    }
                     let anchor: (f64, f64) = col_anchor.clone().into();
+
                     let new_rotation = apply_rotations(&current_rotations, *splay, anchor);
                     rotations.push(new_rotation);
                 }
             }
-            println!("Rotations: {:#?}", rotations);
 
             // actually laying out keys
             let mut running_anchor = col_anchor.clone();
-            println!("Running anchor: {:#?}", running_anchor);
             for r in &rotations {
                 running_anchor.rotate(r.angle, Some(r.origin), false);
             }
-            println!("Running anchor after rotation: {:#?}", running_anchor);
 
             for key in keys {
                 let key_name = key.name.clone().unwrap_or_default();
@@ -188,8 +185,10 @@ impl Zone {
                     )?;
                 }
 
-                // save the key
+                // save the padding before consuming key
                 let padding = key.padding.unwrap_or_default();
+
+                // save the key
                 point.meta = Some(key.into());
                 points.insert(key_name, point);
 

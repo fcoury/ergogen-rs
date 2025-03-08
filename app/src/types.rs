@@ -40,7 +40,7 @@ pub enum StringOrFloat {
     Float(f64),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum Unit {
     Number(f64),
@@ -170,6 +170,8 @@ pub struct Points {
     pub key: Option<Key>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mirror: Option<Mirror>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rotate: Option<Unit>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -318,7 +320,6 @@ pub struct Key {
 
 impl Key {
     pub fn new_default(units: &Units) -> Self {
-        println!("  --- units: {:?}", units);
         Self {
             stagger: units.get("$default_stagger").cloned(),
             spread: units.get("$default_spread").cloned(),
