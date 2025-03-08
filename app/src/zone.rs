@@ -9,7 +9,7 @@ use super::{
 use crate::{
     anchor::{parse_anchored, AffectType, Anchor},
     point::{AnchorInfo, Point},
-    points::apply_rotations,
+    points::{apply_rotations, Rotation},
     template::process_templates,
     types::Asym,
     Error, Result,
@@ -80,12 +80,21 @@ impl Zone {
         let mut rotations = Vec::new();
         let mut zone_anchor = anchor.clone();
 
+        // transferring the anchor rotation to "real" rotations
+        rotations.push(Rotation {
+            angle: zone_anchor.r.unwrap_or_default(),
+            origin: zone_anchor.p(),
+        });
+        // and now clear it from the anchor so that we don't apply it twice
+        zone_anchor.r = None;
+
         let mut first_col = true;
         let mut columns = self.columns();
         if columns.is_empty() {
             columns.insert("default".to_string(), Column::default());
         }
         for (col_name, col) in columns.iter() {
+            println!("  - Processing column: {col_name}...");
             let mut col = col.clone();
             col.name = Some(col_name.clone());
 
@@ -103,8 +112,9 @@ impl Zone {
             // getting key config through the 5-level extension
             let mut keys = vec![];
             for row_name in actual_rows.iter_mut() {
+                println!("    - Processing row: {row_name}...");
                 let key = create_key(config, self, &col, col_name, row_name, units)?;
-                println!("Key name: {:?}", key.name);
+                println!("      - adding key: {:?}", key.name);
                 keys.push(key);
             }
 
@@ -123,21 +133,26 @@ impl Zone {
             // applying col-level rotation (cumulatively, for the next columns as well)
             let col_anchor = zone_anchor.clone();
             if let Some(splay) = &first_key.splay {
-                // TODO: avoid the clone here if possible on a refactor
-                let current_rotations = rotations.clone();
-                let origin = keys[0].origin.unwrap_or_default();
-                let mut col_anchor = col_anchor.clone();
-                col_anchor.shift(origin, Some(false), None);
-                let anchor: (f64, f64) = col_anchor.clone().into();
-                let new_rotation = apply_rotations(&current_rotations, *splay, anchor);
-                rotations.push(new_rotation);
+                if splay != &0.0 {
+                    // TODO: avoid the clone here if possible on a refactor
+                    let current_rotations = rotations.clone();
+                    let origin = keys[0].origin.unwrap_or_default();
+                    let mut col_anchor = col_anchor.clone();
+                    col_anchor.shift(origin, Some(false), None);
+                    let anchor: (f64, f64) = col_anchor.clone().into();
+                    let new_rotation = apply_rotations(&current_rotations, *splay, anchor);
+                    rotations.push(new_rotation);
+                }
             }
+            println!("Rotations: {:#?}", rotations);
 
             // actually laying out keys
             let mut running_anchor = col_anchor.clone();
+            println!("Running anchor: {:#?}", running_anchor);
             for r in &rotations {
                 running_anchor.rotate(r.angle, Some(r.origin), false);
             }
+            println!("Running anchor after rotation: {:#?}", running_anchor);
 
             for key in keys {
                 let key_name = key.name.clone().unwrap_or_default();
