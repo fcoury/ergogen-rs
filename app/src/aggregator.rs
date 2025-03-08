@@ -1,4 +1,4 @@
-use super::zone::Point;
+use crate::point::Point;
 
 pub fn average(points: &[Point]) -> Point {
     if points.is_empty() {

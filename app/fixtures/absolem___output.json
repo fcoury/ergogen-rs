@@ -250,6 +250,31 @@
       "stagger": -2.0,
       "zone": {
         "columns": {
+meta:
+  engine: 4.1.0
+points:
+  zones:
+    matrix:
+      anchor:
+        rotate: 5
+      columns:
+        pinky:
+        ring:
+          key.splay: -5
+          key.origin: [-12, -19]
+          key.stagger: 12
+        middle:
+          key.stagger: 5
+        index:
+          key.stagger: -6
+        inner:
+          key.stagger: -2
+      rows:
+        bottom:
+  rotate: -20
+  mirror:
+    ref: matrix_pinky_bottom
+    distance: 223.7529778
           "index": {
             "key": {
               "stagger": -6.0
@@ -323,6 +348,31 @@
               "stagger": 5.0
             }
           },
+meta:
+  engine: 4.1.0
+points:
+  zones:
+    matrix:
+      anchor:
+        rotate: 5
+      columns:
+        pinky:
+        ring:
+          key.splay: -5
+          key.origin: [-12, -19]
+          key.stagger: 12
+        middle:
+          key.stagger: 5
+        index:
+          key.stagger: -6
+        inner:
+          key.stagger: -2
+      rows:
+        bottom:
+  rotate: -20
+  mirror:
+    ref: matrix_pinky_bottom
+    distance: 223.7529778
           "pinky": {},
           "ring": {
             "key": {
@@ -597,6 +647,31 @@
       "zone": {
         "columns": {
           "index": {
+meta:
+  engine: 4.1.0
+points:
+  zones:
+    matrix:
+      anchor:
+        rotate: 5
+      columns:
+        pinky:
+        ring:
+          key.splay: -5
+          key.origin: [-12, -19]
+          key.stagger: 12
+        middle:
+          key.stagger: 5
+        index:
+          key.stagger: -6
+        inner:
+          key.stagger: -2
+      rows:
+        bottom:
+  rotate: -20
+  mirror:
+    ref: matrix_pinky_bottom
+    distance: 223.7529778
             "key": {
               "stagger": -6.0
             }
@@ -669,6 +744,31 @@
             }
           },
           "pinky": {},
+meta:
+  engine: 4.1.0
+points:
+  zones:
+    matrix:
+      anchor:
+        rotate: 5
+      columns:
+        pinky:
+        ring:
+          key.splay: -5
+          key.origin: [-12, -19]
+          key.stagger: 12
+        middle:
+          key.stagger: 5
+        index:
+          key.stagger: -6
+        inner:
+          key.stagger: -2
+      rows:
+        bottom:
+  rotate: -20
+  mirror:
+    ref: matrix_pinky_bottom
+    distance: 223.7529778
           "ring": {
             "key": {
               "origin": [

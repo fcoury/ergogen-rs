@@ -7,7 +7,7 @@ use serde_json::Value;
 use crate::anchor::{AffectType, Aggregate, Anchor, Anchored, Shift};
 use crate::point::AnchorInfo;
 use crate::template::process_templates;
-use crate::zone::{Column, Zone};
+use crate::zone::{Column, ParsedKey, Zone};
 
 use crate::{expr::evaluate_expression, Error, Result};
 
@@ -318,6 +318,7 @@ pub struct Key {
 
 impl Key {
     pub fn new_default(units: &Units) -> Self {
+        println!("  --- units: {:?}", units);
         Self {
             stagger: units.get("$default_stagger").cloned(),
             spread: units.get("$default_spread").cloned(),
@@ -337,6 +338,83 @@ impl Key {
             name: Some("{{zone.name}}_{{colrow}}".to_string()),
             ..Default::default()
         }
+    }
+
+    pub fn resolve(&self, units: &IndexMap<String, f64>) -> Result<ParsedKey> {
+        let stagger = self
+            .stagger
+            .as_ref()
+            .map_or(Ok(None), |u| u.eval_as_number("stagger", units).map(Some))?;
+        let spread = self
+            .spread
+            .as_ref()
+            .map_or(Ok(None), |u| u.eval_as_number("spread", units).map(Some))?;
+        let splay = self
+            .splay
+            .as_ref()
+            .map_or(Ok(None), |u| u.eval_as_number("splay", units).map(Some))?;
+        let padding = self
+            .padding
+            .as_ref()
+            .map_or(Ok(None), |u| u.eval_as_number("padding", units).map(Some))?;
+        let origin = self.resolve_origin("origin", units).map(Some)?;
+        let orient = self
+            .orient
+            .as_ref()
+            .map_or(Ok(None), |u| u.eval_as_number("orient", units).map(Some))?;
+        let shift = self
+            .shift
+            .as_ref()
+            .map_or(Ok(None), |s| s.eval_as_numbers("shift", units).map(Some))?;
+        let rotate = self
+            .rotate
+            .as_ref()
+            .map_or(Ok(None), |u| u.eval_as_number("rotate", units).map(Some))?;
+        let bind = self
+            .bind
+            .as_ref()
+            .map_or(Ok(None), |b| b.resolve(units).map(Some))?;
+        let autobind = self
+            .autobind
+            .as_ref()
+            .map_or(Ok(None), |u| u.eval_as_number("autobind", units).map(Some))?;
+        let skip = self.skip;
+        let asym = self.asym;
+        let width = self
+            .width
+            .as_ref()
+            .map_or(Ok(None), |u| u.eval_as_number("width", units).map(Some))?;
+        let height = self
+            .height
+            .as_ref()
+            .map_or(Ok(None), |u| u.eval_as_number("height", units).map(Some))?;
+
+        Ok(ParsedKey {
+            stagger,
+            spread,
+            splay,
+            padding,
+            origin,
+            orient,
+            shift,
+            rotate,
+            bind,
+            autobind,
+            skip,
+            asym,
+            width,
+            height,
+            // name: todo!(),
+            // zone: todo!(),
+            // row: todo!(),
+            // col_name: todo!(),
+            // adjust: todo!(),
+            // colrow: todo!(),
+            // mirrored: todo!(),
+            // affect: todo!(),
+            // meta: todo!(),
+            ..Default::default()
+        })
     }
 
     pub fn process_templates(&self) -> Result<Key> {
@@ -419,6 +497,16 @@ impl Key {
                 }
             }
         }
+    }
+
+    pub fn resolve_origin(&self, arg: &str, units: &IndexMap<String, f64>) -> Result<(f64, f64)> {
+        let (x, y) = self
+            .origin
+            .clone()
+            .unwrap_or((Unit::Number(0.0), Unit::Number(0.0)));
+        let x = x.eval_as_number(&format!("{}.origin.x", arg), units)?;
+        let y = y.eval_as_number(&format!("{}.origin.y", arg), units)?;
+        Ok((x, y))
     }
 }
 

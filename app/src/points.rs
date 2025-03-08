@@ -1,20 +1,18 @@
-use super::zone::Point;
-
 #[derive(Clone, Debug)]
 pub struct Rotation {
     pub angle: f64,
-    pub origin: Point,
+    pub origin: (f64, f64),
 }
 
-pub fn apply_rotations(rotations: &[Rotation], angle: f64, origin: &Point) -> Rotation {
-    let mut candidate = origin.clone();
+pub fn apply_rotations(rotations: &[Rotation], angle: f64, origin: (f64, f64)) -> Rotation {
+    let mut candidate = origin;
 
     for r in rotations.iter() {
-        candidate = candidate.rotated(r.angle, Some(r.origin.p()), false);
+        candidate = maker_rs::point::rotate(candidate, r.angle, Some(r.origin));
     }
 
     Rotation {
         angle,
-        origin: candidate.clone(),
+        origin: candidate,
     }
 }

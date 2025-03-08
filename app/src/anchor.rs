@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     aggregator::average,
+    point::Point,
     types::{Asym, Unit},
-    zone::Point,
 };
 use crate::{Error, Result};
 

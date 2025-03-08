@@ -1,141 +1,19 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use super::{
     config::Config,
-    types::{Asym, Bind, Key, Mirror, Unit},
+    types::{Key, Mirror, Unit},
 };
-use crate::{anchor::Anchor, points::apply_rotations, Result};
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Point {
-    pub x: Option<f64>,
-    pub y: Option<f64>,
-    pub r: Option<f64>,
-    pub meta: Option<ParsedMeta>,
-}
-
-impl Point {
-    pub fn is_skip(&self) -> bool {
-        self.meta
-            .as_ref()
-            .is_some_and(|meta| meta.skip.unwrap_or_default())
-    }
-
-    pub fn p(&self) -> (f64, f64) {
-        (self.x.unwrap_or_default(), self.y.unwrap_or_default())
-    }
-
-    pub fn set_p(&mut self, p: (f64, f64)) {
-        self.x = Some(p.0);
-        self.y = Some(p.1);
-    }
-
-    pub fn rotate(&mut self, angle: f64, origin: Option<(f64, f64)>, resist: bool) -> &mut Self {
-        let mirrored = self
-            .meta
-            .as_ref()
-            .is_some_and(|meta| meta.mirrored.unwrap_or_default());
-        let angle = angle * if !resist && mirrored { -1.0 } else { 1.0 };
-        if let Some(origin) = origin {
-            self.set_p(maker_rs::point::rotate(
-                self.clone().into(),
-                angle,
-                Some(origin),
-            ));
-        }
-        self.r = Some(self.r.unwrap_or_default() + angle);
-        self
-    }
-
-    pub fn rotated(&self, angle: f64, origin: Option<(f64, f64)>, resist: bool) -> Self {
-        let mut point = self.clone();
-        point.rotate(angle, origin, resist);
-        point
-    }
-
-    pub fn angle(&self, other: &Point) -> f64 {
-        let dx = other.x.unwrap_or_default() - self.x.unwrap_or_default();
-        let dy = other.y.unwrap_or_default() - self.y.unwrap_or_default();
-
-        -f64::atan2(dy, dx) * (180.0 / std::f64::consts::PI)
-    }
-
-    pub fn shift(
-        &mut self,
-        pos: (f64, f64),
-        relative: Option<bool>,
-        resist: Option<bool>,
-    ) -> &mut Self {
-        let (mut x, mut y) = pos;
-        let relative = relative.unwrap_or(true);
-        let resist = resist.unwrap_or(false);
-
-        x = if !resist
-            && self
-                .meta
-                .as_ref()
-                .is_some_and(|meta| meta.mirrored.unwrap_or_default())
-        {
-            -x
-        } else {
-            x
-        };
-
-        if relative {
-            (x, y) = maker_rs::point::rotate((x, y), self.r.unwrap_or_default(), None);
-        }
-
-        self.x = Some(self.x.unwrap_or_default() + x);
-        self.y = Some(self.y.unwrap_or_default() + y);
-        self
-    }
-
-    pub fn mirror(&mut self, x_axis: f64) -> &mut Self {
-        let x = self.x.unwrap_or_default();
-        self.x = Some(2.0 * x_axis - x);
-        self
-    }
-
-    pub fn mirrored(&self, x_axis: f64) -> Self {
-        let x = self.x.unwrap_or_default();
-        let x = 2.0 * x_axis - x;
-
-        Point {
-            x: Some(x),
-            y: self.y,
-            r: self.r,
-            meta: self.meta.clone(),
-        }
-    }
-
-    pub fn meta_bind(&self, units: &IndexMap<String, f64>) -> Result<Option<[f64; 4]>> {
-        let option_result = self
-            .meta
-            .as_ref()
-            .and_then(|meta| meta.bind.as_ref())
-            .map(|bind| bind.resolve(units));
-
-        match option_result {
-            Some(result) => result.map(Some),
-            None => Ok(None),
-        }
-    }
-
-    pub fn meta_col_name(&self) -> String {
-        self.meta.as_ref().map_or("".to_string(), |meta| {
-            meta.colrow.clone().unwrap_or_default()
-        })
-    }
-
-    pub fn meta_zone_columns(&self) -> IndexMap<String, Column> {
-        self.meta.as_ref().map_or(IndexMap::new(), |meta| {
-            meta.zone
-                .as_ref()
-                .map_or(IndexMap::new(), |zone| zone.columns())
-        })
-    }
-}
+use crate::{
+    anchor::{parse_anchored, AffectType, Anchor},
+    point::{AnchorInfo, Point},
+    points::apply_rotations,
+    template::process_templates,
+    types::Asym,
+    Error, Result,
+};
 
 pub fn perform_mirror(point: &Point, axis: f64) -> (String, Option<Point>) {
     let Some(meta) = &point.meta else {
@@ -169,128 +47,6 @@ pub fn perform_mirror(point: &Point, axis: f64) -> (String, Option<Point>) {
     (mirrored_name, Some(mirrored_point.clone()))
 }
 
-impl From<Point> for (f64, f64) {
-    fn from(point: Point) -> Self {
-        (point.x.unwrap_or_default(), point.y.unwrap_or_default())
-    }
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct ParsedMeta {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stagger: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub spread: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin: Option<(f64, f64)>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub orient: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub shift: Option<(f64, f64)>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub rotate: Option<f64>,
-    // TODO: adjust: {}
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub width: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub height: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub padding: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub autobind: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub skip: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub asym: Option<Asym>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub colrow: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mirrored: Option<bool>,
-    // zone: ParsedZone,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub zone: Option<Zone>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bind: Option<Bind>,
-}
-
-impl ParsedMeta {
-    pub fn zone_name(&self) -> String {
-        self.zone
-            .as_ref()
-            .map_or("".to_string(), |zone| zone.name.clone().unwrap_or_default())
-    }
-
-    fn from(zone: &Zone, key: Key, units: &IndexMap<String, f64>) -> Result<Self> {
-        let mut meta = ParsedMeta::default();
-        let key_name = key.name.unwrap_or("key".to_string());
-
-        if let Some(stagger) = key.stagger {
-            meta.stagger = Some(stagger.eval_as_number(&format!("{key_name}.stagger"), units)?);
-        }
-
-        if let Some(spread) = key.spread {
-            meta.spread = Some(spread.eval_as_number(&format!("{key_name}.spread"), units)?);
-        }
-
-        if let Some(origin) = key.origin {
-            let (x, y) = origin;
-            let x = x.eval_as_number("key.origin.x", units)?;
-            let y = y.eval_as_number("key.origin.y", units)?;
-            meta.origin = Some((x, y));
-        }
-
-        if let Some(orient) = key.orient {
-            meta.orient = Some(orient.eval_as_number(&format!("{key_name}.orient"), units)?);
-        }
-
-        if let Some(shift) = key.shift {
-            meta.shift = Some(shift.eval_as_numbers(&format!("{key_name}.shift"), units)?);
-        }
-
-        if let Some(rotate) = key.rotate {
-            meta.rotate = Some(rotate.eval_as_number(&format!("{key_name}.rotate"), units)?);
-        }
-
-        if let Some(width) = key.width {
-            meta.width = Some(width.eval_as_number(&format!("{key_name}.rotate"), units)?);
-        }
-
-        if let Some(height) = key.height {
-            meta.height = Some(height.eval_as_number(&format!("{key_name}.height"), units)?);
-        }
-
-        if let Some(padding) = key.padding {
-            meta.padding = Some(padding.eval_as_number(&format!("{key_name}.padding"), units)?);
-        }
-
-        if let Some(autobind) = key.autobind {
-            meta.autobind = Some(autobind.eval_as_number(&format!("{key_name}.autobind"), units)?);
-        }
-
-        if let Some(skip) = key.skip {
-            meta.skip = Some(skip);
-        }
-
-        meta.asym = key.asym;
-
-        if let Some(colrow) = key.colrow {
-            meta.colrow = Some(colrow);
-        }
-
-        meta.name = Some(key_name);
-        meta.zone = Some(zone.clone());
-
-        // TODO: How to handle mirroring here?
-        // if let Some(mirrored) = key.mirror {
-        //     meta.mirrored = mirrored;
-        // }
-
-        Ok(meta)
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Zone {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -300,7 +56,7 @@ pub struct Zone {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub columns: Option<IndexMap<String, Column>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub rows: Option<IndexMap<String, Option<Row>>>,
+    pub rows: Option<IndexMap<String, Row>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<Key>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -312,13 +68,6 @@ pub struct Zone {
 impl Zone {
     pub fn columns(&self) -> IndexMap<String, Column> {
         self.columns.clone().unwrap_or_default()
-    }
-
-    pub fn rows(&self) -> IndexMap<String, Row> {
-        let rows = self.rows.clone().unwrap_or_default();
-        rows.into_iter()
-            .map(|(name, row)| (name.clone(), row.unwrap_or(Row { name: Some(name) })))
-            .collect()
     }
 
     pub fn render(
@@ -341,69 +90,53 @@ impl Zone {
             col.name = Some(col_name.clone());
 
             // combining row data from zone-wide defs and col-specific defs
-            let mut actual_rows = self.rows();
-            let col_rows = col.rows();
-            let col_rows = col_rows
-                .iter()
-                .filter_map(|(name, row)| row.as_ref().map(|row| (name.clone(), row.clone())));
-            actual_rows.extend(col_rows);
-            for (name, row) in col.rows().iter() {
-                if let Some(row) = row {
-                    actual_rows.insert(name.clone(), row.clone());
-                }
+            let mut actual_rows = self.row_names();
+            actual_rows.extend(col.row_names());
+
+            for row in col.row_names().iter() {
+                actual_rows.push(row);
             }
             if actual_rows.is_empty() {
-                actual_rows.insert(
-                    "default".to_string(),
-                    Row {
-                        name: Some("".to_string()),
-                    },
-                );
+                actual_rows.push("default");
             }
 
             // getting key config through the 5-level extension
             let mut keys = vec![];
-            for (row_name, row) in actual_rows.iter_mut() {
-                row.name = Some(row_name.clone());
-                let key = create_key(config, self, &col, col_name, row_name)?;
+            for row_name in actual_rows.iter_mut() {
+                let key = create_key(config, self, &col, col_name, row_name, units)?;
+                println!("Key name: {:?}", key.name);
                 keys.push(key);
             }
 
-            let default_key = Key::default();
+            let default_key = ParsedKey::new_default(units);
             let first_key = keys.first().unwrap_or(&default_key);
 
             if !first_col {
                 // TODO: avoid the clone here, maybe the key can calculate its spread, taking unit?
-                let spread = first_key
-                    .clone()
-                    .spread
-                    .unwrap_or_default()
-                    .eval_as_number("first_key.spread", units)?;
+                let spread = first_key.spread.unwrap_or_default();
                 zone_anchor.x = Some(zone_anchor.x.unwrap_or_default() + spread);
             }
             // TODO: avoid the clone here, maybe the key can calculate its stagger, taking unit?
-            let stagger = first_key
-                .clone()
-                .stagger
-                .unwrap_or_default()
-                .eval_as_number("first_key.stagger", units)?;
+            let stagger = first_key.clone().stagger.unwrap_or_default();
             zone_anchor.y = Some(anchor.y.unwrap_or_default() + stagger);
 
             // applying col-level rotation (cumulatively, for the next columns as well)
             let col_anchor = zone_anchor.clone();
             if let Some(splay) = &first_key.splay {
-                let splay = splay.eval_as_number("keys[0].splay", units)?;
                 // TODO: avoid the clone here if possible on a refactor
                 let current_rotations = rotations.clone();
-                let new_rotation = apply_rotations(&current_rotations, splay, &col_anchor);
+                let origin = keys[0].origin.unwrap_or_default();
+                let mut col_anchor = col_anchor.clone();
+                col_anchor.shift(origin, Some(false), None);
+                let anchor: (f64, f64) = col_anchor.clone().into();
+                let new_rotation = apply_rotations(&current_rotations, *splay, anchor);
                 rotations.push(new_rotation);
             }
 
             // actually laying out keys
             let mut running_anchor = col_anchor.clone();
             for r in &rotations {
-                // TODO: avoid the clone here if possible on a refactor
-                running_anchor.rotate(r.angle, Some(r.origin.clone().into()), false);
+                running_anchor.rotate(r.angle, Some(r.origin), false);
             }
 
             for key in keys {
@@ -412,24 +145,16 @@ impl Zone {
                 // copy the current column anchor
                 // let meta = running_anchor.meta.clone().unwrap_or_default();
                 let mut point = running_anchor.clone();
-                // println!("meta before: {:?}", meta);
 
                 // apply cumulative per-key adjustments
                 if let Some(orient) = &key.orient {
-                    let orient = orient.eval_as_number(&format!("{key_name}.orient"), units)?;
                     point.r = Some(point.r.unwrap_or_default() + orient);
                 }
 
-                // println!("meta: {:?}", meta);
-                let shift = key
-                    .shift
-                    .clone()
-                    .unwrap_or_default()
-                    .eval_as_numbers(&format!("{key_name}.shift"), units)?;
+                let shift = key.shift.unwrap_or_default();
                 point.shift(shift, None, None);
 
                 if let Some(rotate) = &key.rotate {
-                    let rotate = rotate.eval_as_number(&format!("{key_name}.rotate"), units)?;
                     point.r = Some(point.r.unwrap_or_default() + rotate);
                 }
 
@@ -438,7 +163,8 @@ impl Zone {
 
                 // apply independent adjustments
                 if let Some(adjust) = &key.adjust {
-                    point = adjust.parse(
+                    point = parse_anchored(
+                        adjust,
                         format!("{key_name}.adjust"),
                         &IndexMap::new(),
                         Some(point),
@@ -448,12 +174,8 @@ impl Zone {
                 }
 
                 // save the key
-                let padding = key
-                    .padding
-                    .clone()
-                    .unwrap_or_default()
-                    .eval_as_number(&format!("{key_name}.padding"), units)?;
-                point.meta = Some(ParsedMeta::from(self, key, units)?);
+                let padding = key.padding.unwrap_or_default();
+                point.meta = Some(key.into());
                 points.insert(key_name, point);
 
                 // advance the running anchor to the next position
@@ -465,6 +187,18 @@ impl Zone {
 
         Ok(points)
     }
+
+    fn row_names(&self) -> Vec<&str> {
+        self.rows
+            .as_ref()
+            .map_or(vec![], |rows| rows.keys().map(|k| k.as_str()).collect())
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct Row {
+    #[serde(flatten)]
+    pub anchor: Option<AnchorInfo>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -474,19 +208,149 @@ pub struct Column {
     #[serde(skip_serializing_if = "Option::is_none")]
     key: Option<Key>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    rows: Option<IndexMap<String, Option<Row>>>,
+    rows: Option<IndexMap<String, Row>>,
 }
 
 impl Column {
-    pub fn rows(&self) -> IndexMap<String, Option<Row>> {
-        self.rows.clone().unwrap_or_default()
+    fn row_names(&self) -> Vec<&str> {
+        self.rows
+            .as_ref()
+            .map_or(vec![], |rows| rows.keys().map(|k| k.as_str()).collect())
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Row {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct ParsedKey {
+    pub name: Option<String>,
+    pub zone: Option<Zone>,
+    pub row: Option<String>,
+    pub col: Option<Column>,
+    pub col_name: Option<String>,
+    pub stagger: Option<f64>,
+    pub spread: Option<f64>,
+    pub splay: Option<f64>,
+    pub origin: Option<(f64, f64)>,
+    pub orient: Option<f64>,
+    pub shift: Option<(f64, f64)>,
+    pub rotate: Option<f64>,
+    pub adjust: Option<AnchorInfo>,
+    pub bind: Option<[f64; 4]>,
+    pub width: Option<f64>,
+    pub height: Option<f64>,
+    pub padding: Option<f64>,
+    pub autobind: Option<f64>,
+    pub skip: Option<bool>,
+    pub asym: Option<Asym>,
+    pub colrow: Option<String>,
+    pub mirrored: Option<bool>,
+    pub affect: Option<Vec<AffectType>>,
+    pub meta: Option<IndexMap<String, serde_json::Value>>,
+}
+
+impl ParsedKey {
+    pub fn new_default(units: &IndexMap<String, f64>) -> Self {
+        ParsedKey {
+            stagger: Some(*units.get("$default_stagger").unwrap()),
+            spread: Some(*units.get("$default_spread").unwrap()),
+            splay: Some(*units.get("$default_splay").unwrap()),
+            origin: Some((0.0, 0.0)),
+            orient: Some(0.0),
+            shift: Some((0.0, 0.0)),
+            rotate: Some(0.0),
+            adjust: None,
+            width: Some(*units.get("$default_width").unwrap()),
+            height: Some(*units.get("$default_height").unwrap()),
+            padding: Some(*units.get("$default_padding").unwrap()),
+            autobind: Some(*units.get("$default_autobind").unwrap()),
+            skip: Some(false),
+            colrow: Some("{{col.name}}_{{row}}".to_owned()),
+            name: Some("{{zone.name}}_{{colrow}}".to_owned()),
+            ..Default::default()
+        }
+    }
+
+    pub fn extend(&mut self, other: &ParsedKey) {
+        if let Some(stagger) = &other.stagger {
+            self.stagger = Some(*stagger);
+        }
+        if let Some(spread) = &other.spread {
+            self.spread = Some(*spread);
+        }
+        if let Some(splay) = &other.splay {
+            self.splay = Some(*splay);
+        }
+        if let Some(padding) = &other.padding {
+            self.padding = Some(*padding);
+        }
+        if let Some(origin) = &other.origin {
+            self.origin = Some(*origin);
+        }
+        if let Some(orient) = &other.orient {
+            self.orient = Some(*orient);
+        }
+        if let Some(shift) = &other.shift {
+            self.shift = Some(*shift);
+        }
+        if let Some(rotate) = &other.rotate {
+            self.rotate = Some(*rotate);
+        }
+        if let Some(adjust) = &other.adjust {
+            self.adjust = Some(adjust.clone());
+        }
+        if let Some(bind) = &other.bind {
+            self.bind = Some(*bind);
+        }
+        if let Some(autobind) = &other.autobind {
+            self.autobind = Some(*autobind);
+        }
+        if let Some(skip) = &other.skip {
+            self.skip = Some(*skip);
+        }
+        if let Some(asym) = &other.asym {
+            self.asym = Some(*asym);
+        }
+        // TODO: add mirror?
+        // if let Some(mirror) = &other.mirror {
+        //     self.mirror = Some(mirror.clone());
+        // }
+        if let Some(colrow) = &other.colrow {
+            self.colrow = Some(colrow.clone());
+        }
+        if let Some(name) = &other.name {
+            self.name = Some(name.clone());
+        }
+        if let Some(width) = &other.width {
+            self.width = Some(*width);
+        }
+        if let Some(height) = &other.height {
+            self.height = Some(*height);
+        }
+
+        // Handle the meta field specially
+        if let Some(other_meta) = &other.meta {
+            if self.meta.is_none() {
+                // If self has no meta, just clone other's meta
+                self.meta = Some(other_meta.clone());
+            } else if let Some(self_meta) = &mut self.meta {
+                // If both have meta, extend self's meta with other's meta
+                for (key, value) in other_meta {
+                    self_meta.insert(key.clone(), value.clone());
+                }
+            }
+        }
+    }
+
+    pub fn process_templates(&self) -> Result<ParsedKey> {
+        let key_obj = serde_json::to_value(self)?;
+        let key_obj = key_obj.as_object().ok_or(Error::TypeError {
+            field: "key".to_owned(),
+            expected: "object".to_owned(),
+        })?;
+
+        let key_obj = process_templates(key_obj);
+
+        Ok(serde_json::from_value(Value::Object(key_obj))?)
+    }
 }
 
 pub fn create_key(
@@ -495,28 +359,32 @@ pub fn create_key(
     col: &Column,
     col_name: impl ToString,
     row_name: impl ToString,
-) -> Result<Key> {
-    let mut key = Key::new_default(&config.units());
+    units: &IndexMap<String, f64>,
+) -> Result<ParsedKey> {
+    let mut key = ParsedKey::new_default(units);
 
-    key.zone = Some(Box::new(zone.clone()));
+    key.zone = Some(zone.clone());
     key.row = Some(row_name.to_string());
+    key.col = Some(col.clone());
     key.col_name = Some(col_name.to_string());
-    key.col = Some(Box::new(col.clone()));
 
     // layer the keys
     if let Some(global_key) = &config.points.key {
         // global key
-        key.extend(global_key);
+        let global_key = global_key.resolve(units)?;
+        key.extend(&global_key);
     }
 
     if let Some(zone_wide_key) = &zone.key {
         // zone-wide key
-        key.extend(zone_wide_key);
+        let zone_wide_key = zone_wide_key.resolve(units)?;
+        key.extend(&zone_wide_key);
     }
 
     if let Some(col_key) = &col.key {
         // column key
-        key.extend(col_key);
+        let col_key = col_key.resolve(units)?;
+        key.extend(&col_key);
     }
 
     key.process_templates()
