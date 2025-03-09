@@ -174,8 +174,9 @@ pub struct Points {
     pub rotate: Option<Unit>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Default)]
 pub enum Asym {
+    #[default]
     #[serde(rename = "both")]
     Both,
     #[serde(rename = "left")]

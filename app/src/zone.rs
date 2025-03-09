@@ -151,7 +151,7 @@ impl Zone {
             // actually laying out keys
             let mut running_anchor = col_anchor.clone();
             for r in &rotations {
-                running_anchor.rotate(r.angle, Some(r.origin), false);
+                running_anchor.rotate_with_options(r.angle, Some(r.origin), false);
             }
 
             for key in keys {

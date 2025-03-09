@@ -110,7 +110,7 @@ pub fn parse_anchored(
             // simple case: number gets added to point rotation
             crate::types::EvalResult::Number(angle) => {
                 let mut point = point.clone();
-                point.rotate(angle, None, resist);
+                point.rotate_with_options(angle, Some((0.0, 0.0)), resist);
                 Ok(point)
             }
             // recursive case: points turns "towards" target anchor

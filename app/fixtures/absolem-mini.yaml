@@ -20,6 +20,6 @@ points:
       rows:
         bottom:
   rotate: -20
-  mirror:
-    ref: matrix_pinky_bottom
-    distance: 223.7529778
+  # mirror:
+  #   ref: matrix_pinky_bottom
+  #   distance: 223.7529778

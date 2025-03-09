@@ -39,7 +39,21 @@ impl Point {
         self.y = Some(p.1);
     }
 
-    pub fn rotate(&mut self, angle: f64, origin: Option<(f64, f64)>, resist: bool) -> &mut Self {
+    pub fn rotate(&mut self, angle: f64) -> &mut Self {
+        self.rotate_with_options(angle, Some((0.0, 0.0)), false)
+    }
+
+    pub fn rotate_with_options(
+        &mut self,
+        angle: f64,
+        origin: Option<(f64, f64)>,
+        resist: bool,
+    ) -> &mut Self {
+        let origin = if origin.is_none() {
+            None
+        } else {
+            Some(origin.unwrap_or((0.0, 0.0)))
+        };
         let mirrored = self
             .meta
             .as_ref()
@@ -58,7 +72,7 @@ impl Point {
 
     pub fn rotated(&self, angle: f64, origin: Option<(f64, f64)>, resist: bool) -> Self {
         let mut point = self.clone();
-        point.rotate(angle, origin, resist);
+        point.rotate_with_options(angle, origin, resist);
         point
     }
 
