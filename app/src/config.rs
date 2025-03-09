@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use super::{preprocess::preprocess, yaml::preprocess_extends};
 use crate::{
     anchor::parse_anchored,
+    outline::Outline,
     point::Point,
     types::{Meta, Mirror, Points, Unit, Units},
     units::evaluate_mathnum,
@@ -20,6 +21,7 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variables: Option<Units>,
     pub points: Points,
+    pub outlines: Option<IndexMap<String, Outline>>,
 }
 
 impl Config {
@@ -28,8 +30,14 @@ impl Config {
         let config = preprocess_extends(config.to_string())?;
         println!("Parsing config...");
         let config = Config::parse(config)?;
+        println!("Calculating variables...");
+        let units = config.resolve_units()?;
         println!("Parsing points...");
-        config.parse_points()
+        let points = config.parse_points(&units)?;
+        println!("Generating outlines...");
+        config.generate_outlines(&points, &units)?;
+
+        Ok(points)
     }
 
     pub fn parse(config: impl ToString) -> Result<Self> {
@@ -130,7 +138,7 @@ impl Config {
         Ok(units)
     }
 
-    pub fn parse_points(&self) -> Result<IndexMap<String, Point>> {
+    pub fn parse_points(&self, units: &IndexMap<String, f64>) -> Result<IndexMap<String, Point>> {
         let global_rotate = match &self.points.rotate {
             Some(rotate) => {
                 let rotate = rotate.eval_as_number("points.rotate", &self.resolve_units()?)?;
@@ -140,7 +148,6 @@ impl Config {
         };
         let global_mirror = self.points.mirror.clone();
         let mut points = IndexMap::new();
-        let units = self.resolve_units()?;
 
         // rendering zones
         for (name, zone) in self.points.zones.iter() {
@@ -151,7 +158,7 @@ impl Config {
             let anchor = match zone.anchor {
                 Some(ref anchor) => {
                     let name = format!("points.zones.{name}.anchor");
-                    anchor.parse(name, &points, None, false, &units)?
+                    anchor.parse(name, &points, None, false, units)?
                 }
                 None => Point::default(),
             };
@@ -163,7 +170,7 @@ impl Config {
             zone.mirror = None;
 
             // creating new points
-            let new_points = zone.render(self, anchor, &units)?;
+            let new_points = zone.render(self, anchor, units)?;
 
             // simplifying the names in individual point "zones" and single-key columns
             let mut renamed_points = IndexMap::new();
@@ -191,7 +198,7 @@ impl Config {
                             "zone \"{}\" rotation",
                             zone.name.clone().unwrap_or_default()
                         ),
-                        &units,
+                        units,
                     )?;
                     new_point.rotate(rotate);
                 }
@@ -205,7 +212,7 @@ impl Config {
                 mirror,
                 format!("points.zones.{name}.mirror"),
                 &points,
-                &units,
+                units,
             )? {
                 let mut mirrored_points = IndexMap::new();
                 for (_new_name, new_point) in renamed_points.iter() {
@@ -229,7 +236,7 @@ impl Config {
         // global mirroring for points that haven't been mirrored yet
         // let global_mirror = self.points.mirror.clone();
         let global_axis =
-            self.parse_axis(global_mirror, "points.mirror".to_string(), &points, &units)?;
+            self.parse_axis(global_mirror, "points.mirror".to_string(), &points, units)?;
         let global_mirrored_points: IndexMap<_, _> = points
             .iter()
             .filter_map(|(_, point)| {
@@ -262,6 +269,27 @@ impl Config {
         perform_autobind(&mut points, units)?;
 
         Ok(points)
+    }
+
+    pub fn generate_outlines(
+        &self,
+        points: &IndexMap<String, Point>,
+        units: &IndexMap<String, f64>,
+    ) -> Result<()> {
+        let Some(ref outlines) = self.outlines else {
+            return Ok(());
+        };
+
+        for (outline_name, parts) in outlines {
+            println!("Generating outline: {}", outline_name);
+
+            for (part_name, part) in parts {
+                // let part = part.render(&points, units)?;
+                println!("  - {part_name}: {:#?}", part);
+            }
+        }
+
+        todo!()
     }
 
     pub fn parse_axis(
@@ -307,7 +335,7 @@ fn mirrorzone(p: &Point) -> String {
 
 pub fn perform_autobind(
     points: &mut IndexMap<String, Point>,
-    units: IndexMap<String, f64>,
+    units: &IndexMap<String, f64>,
 ) -> Result<()> {
     let mut bounds = IndexMap::new();
     let mut col_lists = IndexMap::new();
@@ -315,7 +343,7 @@ pub fn perform_autobind(
     // round one: get column upper/lower bounds and per-zone column lists
     perform_autobind_round1(points, &mut bounds, &mut col_lists)?;
     // round two: apply autobind as appropriate
-    perform_autobind_round2(points, &bounds, &col_lists, &units)?;
+    perform_autobind_round2(points, &bounds, &col_lists, units)?;
 
     Ok(())
 }
@@ -617,6 +645,7 @@ mod tests {
 
             let contents = fs::read_to_string(file.path()).unwrap();
             let config = Config::parse(contents).unwrap();
+            let units = config.resolve_units().unwrap();
 
             let file = file.path();
             let parent = file.parent().unwrap_or(Path::new(""));
@@ -630,7 +659,7 @@ mod tests {
             let expected = fs::read_to_string(points_file).unwrap();
             let expected: serde_json::Value = serde_json::from_str(&expected).unwrap();
 
-            let actual = config.parse_points().unwrap();
+            let actual = config.parse_points(&units).unwrap();
 
             assert_json_eq!(expected, json!(actual));
             // println!("expected: {:#?}", expected);
@@ -718,6 +747,7 @@ mod tests {
                 rotate: None,
             },
             units: None,
+            outlines: None,
         };
 
         let config = serde_yaml::to_string(&config).unwrap();
@@ -729,13 +759,14 @@ mod tests {
         let config = Config {
             meta: None,
             variables: None,
+            units: None,
             points: Points {
                 zones: IndexMap::new(),
                 key: None,
                 mirror: None,
                 rotate: Some(Unit::Number(-20.0)),
             },
-            units: None,
+            outlines: None,
         };
 
         let config = serde_yaml::to_string(&config).unwrap();

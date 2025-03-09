@@ -3,6 +3,7 @@ mod anchor;
 mod config;
 mod error;
 mod expr;
+mod outline;
 mod point;
 mod points;
 mod preprocess;
