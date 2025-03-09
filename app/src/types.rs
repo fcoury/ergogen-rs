@@ -516,7 +516,7 @@ pub struct Mirror {
     pub ref_: Option<String>,
     pub distance: Option<Unit>,
     #[serde(flatten)]
-    pub anchor: AnchorInfo,
+    pub anchor: Option<AnchorInfo>,
 }
 
 impl Anchored for Mirror {
@@ -529,40 +529,29 @@ impl Anchored for Mirror {
     }
 
     fn orient(&self) -> Option<Unit> {
-        self.anchor.orient()
+        self.anchor.as_ref().and_then(|anchor| anchor.orient())
     }
 
     fn shift(&self) -> Option<Shift> {
-        self.anchor.shift()
+        self.anchor.as_ref().and_then(|anchor| anchor.shift())
     }
 
     fn rotate(&self) -> Option<Unit> {
-        self.anchor.rotate()
+        self.anchor.as_ref().and_then(|anchor| anchor.rotate())
     }
 
     fn affect(&self) -> Option<Vec<AffectType>> {
-        self.anchor.affect()
+        self.anchor.as_ref().and_then(|anchor| anchor.affect())
     }
 
     fn resist(&self) -> Option<bool> {
-        self.anchor.resist()
+        self.anchor.as_ref().and_then(|anchor| anchor.resist())
     }
 
     fn asym(&self) -> Option<Asym> {
-        self.anchor.asym()
+        self.anchor.as_ref().and_then(|anchor| anchor.asym())
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Outlines {}
-
-// TODO: implement $unset
-// #[derive(Clone, Debug, Serialize, Deserialize)]
-// #[serde(untagged)]
-// pub enum Row {
-//     Unset,
-//     Value(RowItem),
-// }
-//
-// #[derive(Clone, Debug, Serialize, Deserialize)]
-// pub struct RowItem {}

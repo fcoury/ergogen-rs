@@ -108,11 +108,13 @@ impl Point {
     pub fn mirrored(&self, x_axis: f64) -> Self {
         let x = self.x.unwrap_or_default();
         let x = 2.0 * x_axis - x;
+        let r = self.r.unwrap_or_default();
+        let r = -r;
 
         Point {
             x: Some(x),
             y: self.y,
-            r: self.r,
+            r: Some(r),
             meta: self.meta.clone(),
         }
     }
@@ -193,6 +195,8 @@ pub struct AnchorInfo {
     pub zone: Option<Box<Zone>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bind: Option<Bind>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub col: Option<Box<Column>>,
 }
 
 impl From<ParsedKey> for AnchorInfo {
@@ -225,6 +229,7 @@ impl AnchorInfo {
             colrow: key.colrow,
             name: key.name,
             zone: key.zone.map(Box::new),
+            col: key.col.map(Box::new),
             // TODO: How to handle mirroring here?
             // if let Some(mirrored) = key.mirror {
             //     meta.mirrored = mirrored;

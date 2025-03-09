@@ -131,7 +131,6 @@ impl Config {
     }
 
     pub fn parse_points(&self) -> Result<IndexMap<String, Point>> {
-        // const global_rotate = a.sane(config.rotate || 0, 'points.rotate', 'number')(units)
         let global_rotate = match &self.points.rotate {
             Some(rotate) => {
                 let rotate = rotate.eval_as_number("points.rotate", &self.resolve_units()?)?;
@@ -139,6 +138,7 @@ impl Config {
             }
             None => None,
         };
+        let global_mirror = self.points.mirror.clone();
         let mut points = IndexMap::new();
         let units = self.resolve_units()?;
 
@@ -228,16 +228,20 @@ impl Config {
         }
 
         // global mirroring for points that haven't been mirrored yet
-        let global_mirror = self.points.mirror.clone();
+        // let global_mirror = self.points.mirror.clone();
         let global_axis =
             self.parse_axis(global_mirror, "points.mirror".to_string(), &points, &units)?;
         let global_mirrored_points: IndexMap<_, _> = points
             .iter()
             .filter_map(|(_, point)| {
                 if let Some(meta) = &point.meta {
-                    if meta.mirrored.unwrap_or_default() {
-                        let (mirrored_name, mirrored_point) = perform_mirror(point, global_axis?);
-                        mirrored_point.map(|mirrored_point| (mirrored_name, mirrored_point))
+                    if meta.mirrored.is_none() {
+                        if let Some(global_axis) = global_axis {
+                            let (name, point) = perform_mirror(point, global_axis);
+                            point.map(|point| (name, point))
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
@@ -433,7 +437,7 @@ mod tests {
     use std::{fs, path::Path};
 
     use assert_json_diff::assert_json_eq;
-    use serde_json::json;
+    use serde_json::{json, Map, Number, Value};
 
     use super::*;
 
@@ -469,26 +473,63 @@ mod tests {
         assert_json_eq!(theirs, ours);
     }
 
+    fn get_points<'a>(name: &'a str, ours: &'a Value, theirs: &'a Value) -> (&'a Value, Value) {
+        let ours = ours.get(name).unwrap();
+        let theirs = theirs.get(name).unwrap();
+
+        let theirs = make_numbers_f64(theirs);
+
+        (ours, theirs)
+    }
+
+    pub fn make_numbers_f64(value: &Value) -> Value {
+        match value {
+            Value::Number(n) => {
+                // Convert any number to f64
+                if let Some(f) = n.as_f64() {
+                    Value::Number(Number::from_f64(f).unwrap())
+                } else {
+                    // This should not happen with valid JSON numbers
+                    value.clone()
+                }
+            }
+            Value::Array(arr) => {
+                // Process each element in the array
+                let new_arr = arr.iter().map(make_numbers_f64).collect();
+                Value::Array(new_arr)
+            }
+            Value::Object(obj) => {
+                // Process each value in the object
+                let mut new_obj = Map::new();
+                for (k, v) in obj {
+                    new_obj.insert(k.clone(), make_numbers_f64(v));
+                }
+                Value::Object(new_obj)
+            }
+            // Other value types (String, Bool, Null) remain unchanged
+            _ => value.clone(),
+        }
+    }
+
     #[test]
     fn test_parse_absolem() {
         let config = include_str!("../fixtures/absolem-mini.yaml");
         let config = Config::process(config).unwrap();
         // println!("{}", serde_json::to_string_pretty(&config).unwrap());
 
-        let point = config.get("matrix_inner_bottom").unwrap();
-        let r = point.r.unwrap();
-        assert_eq!(r, -20.0);
+        let ours = serde_json::to_value(config).unwrap();
+        fs::write(
+            "fixtures/absolem___output.json",
+            serde_json::to_string_pretty(&ours).unwrap(),
+        )
+        .unwrap();
+        let theirs = include_str!("../fixtures/absolem-mini___points.json");
+        let theirs: serde_json::Value = serde_json::from_str(theirs).unwrap();
 
-        // let ours = serde_json::to_value(config).unwrap();
-        // fs::write(
-        //     "fixtures/absolem___output.json",
-        //     serde_json::to_string_pretty(&ours).unwrap(),
-        // )
-        // .unwrap();
-        // let theirs = include_str!("../fixtures/absolem___points.json");
-        // let theirs: serde_json::Value = serde_json::from_str(theirs).unwrap();
-        //
-        // assert_json_eq!(theirs, ours);
+        let (our_point, their_point) = get_points("matrix_pinky_bottom", &ours, &theirs);
+        let meta = their_point.get("meta").unwrap();
+        println!("{:#?}", meta.get("asym"));
+        assert_json_eq!(their_point, our_point);
     }
 
     #[test]
@@ -613,6 +654,28 @@ mod tests {
         let config = include_str!("../fixtures/points/overrides.yaml");
         let config = Config::parse(config).unwrap();
         println!("{:#?}", config);
+    }
+
+    #[test]
+    fn test_persist_mirror() {
+        let config = Config {
+            meta: None,
+            variables: None,
+            points: Points {
+                zones: IndexMap::new(),
+                key: None,
+                mirror: Some(Mirror {
+                    anchor: None,
+                    ref_: Some("matrix_pinky_bottom".to_string()),
+                    distance: Some(Unit::Number(223.7529778)),
+                }),
+                rotate: None,
+            },
+            units: None,
+        };
+
+        let config = serde_yaml::to_string(&config).unwrap();
+        println!("{}", config);
     }
 
     #[test]

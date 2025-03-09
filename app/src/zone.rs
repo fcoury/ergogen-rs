@@ -30,10 +30,13 @@ pub fn perform_mirror(point: &Point, axis: f64) -> (String, Option<Point>) {
     }
 
     let mut mirrored_point = point.mirrored(axis);
-
-    let mirrored_name = format!("mirror_{}", meta.colrow.clone().unwrap_or_default());
+    let mirrored_name = format!("mirror_{}", meta.name.clone().unwrap_or_default());
     let mut new_meta = meta.clone();
-    new_meta.colrow = Some(mirrored_name.clone());
+    new_meta.name = Some(mirrored_name.clone());
+    new_meta.colrow = Some(format!(
+        "mirror_{}",
+        meta.colrow.clone().unwrap_or_default()
+    ));
     new_meta.mirrored = Some(true);
     if let Some(asym) = new_meta.asym {
         if asym.is_clone() {
@@ -279,6 +282,7 @@ impl ParsedKey {
             skip: Some(false),
             colrow: Some("{{col.name}}_{{row}}".to_owned()),
             name: Some("{{zone.name}}_{{colrow}}".to_owned()),
+            asym: Some(Asym::Both),
             ..Default::default()
         }
     }
