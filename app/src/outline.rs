@@ -1,6 +1,7 @@
 use std::fmt;
 
 use indexmap::IndexMap;
+use maker_rs::schema::Model;
 use serde::{Deserialize, Serialize};
 
 use crate::{anchor::AnchorItem, types::Unit};
@@ -91,12 +92,16 @@ pub enum OutlineItem {
     Circle {
         #[serde(rename = "where")]
         where_: Option<Where>,
+        #[serde(default)]
+        operation: Operation,
         radius: Unit,
     },
     #[serde(rename = "outline")]
     Outline {
         #[serde(rename = "where")]
         where_: Option<Where>,
+        #[serde(default)]
+        operation: Operation,
         name: Option<String>,
         expand: Option<Unit>,
         fillet: Option<Unit>,
@@ -106,6 +111,8 @@ pub enum OutlineItem {
     Rectangle {
         #[serde(rename = "where")]
         where_: Option<Where>,
+        #[serde(default)]
+        operation: Operation,
         width: Option<String>,
         height: Option<String>,
         size: Size,
@@ -116,8 +123,23 @@ pub enum OutlineItem {
     Polygon {
         #[serde(rename = "where")]
         where_: Option<Where>,
+        #[serde(default)]
+        operation: Operation,
         points: Vec<AnchorItem>,
     },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub enum Operation {
+    #[default]
+    #[serde(rename = "add")]
+    Add,
+    #[serde(rename = "subtract")]
+    Subtract,
+    #[serde(rename = "intersect")]
+    Intersect,
+    #[serde(rename = "stack")]
+    Stack,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -135,6 +157,24 @@ pub enum Where {
     Array(Vec<Where>),
 }
 
+const FAR_POINT: (f64, f64) = (1234.1234, 2143.56789);
+
+pub fn add(a: Model, b: Model) -> Model {
+    maker_rs::model::combine()
+        .model_a(&a)
+        .model_b(&b)
+        .include_a_inside_b(false)
+        .include_a_outside_b(true)
+        .include_b_inside_a(false)
+        .include_b_outside_a(true)
+        .options(
+            maker_rs::model::CombineOptions::builder()
+                .far_point(FAR_POINT)
+                .build(),
+        )
+        .call()
+}
+
 #[cfg(test)]
 mod tests {
     use crate::anchor::{Anchor, AnchorItem};
@@ -142,7 +182,53 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_outline() {
+    fn test_serialize_outline_with_many_parts() {
+        let outline: IndexMap<String, Outline> = [(
+            "backplate_outline".to_string(),
+            Outline::Array(vec![
+                OutlineItem::Outline {
+                    where_: None,
+                    operation: Operation::default(),
+                    name: Some("_plate_outline".to_string()),
+                    expand: None,
+                    fillet: None,
+                    joints: None,
+                },
+                OutlineItem::Outline {
+                    where_: None,
+                    operation: Operation::Add,
+                    name: Some("_backplate_additional_outline".to_string()),
+                    expand: None,
+                    fillet: None,
+                    joints: None,
+                },
+            ]),
+        )]
+        .iter()
+        .cloned()
+        .collect();
+
+        let serialized = serde_yaml::to_string(&outline).unwrap();
+        println!("{}", serialized);
+    }
+
+    #[test]
+    fn test_parse_outline_with_many_parts() {
+        let outline = r#"
+_backplate_outline:
+  - what: outline
+    name: _plate_outline
+  - what: outline
+    name: _backplate_additional_outline
+    operation: add
+"#;
+
+        let outline: IndexMap<String, Outline> = serde_yaml::from_str(outline).unwrap();
+        println!("{:#?}", outline);
+    }
+
+    #[test]
+    fn test_parse_multiple_outlines() {
         let outline = r#"
 screws:
   - what: circle
@@ -174,6 +260,13 @@ backplate_additional_outline:
       - ref: mcu_cover_top_right
       - ref: mcu_cover_bottom_right
       - ref: mcu_cover_bottom_left
+
+_backplate_outline:
+  - what: outline
+    name: _plate_outline
+  - what: outline
+    name: _backplate_additional_outline
+    operation: add
 "#;
 
         let outline: IndexMap<String, Outline> = serde_yaml::from_str(outline).unwrap();
@@ -188,6 +281,7 @@ backplate_additional_outline:
                 ref_: Some(Anchor::Ref("mcu_cover_top_left".to_string())),
                 ..Default::default()
             }],
+            operation: Operation::default(),
         };
 
         let serialized = serde_yaml::to_string(&polygon).unwrap();

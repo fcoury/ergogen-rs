@@ -1,3 +1,4 @@
+use bon::{builder, Builder};
 use indexmap::IndexMap;
 use std::any::Any;
 use std::collections::HashMap;
@@ -80,7 +81,7 @@ impl Clone for Model {
 }
 
 /// Options to pass to model::combine
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Builder)]
 pub struct CombineOptions {
     /// Flag to remove paths which are not part of a loop
     pub trim_dead_ends: Option<bool>,
@@ -101,60 +102,6 @@ pub struct CombineOptions {
 
     /// Distance for considering points as matching
     pub point_matching_distance: Option<f64>,
-}
-
-// Builder for CombineOptions
-pub struct CombineOptionsBuilder {
-    options: CombineOptions,
-}
-
-impl CombineOptionsBuilder {
-    pub fn new() -> Self {
-        Self {
-            options: CombineOptions {
-                trim_dead_ends: Some(true),
-                far_point: None,
-                out_deleted: Some([None, None]),
-                measure_a: None,
-                measure_b: None,
-                point_matching_distance: Some(0.005),
-            },
-        }
-    }
-
-    pub fn trim_dead_ends(mut self, value: bool) -> Self {
-        self.options.trim_dead_ends = Some(value);
-        self
-    }
-
-    pub fn far_point(mut self, value: Point) -> Self {
-        self.options.far_point = Some(value);
-        self
-    }
-
-    pub fn out_deleted(mut self, value: [Option<Model>; 2]) -> Self {
-        self.options.out_deleted = Some(value);
-        self
-    }
-
-    pub fn measure_a(mut self, value: Atlas) -> Self {
-        self.options.measure_a = Some(value);
-        self
-    }
-
-    pub fn measure_b(mut self, value: Atlas) -> Self {
-        self.options.measure_b = Some(value);
-        self
-    }
-
-    pub fn point_matching_distance(mut self, value: f64) -> Self {
-        self.options.point_matching_distance = Some(value);
-        self
-    }
-
-    pub fn build(self) -> CombineOptions {
-        self.options
-    }
 }
 
 // Additional structures needed for the implementation
@@ -306,6 +253,7 @@ impl From<HashablePoint> for Point {
 }
 
 /// Combines two models based on inclusion rules
+#[builder]
 pub fn combine(
     model_a: &Model,
     model_b: &Model,

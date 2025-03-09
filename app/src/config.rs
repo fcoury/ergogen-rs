@@ -284,8 +284,17 @@ impl Config {
             println!("Generating outline: {}", outline_name);
 
             for (part_name, part) in parts {
+                let name = format!("outlines.{outline_name}.{part_name}");
                 // let part = part.render(&points, units)?;
-                println!("  - {part_name}: {:#?}", part);
+                println!("  - {name}: {:#?}", part);
+
+                // TODO: string part-shortcuts are expanded first
+                //  if (a.type(part)() == "string") {
+                //    console.log("  - string ", name, part);
+                //    part = o.operation(part, { outline: Object.keys(outlines) });
+                //  }
+
+                // HERE: let operation = part.operation
             }
         }
 
