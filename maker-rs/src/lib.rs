@@ -1,5 +1,6 @@
 pub mod angle;
 pub mod measure;
+pub mod model;
 pub mod path;
 pub mod paths;
 pub mod point;

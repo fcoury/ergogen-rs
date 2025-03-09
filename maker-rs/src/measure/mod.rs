@@ -1,8 +1,39 @@
+mod model;
+
+use indexmap::IndexMap;
+use model::model_extents;
+
 use crate::{
     paths::{Line, PathLine},
-    schema::Point,
+    schema::{Model, Point},
     Slope,
 };
+
+#[derive(Clone, Debug)]
+pub struct Measure {
+    pub low: Point,
+    pub high: Point,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Atlas {
+    pub models_measured: bool,
+    pub model_map: IndexMap<String, Measure>,
+    pub path_map: IndexMap<String, Measure>,
+}
+
+impl Atlas {
+    pub fn new() -> Self {
+        Atlas::default()
+    }
+
+    pub fn measure_models(&mut self, model_context: &Model) {
+        if !self.models_measured {
+            model_extents(model_context, self);
+            self.models_measured = true;
+        }
+    }
+}
 
 pub fn point_distance(a: Point, b: Point) -> f64 {
     let dx = a.0 - b.0;

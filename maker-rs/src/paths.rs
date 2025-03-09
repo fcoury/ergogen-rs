@@ -20,6 +20,8 @@ pub trait Path {
     fn as_line(&self) -> Option<&Line> {
         None
     }
+
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 pub trait PathLine: Path {
@@ -70,6 +72,10 @@ impl Path for Line {
 
     fn as_line(&self) -> Option<&Line> {
         Some(self)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
