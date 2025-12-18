@@ -1,0 +1,51 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ergogen-core",
+    "crates/ergogen-geometry",
+    "crates/ergogen-parser",
+    "crates/ergogen-layout",
+    "crates/ergogen-outline",
+    "crates/ergogen-pcb",
+    "crates/ergogen-export",
+    "crates/ergogen-cli",
+    "ergogen-wasm", "x",
+]
+
+[workspace.package]
+version = "5.0.0-alpha.1"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/ergogen/ergogen-rs"
+
+[workspace.dependencies]
+# Core
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yml = "0.0.12"
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Geometry
+kurbo = "0.11"
+geo = "0.28"
+i_overlay = "1.9"
+# cavalier_contours = "0.3"  # Add when needed
+
+# Math
+meval = "0.2"
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# Export
+dxf = "0.6"
+svg = "0.17"
+
+# I/O
+zip = "2.2"
+walkdir = "2.5"
+
+# Testing
+approx = "0.5"
+proptest = "1.5"

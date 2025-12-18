@@ -1,0 +1,14 @@
+[package]
+name = "ergogen-parser"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ergogen-core = { path = "../ergogen-core" }
+serde.workspace = true
+serde_json.workspace = true
+serde_yml.workspace = true
+meval.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true

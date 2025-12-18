@@ -1,0 +1,11 @@
+[package]
+name = "ergogen-outline"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ergogen-core = { path = "../ergogen-core" }
+ergogen-geometry = { path = "../ergogen-geometry" }
+serde.workspace = true
+anyhow.workspace = true

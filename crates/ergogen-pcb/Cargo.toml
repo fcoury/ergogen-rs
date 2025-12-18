@@ -1,0 +1,10 @@
+[package]
+name = "ergogen-pcb"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ergogen-core = { path = "../ergogen-core" }
+serde.workspace = true
+anyhow.workspace = true

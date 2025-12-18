@@ -1,0 +1,14 @@
+[package]
+name = "ergogen-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ergogen-core = { path = "../crates/ergogen-core" }
+wasm-bindgen = "0.2"
+serde.workspace = true
+serde-wasm-bindgen = "0.6"

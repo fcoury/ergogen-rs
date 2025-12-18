@@ -1,0 +1,9 @@
+[package]
+name = "ergogen-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+approx.workspace = true

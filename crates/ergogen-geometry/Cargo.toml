@@ -1,0 +1,12 @@
+[package]
+name = "ergogen-geometry"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kurbo.workspace = true
+geo.workspace = true
+i_overlay.workspace = true
+serde.workspace = true
+anyhow.workspace = true
