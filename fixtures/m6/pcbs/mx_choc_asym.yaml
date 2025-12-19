@@ -1,0 +1,36 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points:
+  mirror: 0
+  zones:
+    matrix:
+      anchor:
+        shift: [10, 0]
+      columns:
+        col:
+          rows:
+            row:
+pcbs.pcb.footprints:
+  - what: mx
+    where: true
+    asym: source
+    params:
+      from: net_from
+      to: net_to
+      keycaps: true
+  - what: choc
+    where: true
+    asym: clone
+    params:
+      to: net_b
+      from: net_a
+      reverse: true
+    adjust.shift: [0, 20]
+  - what: mx
+    where: true
+    asym: both
+    params:
+      from: net_c
+      to: net_d
+      hotswap: true
+    adjust.shift: [0, 40]

@@ -215,6 +215,28 @@ impl NormalizedDxf {
         }
 
         let mut out = String::new();
+        // Minimal header + tables matching upstream Ergogen DXFs for maximum viewer compatibility.
+        push_pair(&mut out, 0, "SECTION");
+        push_pair(&mut out, 2, "HEADER");
+        push_pair(&mut out, 9, "$INSUNITS");
+        push_pair(&mut out, 70, "4"); // millimeters
+        push_pair(&mut out, 0, "ENDSEC");
+        push_pair(&mut out, 0, "SECTION");
+        push_pair(&mut out, 2, "TABLES");
+        push_pair(&mut out, 0, "TABLE");
+        push_pair(&mut out, 2, "LTYPE");
+        push_pair(&mut out, 0, "LTYPE");
+        push_pair(&mut out, 72, "65");
+        push_pair(&mut out, 70, "64");
+        push_pair(&mut out, 2, "CONTINUOUS");
+        push_pair(&mut out, 3, "______");
+        push_pair(&mut out, 73, "0");
+        push_pair(&mut out, 40, "0");
+        push_pair(&mut out, 0, "ENDTAB");
+        push_pair(&mut out, 0, "TABLE");
+        push_pair(&mut out, 2, "LAYER");
+        push_pair(&mut out, 0, "ENDTAB");
+        push_pair(&mut out, 0, "ENDSEC");
         push_pair(&mut out, 0, "SECTION");
         push_pair(&mut out, 2, "ENTITIES");
 
@@ -222,6 +244,7 @@ impl NormalizedDxf {
             match e {
                 NormalizedEntity::Line { a, b } => {
                     push_pair(&mut out, 0, "LINE");
+                    push_pair(&mut out, 8, "0");
                     push_pair_f64(
                         &mut out,
                         10,
@@ -245,6 +268,7 @@ impl NormalizedDxf {
                 }
                 NormalizedEntity::Circle { c, r } => {
                     push_pair(&mut out, 0, "CIRCLE");
+                    push_pair(&mut out, 8, "0");
                     push_pair_f64(
                         &mut out,
                         10,
@@ -263,6 +287,7 @@ impl NormalizedDxf {
                 }
                 NormalizedEntity::Arc { c, r, start, end } => {
                     push_pair(&mut out, 0, "ARC");
+                    push_pair(&mut out, 8, "0");
                     push_pair_f64(
                         &mut out,
                         10,
@@ -291,6 +316,7 @@ impl NormalizedDxf {
                     closed,
                 } => {
                     push_pair(&mut out, 0, "LWPOLYLINE");
+                    push_pair(&mut out, 8, "0");
                     push_pair(&mut out, 90, vertices.len().to_string());
                     push_pair(&mut out, 70, if *closed { "1" } else { "0" });
                     for (idx, v) in vertices.iter().enumerate() {

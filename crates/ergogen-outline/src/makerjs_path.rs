@@ -318,10 +318,6 @@ pub struct BezierSeed {
 }
 
 impl BezierSeed {
-    pub fn order(&self) -> usize {
-        if self.controls.len() == 1 { 2 } else { 3 }
-    }
-
     pub fn points(&self) -> Vec<[f64; 2]> {
         let mut pts = Vec::with_capacity(2 + self.controls.len());
         pts.push(self.origin);

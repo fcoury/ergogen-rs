@@ -12,7 +12,7 @@ fn workspace_root() -> PathBuf {
 }
 
 fn fixture_dir() -> PathBuf {
-    workspace_root().join("fixtures/m6/pcbs")
+    workspace_root().join("fixtures/m7/pcbs")
 }
 
 fn normalize(s: &str) -> String {
@@ -22,7 +22,7 @@ fn normalize(s: &str) -> String {
 }
 
 #[test]
-fn m6_footprint_fixtures_match_golden_kicad_pcbs() {
+fn m7_footprint_spec_pcb_matches_golden() {
     let dir = fixture_dir();
     let mut yamls: Vec<PathBuf> = std::fs::read_dir(&dir)
         .unwrap()
@@ -32,7 +32,7 @@ fn m6_footprint_fixtures_match_golden_kicad_pcbs() {
         .collect();
     yamls.sort();
 
-    assert!(!yamls.is_empty(), "no m6 pcb fixtures found in {dir:?}");
+    assert!(!yamls.is_empty(), "no m7 pcb fixtures found in {dir:?}");
 
     let update = std::env::var("UPDATE_GOLDENS").is_ok();
 

@@ -1,0 +1,28 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points:
+  mirror: 0
+  zones:
+    matrix:
+      columns:
+        col:
+          rows:
+            row:
+pcbs.pcb.footprints:
+  - what: oled
+    where: true
+    asym: both
+    params:
+      SCL: scl
+      SDA: sda
+      GND: gnd
+      VCC: vcc
+  - what: rgb
+    where: true
+    asym: both
+    params:
+      din: din
+      dout: dout
+      VCC: vcc
+      GND: gnd
+    adjust.shift: [0, 20]

@@ -1,0 +1,73 @@
+name: primitives_templated
+params:
+  radius:
+    type: number
+    default: 2
+  line_w:
+    type: number
+    default: 0.2
+  arc_angle:
+    type: number
+    default: 90
+  rect_w:
+    type: number
+    default: 4
+  rect_h:
+    type: number
+    default: 2
+  text_size:
+    type: number
+    default: 1.5
+  label:
+    type: string
+    default: TEXT
+  justify:
+    type: string
+    default: left
+primitives:
+  - type: circle
+    center:
+      - 0
+      - 0
+    radius: "{{ radius }}"
+    layer: F.SilkS
+    width: "{{ line_w }}"
+  - type: line
+    start:
+      - -3
+      - -3
+    end:
+      - 3
+      - -3
+    layer: F.SilkS
+    width: "{{ line_w }}"
+  - type: arc
+    center:
+      - 0
+      - 0
+    radius: "{{ radius }}"
+    start_angle: 0
+    angle: "{{ arc_angle }}"
+    layer: F.SilkS
+    width: "{{ line_w }}"
+  - type: rect
+    center:
+      - 0
+      - 0
+    size:
+      - "{{ rect_w }}"
+      - "{{ rect_h }}"
+    layer: F.SilkS
+    width: "{{ line_w }}"
+  - type: text
+    at:
+      - 0
+      - 5
+    text: "{{ label }}"
+    layer: F.SilkS
+    size:
+      - "{{ text_size }}"
+      - "{{ text_size }}"
+    thickness: "{{ line_w }}"
+    rotation: 15
+    justify: "{{ justify }}"

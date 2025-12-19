@@ -1,0 +1,13 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.footprints_search_paths:
+  - fixtures/m7/footprints
+pcbs.pcb.footprints:
+  - what: spec
+    params:
+      spec: visual_arc_text.yaml
+      label: ARC90
+      angle: 90
+      rotation: 30
+    adjust.shift: [0, 0]

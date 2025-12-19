@@ -1,0 +1,9 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.footprints:
+  - what: spec
+    params:
+      spec: diode.yaml
+      from: D_FROM
+      to: D_TO

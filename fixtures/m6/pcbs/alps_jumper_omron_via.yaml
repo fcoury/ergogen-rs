@@ -1,0 +1,22 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.footprints:
+  - what: alps
+    params:
+      from: a_from
+      to: a_to
+  - what: jumper
+    params:
+      from: j_from
+      to: j_to
+    adjust.shift: [40, 0]
+  - what: omron
+    params:
+      from: o_from
+      to: o_to
+    adjust.shift: [80, 0]
+  - what: via
+    params:
+      net: vnet
+    adjust.shift: [120, 0]

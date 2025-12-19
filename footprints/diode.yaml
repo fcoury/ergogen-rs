@@ -1,0 +1,209 @@
+name: diode
+params:
+  from:
+    type: net
+    required: true
+  to:
+    type: net
+    required: true
+primitives:
+  - type: line
+    start:
+      - 0.25
+      - 0
+    end:
+      - 0.75
+      - 0
+    layer: F.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - 0.25
+      - 0.4
+    end:
+      - -0.35
+      - 0
+    layer: F.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - 0.25
+      - -0.4
+    end:
+      - 0.25
+      - 0.4
+    layer: F.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - -0.35
+      - 0
+    end:
+      - 0.25
+      - -0.4
+    layer: F.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - -0.35
+      - 0
+    end:
+      - -0.35
+      - 0.55
+    layer: F.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - -0.35
+      - 0
+    end:
+      - -0.35
+      - -0.55
+    layer: F.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - -0.75
+      - 0
+    end:
+      - -0.35
+      - 0
+    layer: F.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - 0.25
+      - 0
+    end:
+      - 0.75
+      - 0
+    layer: B.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - 0.25
+      - 0.4
+    end:
+      - -0.35
+      - 0
+    layer: B.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - 0.25
+      - -0.4
+    end:
+      - 0.25
+      - 0.4
+    layer: B.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - -0.35
+      - 0
+    end:
+      - 0.25
+      - -0.4
+    layer: B.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - -0.35
+      - 0
+    end:
+      - -0.35
+      - 0.55
+    layer: B.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - -0.35
+      - 0
+    end:
+      - -0.35
+      - -0.55
+    layer: B.SilkS
+    width: 0.1
+  - type: line
+    start:
+      - -0.75
+      - 0
+    end:
+      - -0.35
+      - 0
+    layer: B.SilkS
+    width: 0.1
+  - type: pad
+    at:
+      - -1.65
+      - 0
+    size:
+      - 0.9
+      - 1.2
+    layers:
+      - F.Cu
+      - F.Paste
+      - F.Mask
+    net: "{{ to }}"
+  - type: pad
+    at:
+      - 1.65
+      - 0
+    size:
+      - 0.9
+      - 1.2
+    layers:
+      - B.Cu
+      - B.Paste
+      - B.Mask
+    net: "{{ from }}"
+  - type: pad
+    at:
+      - -1.65
+      - 0
+    size:
+      - 0.9
+      - 1.2
+    layers:
+      - B.Cu
+      - B.Paste
+      - B.Mask
+    net: "{{ to }}"
+  - type: pad
+    at:
+      - 1.65
+      - 0
+    size:
+      - 0.9
+      - 1.2
+    layers:
+      - F.Cu
+      - F.Paste
+      - F.Mask
+    net: "{{ from }}"
+  - type: pad_thru
+    at:
+      - -3.81
+      - 0
+    size:
+      - 1.778
+      - 1.778
+    drill: 0.9906
+    shape: rect
+    layers:
+      - "*.Cu"
+      - "*.Mask"
+    net: "{{ to }}"
+  - type: pad_thru
+    at:
+      - 3.81
+      - 0
+    size:
+      - 1.905
+      - 1.905
+    drill: 0.9906
+    shape: circle
+    layers:
+      - "*.Cu"
+      - "*.Mask"
+    net: "{{ from }}"

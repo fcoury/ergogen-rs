@@ -96,6 +96,29 @@ pub fn generate_cases_jscad(
     prepared: &PreparedConfig,
     case_name: &str,
 ) -> Result<String, JscadError> {
+    let data = collect_case_data(prepared, case_name)?;
+    render_cases_v1(case_name, data)
+}
+
+pub fn generate_cases_jscad_v2(
+    prepared: &PreparedConfig,
+    case_name: &str,
+) -> Result<String, JscadError> {
+    let data = collect_case_data(prepared, case_name)?;
+    render_cases_v2(case_name, data)
+}
+
+struct CaseData {
+    cases: IndexMap<String, CaseDef>,
+    order: Vec<String>,
+    outlines: Vec<(String, f64)>,
+    outline_shapes: HashMap<String, OutlineShape>,
+}
+
+fn collect_case_data(
+    prepared: &PreparedConfig,
+    case_name: &str,
+) -> Result<CaseData, JscadError> {
     let cases_v = prepared
         .canonical
         .get_path("cases")
@@ -134,53 +157,16 @@ pub fn generate_cases_jscad(
         if outline_shapes.contains_key(outline_name) {
             continue;
         }
-        let shape = parse_outline_shape(
-            outline_name,
-            outlines_map,
-            &prepared.units,
-        )?;
+        let shape = parse_outline_shape(outline_name, outlines_map, &prepared.units)?;
         outline_shapes.insert(outline_name.clone(), shape);
     }
 
-    let mut out = String::new();
-    for (idx, (outline_name, extrude)) in outlines.iter().enumerate() {
-        let shape = outline_shapes
-            .get(outline_name)
-            .ok_or_else(|| JscadError::UnknownOutline {
-                name: outline_name.clone(),
-            })?;
-        out.push_str(&render_outline_fn(outline_name, *extrude, *shape)?);
-        if idx + 1 < outlines.len() {
-            out.push('\n');
-            out.push('\n');
-        } else {
-            out.push('\n');
-            out.push('\n');
-            out.push('\n');
-            out.push('\n');
-        }
-    }
-
-    for (idx, name) in order.iter().enumerate() {
-        let def = cases
-            .get(name)
-            .ok_or_else(|| JscadError::UnknownCase { name: name.clone() })?;
-        out.push_str(&render_case_fn(name, def));
-        out.push_str("            \n");
-        out.push_str("            \n");
-        if idx + 1 < order.len() {
-            out.push('\n');
-        }
-    }
-
-    out.push_str("        \n");
-    out.push_str("            function main() {\n");
-    out.push_str(&format!("                return {case_name}_case_fn();\n"));
-    out.push_str("            }\n");
-    out.push('\n');
-    out.push_str("        \n");
-
-    Ok(out)
+    Ok(CaseData {
+        cases,
+        order,
+        outlines,
+        outline_shapes,
+    })
 }
 
 fn parse_case_def(
@@ -463,6 +449,70 @@ fn render_case_fn(name: &str, def: &CaseDef) -> String {
     out
 }
 
+fn render_case_fn_v2(name: &str, def: &CaseDef) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("function {name}_case_fn() {{\n"));
+    out.push('\n');
+
+    let parts = match def {
+        CaseDef::Parts(parts) => parts
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(idx, part)| (idx.to_string(), part))
+            .collect::<Vec<_>>(),
+        CaseDef::Op { target, tool } => vec![
+            ("target".to_string(), target.clone()),
+            ("tool".to_string(), tool.clone()),
+        ],
+    };
+
+    for (idx, (label, part)) in parts.iter().enumerate() {
+        let part_var = format!("{name}__part_{label}");
+        out.push_str(&format!(
+            "  // creating part {label} of case {name}\n"
+        ));
+        out.push_str(&format!("  let {part_var} = {};\n", part_fn_call(part)));
+        out.push('\n');
+        out.push_str("  // make sure that rotations are relative\n");
+        out.push_str(&format!(
+            "  let {part_var}_bounds = measureBoundingBox({part_var});\n"
+        ));
+        out.push_str(&format!(
+            "  let {part_var}_x = {part_var}_bounds[0][0] + ({part_var}_bounds[1][0] - {part_var}_bounds[0][0]) / 2;\n"
+        ));
+        out.push_str(&format!(
+            "  let {part_var}_y = {part_var}_bounds[0][1] + ({part_var}_bounds[1][1] - {part_var}_bounds[0][1]) / 2;\n"
+        ));
+        out.push_str(&format!(
+            "  {part_var} = translate([-{part_var}_x, -{part_var}_y, 0], {part_var});\n"
+        ));
+        out.push_str(&format!(
+            "  {part_var} = rotate({}, {part_var});\n",
+            fmt_vec3_radians(part.rotate)
+        ));
+        out.push_str(&format!(
+            "  {part_var} = translate([{part_var}_x, {part_var}_y, 0], {part_var});\n"
+        ));
+        out.push('\n');
+        out.push_str(&format!(
+            "  {part_var} = translate({}, {part_var});\n",
+            fmt_vec3_no_spaces(part.shift)
+        ));
+        if idx == 0 {
+            out.push_str(&format!("  let result = {part_var};\n"));
+        } else {
+            let op = part.operation.unwrap_or(CaseOp::Union).js_method();
+            out.push_str(&format!("  result = {op}(result, {part_var});\n"));
+        }
+        out.push('\n');
+    }
+
+    out.push_str("  return result;\n");
+    out.push_str("}\n");
+    out
+}
+
 fn part_fn_call(part: &CasePart) -> String {
     match part.what {
         PartWhat::Outline => format!(
@@ -562,6 +612,123 @@ fn render_outline_fn(name: &str, extrude: f64, shape: OutlineShape) -> Result<St
     Ok(out)
 }
 
+fn render_outline_fn_v2(name: &str, extrude: f64, shape: OutlineShape) -> Result<String, JscadError> {
+    let mut out = String::new();
+    out.push_str(&format!(
+        "function {}_extrude_{}_outline_fn(){{\n",
+        name,
+        fmt_extrude_name(extrude)
+    ));
+    let body = match shape {
+        OutlineShape::Rectangle { w, h } => format!(
+            "const shape = rectangle({{ size: [{}, {}], center: [0, 0] }});",
+            fmt_num(w),
+            fmt_num(h)
+        ),
+        OutlineShape::Circle { r } => format!(
+            "const shape = circle({{ radius: {}, center: [0, 0] }});",
+            fmt_num(r)
+        ),
+    };
+    out.push_str("  ");
+    out.push_str(&body);
+    out.push('\n');
+    out.push_str(&format!(
+        "  return extrudeLinear({{ height: {} }}, shape);\n",
+        fmt_num(extrude)
+    ));
+    out.push_str("}\n");
+    Ok(out)
+}
+
+fn render_cases_v1(case_name: &str, data: CaseData) -> Result<String, JscadError> {
+    let mut out = String::new();
+
+    for (idx, (outline_name, extrude)) in data.outlines.iter().enumerate() {
+        let shape = data
+            .outline_shapes
+            .get(outline_name)
+            .ok_or_else(|| JscadError::UnknownOutline {
+                name: outline_name.clone(),
+            })?;
+        out.push_str(&render_outline_fn(outline_name, *extrude, *shape)?);
+        if idx + 1 < data.outlines.len() {
+            out.push('\n');
+            out.push('\n');
+        } else {
+            out.push('\n');
+            out.push('\n');
+            out.push('\n');
+            out.push('\n');
+        }
+    }
+
+    for (idx, name) in data.order.iter().enumerate() {
+        let def = data
+            .cases
+            .get(name)
+            .ok_or_else(|| JscadError::UnknownCase { name: name.clone() })?;
+        out.push_str(&render_case_fn(name, def));
+        out.push_str("            \n");
+        out.push_str("            \n");
+        if idx + 1 < data.order.len() {
+            out.push('\n');
+        }
+    }
+
+    out.push_str("        \n");
+    out.push_str("            function main() {\n");
+    out.push_str(&format!("                return {case_name}_case_fn();\n"));
+    out.push_str("            }\n");
+    out.push('\n');
+    out.push_str("        \n");
+
+    Ok(out)
+}
+
+fn render_cases_v2(case_name: &str, data: CaseData) -> Result<String, JscadError> {
+    let mut out = String::new();
+    out.push_str("const { booleans, extrusions, primitives, transforms, measurements } = require('@jscad/modeling');\n");
+    out.push_str("const { union, subtract, intersect } = booleans;\n");
+    out.push_str("const { extrudeLinear } = extrusions;\n");
+    out.push_str("const { rectangle, circle } = primitives;\n");
+    out.push_str("const { translate, rotate } = transforms;\n");
+    out.push_str("const { measureBoundingBox } = measurements;\n\n");
+
+    for (idx, (outline_name, extrude)) in data.outlines.iter().enumerate() {
+        let shape = data
+            .outline_shapes
+            .get(outline_name)
+            .ok_or_else(|| JscadError::UnknownOutline {
+                name: outline_name.clone(),
+            })?;
+        out.push_str(&render_outline_fn_v2(outline_name, *extrude, *shape)?);
+        if idx + 1 < data.outlines.len() {
+            out.push('\n');
+        } else {
+            out.push('\n');
+            out.push('\n');
+        }
+    }
+
+    for (idx, name) in data.order.iter().enumerate() {
+        let def = data
+            .cases
+            .get(name)
+            .ok_or_else(|| JscadError::UnknownCase { name: name.clone() })?;
+        out.push_str(&render_case_fn_v2(name, def));
+        if idx + 1 < data.order.len() {
+            out.push('\n');
+        }
+    }
+
+    out.push_str("\nconst main = () => ");
+    out.push_str(&format!("{case_name}_case_fn();\n"));
+    out.push_str("module.exports = { main };\n");
+
+    Ok(out)
+}
+
 fn parse_number(units: &Units, v: &Value, at: &str) -> Result<f64, JscadError> {
     match v {
         Value::Number(n) => Ok(*n),
@@ -638,4 +805,13 @@ fn fmt_vec3_spaces(v: [f64; 3]) -> String {
         fmt_num(v[1]),
         fmt_num(v[2])
     )
+}
+
+fn fmt_vec3_radians(v: [f64; 3]) -> String {
+    let rad = [
+        v[0].to_radians(),
+        v[1].to_radians(),
+        v[2].to_radians(),
+    ];
+    fmt_vec3_no_spaces(rad)
 }

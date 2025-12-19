@@ -1,0 +1,39 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.footprints:
+  - what: chocmini
+    params:
+      from: net1
+      to: net2
+      keycaps: true
+      reverse: true
+  - what: button
+    params:
+      from: b1
+      to: b2
+      side: B
+    adjust.shift: [40, 0]
+  - what: pad
+    params:
+      net: net_p1
+      align: right
+      text: txt
+    adjust.shift: [0, 40]
+  - what: pad
+    params:
+      net: net_p2
+      front: false
+    adjust.shift: [40, 40]
+  - what: pad
+    params:
+      net: net_p3
+      align: left
+      mirrored: true
+    adjust.shift: [80, 0]
+  - what: pad
+    params:
+      net: net_p4
+      align: down
+      mirrored: true
+    adjust.shift: [80, 40]

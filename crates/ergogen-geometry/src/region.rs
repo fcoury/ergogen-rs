@@ -1,4 +1,6 @@
-use cavalier_contours::polyline::{BooleanOp, BooleanResultInfo, PlineSource, Polyline};
+use cavalier_contours::polyline::{
+    BooleanOp, BooleanResultInfo, PlineOrientation, PlineSource, PlineSourceMut, Polyline,
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct Region {
@@ -20,7 +22,10 @@ impl Region {
         plines.retain(|p| p.is_closed() && p.vertex_count() >= 2);
         plines = plines.into_iter().map(simplify).collect();
         let (pos, neg) = union_pline_set_with_holes(plines);
-        Self { pos, neg }
+        Self {
+            pos: normalize_winding(pos, PlineOrientation::CounterClockwise),
+            neg: normalize_winding(neg, PlineOrientation::Clockwise),
+        }
     }
 
     pub fn subtract_all(&mut self, cutters: &[Polyline<f64>]) {
@@ -49,8 +54,9 @@ impl Region {
             new_neg.extend(cur_neg);
         }
 
-        self.pos = union_pline_set(new_pos);
-        self.neg.extend(union_pline_set(new_neg));
+        self.pos = normalize_winding(union_pline_set(new_pos), PlineOrientation::CounterClockwise);
+        self.neg
+            .extend(normalize_winding(union_pline_set(new_neg), PlineOrientation::Clockwise));
     }
 }
 
@@ -150,6 +156,22 @@ fn union_pline_set_with_holes(
 
     holes = union_pline_set(holes);
     (plines, holes)
+}
+
+fn normalize_winding(
+    plines: Vec<Polyline<f64>>,
+    desired: PlineOrientation,
+) -> Vec<Polyline<f64>> {
+    plines
+        .into_iter()
+        .map(|mut pl| {
+            let orientation = pl.orientation();
+            if orientation != PlineOrientation::Open && orientation != desired {
+                pl.invert_direction_mut();
+            }
+            pl
+        })
+        .collect()
 }
 
 fn simplify(p: Polyline<f64>) -> Polyline<f64> {

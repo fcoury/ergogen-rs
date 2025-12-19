@@ -1,0 +1,28 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.footprints_search_paths:
+  - fixtures/m7/footprints
+pcbs.pcb.footprints:
+  - what: spec
+    params:
+      spec: pad_minimal.yaml
+      net: GND
+    adjust.shift: [10, 0]
+  - what: spec
+    params:
+      spec: pad_primitives.yaml
+      net: VCC
+      drill: 0.7
+    adjust.shift: [30, 0]
+  - what: spec
+    params:
+      spec: primitives_templated.yaml
+      radius: 2.5
+      line_w: 0.18
+      arc_angle: 120
+      rect_w: 6
+      rect_h: 3
+      text_size: 1.2
+      label: T1
+    adjust.shift: [50, 0]

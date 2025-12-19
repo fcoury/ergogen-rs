@@ -1,0 +1,17 @@
+name: pad_missing_placeholder
+params:
+  net:
+    type: net
+    required: true
+primitives:
+  - type: pad
+    at:
+      - 0
+      - 0
+    size:
+      - 1
+      - 1
+    layers:
+      - "{{ missing_layer }}"
+      - "F.Mask"
+    net: "{{ net }}"

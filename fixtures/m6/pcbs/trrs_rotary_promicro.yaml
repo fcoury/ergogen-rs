@@ -1,0 +1,48 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points:
+  mirror: 0
+  zones:
+    matrix:
+      anchor:
+        shift: [10, 0]
+      columns:
+        col:
+          rows:
+            row:
+pcbs.pcb.footprints:
+  - what: promicro
+    where: true
+    asym: source
+    params:
+      orientation: up
+      VCC: vcc
+      GND: gnd
+      RAW: raw
+  - what: trrs
+    where: true
+    asym: clone
+    params:
+      D: net_d
+      B: net_b
+      A: net_a
+      C: net_c
+      reverse: true
+    adjust.shift: [0, 20]
+  - what: rotary
+    where: true
+    asym: both
+    params:
+      C: rc
+      from: rf
+      B: rb
+      to: rt
+      A: ra
+    adjust.shift: [0, 40]
+  - what: jstph
+    where: true
+    asym: both
+    params:
+      neg: n
+      pos: p
+    adjust.shift: [0, 60]

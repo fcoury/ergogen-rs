@@ -1,0 +1,14 @@
+name: pad_minimal
+params:
+  net:
+    type: net
+    required: true
+  mask:
+    type: boolean
+    default: false
+primitives:
+  - type: pad
+    at: [0, 0]
+    size: [2.5, 2.5]
+    layers: [F.Cu, F.Mask]
+    net: "{{ net }}"

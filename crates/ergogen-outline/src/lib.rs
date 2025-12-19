@@ -1521,7 +1521,8 @@ fn parse_regex_literal(raw: &str) -> Result<Regex, ()> {
 #[cfg(test)]
 mod property_tests {
     use super::*;
-    use ergogen_geometry::primitives::rectangle;
+    use cavalier_contours::polyline::{PlineOrientation, PlineSource};
+    use ergogen_geometry::primitives::{rectangle, rounded_rectangle};
     use proptest::prelude::*;
 
     fn region_bbox(region: &Region) -> (f64, f64, f64, f64) {
@@ -1548,12 +1549,42 @@ mod property_tests {
             && (a.3 - b.3).abs() < eps
     }
 
+    fn region_is_simple(region: &Region) -> bool {
+        region
+            .pos
+            .iter()
+            .chain(region.neg.iter())
+            .all(|pl| pl.is_closed() && !pl.scan_for_self_intersect())
+    }
+
+    fn region_has_valid_winding(region: &Region) -> bool {
+        region
+            .pos
+            .iter()
+            .chain(region.neg.iter())
+            .all(|pl| pl.orientation() != PlineOrientation::Open)
+    }
+
+    fn region_has_expected_winding(region: &Region) -> bool {
+        region
+            .pos
+            .iter()
+            .all(|pl| pl.orientation() == PlineOrientation::CounterClockwise)
+            && region
+                .neg
+                .iter()
+                .all(|pl| pl.orientation() == PlineOrientation::Clockwise)
+    }
+
     proptest! {
         #[test]
         fn expand_zero_preserves_bbox(w in 2.0f64..50.0, h in 2.0f64..50.0) {
             let region = Region::from_pos(vec![rectangle((0.0, 0.0), (w, h), 0.0)]);
             let out = expand_region_round(&region, 0.0).unwrap();
             prop_assert!(bbox_close(region_bbox(&region), region_bbox(&out)));
+            prop_assert!(region_is_simple(&out));
+            prop_assert!(region_has_valid_winding(&out));
+            prop_assert!(region_has_expected_winding(&out));
         }
 
         #[test]
@@ -1568,6 +1599,9 @@ mod property_tests {
             let got = region_bbox(&out);
             let expected = (min_x - expand, min_y - expand, max_x + expand, max_y + expand);
             prop_assert!(bbox_close(got, expected));
+            prop_assert!(region_is_simple(&out));
+            prop_assert!(region_has_valid_winding(&out));
+            prop_assert!(region_has_expected_winding(&out));
         }
 
         #[test]
@@ -1585,6 +1619,9 @@ mod property_tests {
             let got = region_bbox(&out);
             let expected = (min_x + expand, min_y + expand, max_x - expand, max_y - expand);
             prop_assert!(bbox_close(got, expected));
+            prop_assert!(region_is_simple(&out));
+            prop_assert!(region_has_valid_winding(&out));
+            prop_assert!(region_has_expected_winding(&out));
         }
 
         #[test]
@@ -1598,6 +1635,25 @@ mod property_tests {
             let region = Region::from_pos(vec![rectangle((0.0, 0.0), (w, h), 0.0)]);
             let out = fillet_region_round(&region, radius).unwrap();
             prop_assert!(bbox_close(region_bbox(&region), region_bbox(&out)));
+            prop_assert!(region_is_simple(&out));
+            prop_assert!(region_has_valid_winding(&out));
+            prop_assert!(region_has_expected_winding(&out));
+        }
+
+        #[test]
+        fn expand_rounded_rectangle_preserves_winding_and_simplicity(
+            w in 6.0f64..50.0,
+            h in 6.0f64..50.0,
+            radius in 0.5f64..8.0,
+            expand in 0.25f64..6.0,
+        ) {
+            prop_assume!(radius < w / 2.0);
+            prop_assume!(radius < h / 2.0);
+            let region = Region::from_pos(vec![rounded_rectangle((0.0, 0.0), (w, h), radius, 0.0)]);
+            let out = expand_region_round(&region, expand).unwrap();
+            prop_assert!(region_is_simple(&out));
+            prop_assert!(region_has_valid_winding(&out));
+            prop_assert!(region_has_expected_winding(&out));
         }
     }
 }

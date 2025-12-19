@@ -1,8 +1,10 @@
 //! Footprints and KiCad PCB generation.
 
 mod templates;
+pub mod footprint_spec;
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use cavalier_contours::polyline::{seg_arc_radius_and_center, PlineSource};
 use ergogen_core::{Point, PointMeta};
@@ -11,6 +13,7 @@ use ergogen_layout::{PointsOutput, anchor, parse_points};
 use ergogen_parser::{Error as ParserError, PreparedConfig, Units, Value};
 use indexmap::IndexMap;
 
+use footprint_spec::{ResolvedPrimitive, parse_footprint_spec, resolve_footprint_spec};
 use templates::{
     KICAD5_HEADER, KICAD8_HEADER,
     button_template, choc_template, chocmini_template, diode_template, injected_template,
@@ -26,6 +29,10 @@ pub enum PcbError {
     Points(#[from] ergogen_layout::LayoutError),
     #[error("missing pcbs.{pcb}")]
     MissingPcb { pcb: String },
+    #[error("footprint spec error: {0}")]
+    FootprintSpec(String),
+    #[error("footprint spec io error: {0}")]
+    FootprintSpecIo(String),
     #[error("unsupported pcb config: {0}")]
     Unsupported(&'static str),
 }
@@ -73,6 +80,25 @@ const NET_ORDER_RGB: [&str; 4] = ["VCC", "GND", "din", "dout"];
 const NET_ORDER_ROTARY: [&str; 5] = ["from", "to", "A", "B", "C"];
 const NET_ORDER_SCROLLWHEEL: [&str; 6] = ["from", "to", "A", "B", "C", "D"];
 
+#[derive(Debug, Default)]
+struct SpecCache {
+    specs: HashMap<PathBuf, footprint_spec::FootprintSpec>,
+}
+
+impl SpecCache {
+    fn load(&mut self, path: &PathBuf) -> Result<footprint_spec::FootprintSpec, PcbError> {
+        if let Some(spec) = self.specs.get(path) {
+            return Ok(spec.clone());
+        }
+        let yaml = std::fs::read_to_string(path)
+            .map_err(|e| PcbError::FootprintSpecIo(format!("{}: {e}", path.display())))?;
+        let spec =
+            parse_footprint_spec(&yaml).map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
+        self.specs.insert(path.clone(), spec.clone());
+        Ok(spec)
+    }
+}
+
 fn default_net_order(what: &str) -> Option<&'static [&'static str]> {
     match what {
         "mx" | "choc" | "chocmini" | "diode" | "button" | "alps" | "jumper" | "omron"
@@ -113,6 +139,7 @@ pub fn generate_kicad_pcb(prepared: &PreparedConfig, pcb_name: &str) -> Result<S
         .get("template")
         .and_then(value_as_str)
         .unwrap_or("kicad5");
+    let is_kicad8 = template == "kicad8";
 
     if template == "template_test" {
         let params = params_from_map(pcb_map.get("params"));
@@ -140,6 +167,9 @@ pub fn generate_kicad_pcb(prepared: &PreparedConfig, pcb_name: &str) -> Result<S
 
     let mut nets = NetIndex::default();
     let mut refs: HashMap<String, usize> = HashMap::new();
+    let mut spec_cache = SpecCache::default();
+    let mut spec_search_paths = collect_spec_search_paths(pcb_map.get("footprints_search_paths"));
+    ensure_spec_search_path(&mut spec_search_paths, PathBuf::from("footprints"));
     let mut body: Vec<String> = Vec::new();
     let mut references_present = false;
     let mut outlines: Vec<String> = Vec::new();
@@ -189,6 +219,9 @@ pub fn generate_kicad_pcb(prepared: &PreparedConfig, pcb_name: &str) -> Result<S
                     &ref_points,
                     &mut nets,
                     &mut refs,
+                    &mut spec_cache,
+                    &spec_search_paths,
+                    is_kicad8,
                 )?;
                 if !module.is_empty() {
                     body.push(module);
@@ -800,6 +833,9 @@ fn render_footprint(
     ref_points: &IndexMap<String, Point>,
     nets: &mut NetIndex,
     refs: &mut HashMap<String, usize>,
+    spec_cache: &mut SpecCache,
+    spec_search_paths: &[PathBuf],
+    is_kicad8: bool,
 ) -> Result<(String, String), PcbError> {
     let params = &def.params;
     let (at_x, at_y) = to_kicad_xy(placement.x, placement.y);
@@ -923,6 +959,21 @@ fn render_footprint(
             let module = render_template(template, &ctx);
             Ok((module, String::new()))
         }
+        "spec" => {
+            let spec_path = params
+                .get("spec")
+                .and_then(param_to_string)
+                .ok_or_else(|| PcbError::FootprintSpec("missing params.spec".to_string()))?;
+            let resolved_path = resolve_spec_path(&spec_path, spec_search_paths)?;
+            let spec = spec_cache.load(&resolved_path)?;
+            let mut spec_params = params.clone();
+            spec_params.shift_remove("spec");
+            let resolved =
+                resolve_footprint_spec(&spec, &spec_params)
+                    .map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
+            let module = render_spec_module(&resolved, &at, placement, nets, refs, is_kicad8);
+            Ok((module, String::new()))
+        }
         "mx" => render_template_module(
             mx_template(params),
             "S",
@@ -1029,6 +1080,238 @@ fn render_template_module(
     };
     let module = render_with_nets(template, at, ref_str.as_deref(), params, nets, default_net_order);
     Ok((module, String::new()))
+}
+
+fn resolve_spec_path(path: &str, search_paths: &[PathBuf]) -> Result<PathBuf, PcbError> {
+    let raw = PathBuf::from(path);
+    if raw.is_absolute() {
+        return Ok(raw);
+    }
+    let cwd = std::env::current_dir().map_err(|e| PcbError::FootprintSpecIo(e.to_string()))?;
+    let mut candidates = Vec::new();
+    candidates.push(cwd.join(&raw));
+
+    let root = workspace_root();
+    candidates.push(root.join(&raw));
+    for base in search_paths {
+        let base = if base.is_absolute() {
+            base.clone()
+        } else {
+            root.join(base)
+        };
+        candidates.push(base.join(&raw));
+    }
+
+    for candidate in candidates {
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+    Err(PcbError::FootprintSpecIo(format!(
+        "spec not found: {path}"
+    )))
+}
+
+fn collect_spec_search_paths(v: Option<&Value>) -> Vec<PathBuf> {
+    match v {
+        Some(Value::Seq(seq)) => seq
+            .iter()
+            .filter_map(value_as_str)
+            .map(PathBuf::from)
+            .collect(),
+        Some(Value::String(s)) => vec![PathBuf::from(s)],
+        _ => Vec::new(),
+    }
+}
+
+fn ensure_spec_search_path(paths: &mut Vec<PathBuf>, candidate: PathBuf) {
+    if !paths.iter().any(|p| p == &candidate) {
+        paths.push(candidate);
+    }
+}
+
+fn workspace_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")))
+}
+
+fn render_spec_module(
+    spec: &footprint_spec::ResolvedFootprint,
+    at: &str,
+    placement: Placement,
+    nets: &mut NetIndex,
+    refs: &mut HashMap<String, usize>,
+    is_kicad8: bool,
+) -> String {
+    let _ = placement;
+    let ref_str = next_ref("FP", refs);
+    let mut out = String::new();
+    out.push_str(&format!("(module {} (layer F.Cu) (tedit 0)\n\n", spec.name));
+    out.push_str(&format!("            (at {})\n\n", at));
+    out.push_str(&format!(
+        "            (fp_text reference \"{}\" (at 0 0) (layer F.SilkS) hide (effects (font (size 1.27 1.27) (thickness 0.15))))\n",
+        ref_str
+    ));
+    out.push_str("            (fp_text value \"\" (at 0 0) (layer F.SilkS) hide (effects (font (size 1.27 1.27) (thickness 0.15))))\n\n");
+
+    let mut pad_idx = 1usize;
+    for primitive in &spec.primitives {
+        match primitive {
+            ResolvedPrimitive::Pad { at, size, layers, net } => {
+                let (px, py) = to_kicad_xy(at[0], at[1]);
+                let net_id = nets.ensure(net);
+                let layer_list = layers.join(" ");
+                out.push_str(&format!(
+                    "            (pad {} smd rect (at {} {} 0) (size {} {}) (layers {}) (net {} \"{}\"))\n",
+                    pad_idx,
+                    fmt_num(px),
+                    fmt_num(py),
+                    fmt_num(size[0]),
+                    fmt_num(size[1]),
+                    layer_list,
+                    net_id,
+                    net
+                ));
+                pad_idx += 1;
+            }
+            ResolvedPrimitive::PadThru { at, size, drill, layers, net, shape } => {
+                let (px, py) = to_kicad_xy(at[0], at[1]);
+                let net_id = nets.ensure(net);
+                let layer_list = layers.join(" ");
+                let shape = shape
+                    .as_deref()
+                    .unwrap_or(if (size[0] - size[1]).abs() < 1e-6 { "circle" } else { "oval" });
+                out.push_str(&format!(
+                    "            (pad {} thru_hole {} (at {} {} 0) (size {} {}) (drill {}) (layers {}) (net {} \"{}\"))\n",
+                    pad_idx,
+                    shape,
+                    fmt_num(px),
+                    fmt_num(py),
+                    fmt_num(size[0]),
+                    fmt_num(size[1]),
+                    fmt_num(*drill),
+                    layer_list,
+                    net_id,
+                    net
+                ));
+                pad_idx += 1;
+            }
+            ResolvedPrimitive::Circle { center, radius, layer, width } => {
+                let (cx, cy) = to_kicad_xy(center[0], center[1]);
+                let (ex, ey) = to_kicad_xy(center[0] + radius, center[1]);
+                out.push_str(&format!(
+                    "            (fp_circle (center {} {}) (end {} {}) (layer {}) (width {}))\n",
+                    fmt_num(cx),
+                    fmt_num(cy),
+                    fmt_num(ex),
+                    fmt_num(ey),
+                    layer,
+                    fmt_num(*width)
+                ));
+            }
+            ResolvedPrimitive::Line { start, end, layer, width } => {
+                let (sx, sy) = to_kicad_xy(start[0], start[1]);
+                let (ex, ey) = to_kicad_xy(end[0], end[1]);
+                out.push_str(&format!(
+                    "            (fp_line (start {} {}) (end {} {}) (layer {}) (width {}))\n",
+                    fmt_num(sx),
+                    fmt_num(sy),
+                    fmt_num(ex),
+                    fmt_num(ey),
+                    layer,
+                    fmt_num(*width)
+                ));
+            }
+            ResolvedPrimitive::Arc { center, radius, start_angle, angle, layer, width } => {
+                let start_vec = rotate_ccw((*radius, 0.0), *start_angle);
+                let end_vec = rotate_ccw((*radius, 0.0), *start_angle + *angle);
+                let (sx, sy) = to_kicad_xy(center[0] + start_vec.0, center[1] + start_vec.1);
+                let (ex, ey) = to_kicad_xy(center[0] + end_vec.0, center[1] + end_vec.1);
+                out.push_str(&format!(
+                    "            (fp_arc (start {} {}) (end {} {}) (angle {}) (layer {}) (width {}))\n",
+                    fmt_num(sx),
+                    fmt_num(sy),
+                    fmt_num(ex),
+                    fmt_num(ey),
+                    fmt_num(*angle),
+                    layer,
+                    fmt_num(*width)
+                ));
+            }
+            ResolvedPrimitive::Rect { center, size, layer, width } => {
+                let hx = size[0] / 2.0;
+                let hy = size[1] / 2.0;
+                let (sx, sy) = (center[0] - hx, center[1] - hy);
+                let (ex, ey) = (center[0] + hx, center[1] + hy);
+                if is_kicad8 {
+                    let (sx, sy) = to_kicad_xy(sx, sy);
+                    let (ex, ey) = to_kicad_xy(ex, ey);
+                    out.push_str(&format!(
+                        "            (fp_rect (start {} {}) (end {} {}) (layer {}) (width {}))\n",
+                        fmt_num(sx),
+                        fmt_num(sy),
+                        fmt_num(ex),
+                        fmt_num(ey),
+                        layer,
+                        fmt_num(*width)
+                    ));
+                } else {
+                    let corners = [(sx, sy), (ex, sy), (ex, ey), (sx, ey)];
+                    for i in 0..4 {
+                        let (sx, sy) = corners[i];
+                        let (ex, ey) = corners[(i + 1) % 4];
+                        let (sx, sy) = to_kicad_xy(sx, sy);
+                        let (ex, ey) = to_kicad_xy(ex, ey);
+                        out.push_str(&format!(
+                            "            (fp_line (start {} {}) (end {} {}) (layer {}) (width {}))\n",
+                            fmt_num(sx),
+                            fmt_num(sy),
+                            fmt_num(ex),
+                            fmt_num(ey),
+                            layer,
+                            fmt_num(*width)
+                        ));
+                    }
+                }
+            }
+            ResolvedPrimitive::Text { at, text, layer, size, thickness, rotation, justify, hide } => {
+                let (tx, ty) = to_kicad_xy(at[0], at[1]);
+                let safe = escape_kicad_text(text);
+                let mut effects = format!(
+                    "(effects (font (size {} {}) (thickness {}))",
+                    fmt_num(size[0]),
+                    fmt_num(size[1]),
+                    fmt_num(*thickness)
+                );
+                if let Some(justify) = justify {
+                    effects.push_str(&format!(" (justify {})", justify));
+                }
+                effects.push(')');
+                out.push_str(&format!(
+                    "            (fp_text user \"{}\" (at {} {} {}) (layer {}){} {})\n",
+                    safe,
+                    fmt_num(tx),
+                    fmt_num(ty),
+                    fmt_num(*rotation),
+                    layer,
+                    if *hide { " hide" } else { "" },
+                    effects
+                ));
+            }
+        }
+    }
+    if !spec.primitives.is_empty() {
+        out.push('\n');
+    }
+    out.push_str("        )");
+    out
+}
+
+fn escape_kicad_text(text: &str) -> String {
+    text.replace('"', "'")
 }
 
 fn next_ref(prefix: &str, refs: &mut HashMap<String, usize>) -> String {

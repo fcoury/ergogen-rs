@@ -1,0 +1,50 @@
+name: pad_primitives
+params:
+  net:
+    type: net
+    required: true
+  drill:
+    type: number
+    default: 0.8
+primitives:
+  - type: pad
+    at:
+      - 0
+      - 0
+    size:
+      - 2
+      - 2
+    layers:
+      - F.Cu
+      - F.Mask
+    net: "{{ net }}"
+  - type: pad_thru
+    at:
+      - 5
+      - 0
+    size:
+      - 1.6
+      - 1.6
+    drill: "{{ drill }}"
+    layers:
+      - F.Cu
+      - B.Cu
+      - F.Mask
+      - B.Mask
+    net: "{{ net }}"
+  - type: circle
+    center:
+      - 0
+      - 5
+    radius: 1.5
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start:
+      - -2
+      - -2
+    end:
+      - 2
+      - -2
+    layer: F.SilkS
+    width: 0.12

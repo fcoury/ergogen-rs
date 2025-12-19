@@ -1,4 +1,4 @@
-use ergogen_export::dxf::{Circle, Dxf, Entity, Line, Point2};
+use ergogen_export::dxf::{Arc, Circle, Dxf, Entity, Line, LwPolyline, Point2, Unsupported};
 use ergogen_export::svg::{SvgError, svg_from_dxf, svg_from_lines};
 
 fn line(a: (f64, f64), b: (f64, f64)) -> Line {
@@ -247,9 +247,8 @@ fn svg_from_lines_handles_mixed_coordinate_ranges() {
 #[test]
 fn svg_from_dxf_rejects_non_line_entities() {
     let dxf = Dxf {
-        entities: vec![Entity::Circle(Circle {
-            center: Point2 { x: 0.0, y: 0.0 },
-            radius: 1.0,
+        entities: vec![Entity::Unsupported(Unsupported {
+            kind: "SPLINE".to_string(),
         })],
     };
     let err = svg_from_dxf(&dxf).unwrap_err();
@@ -257,6 +256,43 @@ fn svg_from_dxf_rejects_non_line_entities() {
         SvgError::UnsupportedEntity { .. } => {}
         other => panic!("unexpected error: {other:?}"),
     }
+}
+
+#[test]
+fn svg_from_dxf_supports_arcs_and_circles() {
+    let dxf = Dxf {
+        entities: vec![
+            Entity::Arc(Arc {
+                center: Point2 { x: 0.0, y: 0.0 },
+                radius: 5.0,
+                start_angle_deg: 0.0,
+                end_angle_deg: 180.0,
+            }),
+            Entity::Circle(Circle {
+                center: Point2 { x: 15.0, y: 0.0 },
+                radius: 2.0,
+            }),
+        ],
+    };
+    let svg = svg_from_dxf(&dxf).unwrap();
+    assert!(svg.contains("A "));
+    assert!(svg.contains("viewBox=\"0 0 22 7\""));
+}
+
+#[test]
+fn svg_from_dxf_supports_lwpolyline_bulges() {
+    let dxf = Dxf {
+        entities: vec![Entity::LwPolyline(LwPolyline {
+            vertices: vec![
+                Point2 { x: 0.0, y: 0.0 },
+                Point2 { x: 10.0, y: 0.0 },
+            ],
+            bulges: vec![1.0, 0.0],
+            closed: false,
+        })],
+    };
+    let svg = svg_from_dxf(&dxf).unwrap();
+    assert!(svg.contains("A "));
 }
 
 #[test]

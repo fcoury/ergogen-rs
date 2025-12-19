@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use ergogen_export::dxf::{NormalizeOptions, compare_files_semantic};
+use ergogen_export::dxf_geom::dxf_from_region;
+use ergogen_outline::generate_outline_region_from_yaml_str;
 
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -14,22 +16,40 @@ fn outlines_fixtures_dir() -> PathBuf {
     workspace_root().join("fixtures/m5/outlines")
 }
 
+fn fixture_dxf_opts() -> NormalizeOptions {
+    NormalizeOptions {
+        linear_eps: 1e-3,
+        angle_eps_deg: 5e-3,
+        ..NormalizeOptions::default()
+    }
+}
+
 fn generate_outline_dxf_from_yaml(
-    _yaml_path: &Path,
-    _out_dxf_path: &Path,
-    _golden_name: &str,
+    yaml_path: &Path,
+    out_dxf_path: &Path,
+    golden_name: &str,
 ) -> std::io::Result<()> {
-    // Intentionally left unimplemented until M5/M6:
-    // - M5: compile outline config to geometry IR
-    // - M6: write geometry IR as DXF
-    Err(std::io::Error::new(
-        std::io::ErrorKind::Unsupported,
-        "outline DXF generation not implemented yet (requires M5+M6)",
-    ))
+    let yaml = std::fs::read_to_string(yaml_path)?;
+    let outline_name = golden_name
+        .split_once("__outlines_")
+        .and_then(|(_, rest)| rest.strip_suffix("_dxf.dxf"))
+        .unwrap_or("outline");
+    let region = generate_outline_region_from_yaml_str(&yaml, outline_name)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    let dxf = dxf_from_region(&region)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    let opts = fixture_dxf_opts();
+    let normalized = dxf
+        .normalize(opts)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    let out_str = normalized
+        .to_dxf_string(opts)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    std::fs::write(out_dxf_path, out_str)?;
+    Ok(())
 }
 
 #[test]
-#[ignore = "requires outline generator + DXF writer (M5/M6)"]
 fn generated_outline_dxfs_match_upstream_goldens_semantically() {
     let dir = outlines_fixtures_dir();
     let out_dir = std::env::temp_dir().join("ergogen-export-outlines-generated");
@@ -68,7 +88,7 @@ fn generated_outline_dxfs_match_upstream_goldens_semantically() {
             let out_path = out_dir.join(golden_name.replace("___outlines_", "___generated_"));
 
             generate_outline_dxf_from_yaml(&yaml_path, &out_path, &golden_name).unwrap();
-            compare_files_semantic(&out_path, &golden, NormalizeOptions::default()).unwrap();
+            compare_files_semantic(&out_path, &golden, fixture_dxf_opts()).unwrap();
         }
     }
 }

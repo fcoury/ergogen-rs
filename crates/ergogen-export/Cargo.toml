@@ -10,3 +10,7 @@ ergogen-parser = { path = "../ergogen-parser" }
 indexmap = "2.7.0"
 ryu = "1.0.18"
 thiserror = "2.0.9"
+
+[dev-dependencies]
+ergogen-outline = { path = "../ergogen-outline" }
+ergogen-pcb = { path = "../ergogen-pcb" }

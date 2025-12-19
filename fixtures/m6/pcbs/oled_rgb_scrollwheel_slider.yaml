@@ -1,0 +1,37 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.footprints:
+  - what: oled
+    params:
+      SCL: scl
+      SDA: sda
+      GND: gnd
+      VCC: vcc
+  - what: rgb
+    params:
+      din: din
+      dout: dout
+      VCC: vcc
+      GND: gnd
+    adjust.shift: [40, 0]
+  - what: scrollwheel
+    params:
+      from: sf
+      to: st
+      A: sa
+      B: sb
+      C: sc
+      D: sd
+      reverse: true
+    adjust.shift: [0, 40]
+  - what: slider
+    params:
+      from: sfrom
+      to: sto
+      side: B
+    adjust.shift: [40, 40]
+  - what: via
+    params:
+      net: gnd
+    adjust.shift: [80, 0]

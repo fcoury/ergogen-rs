@@ -56,6 +56,51 @@ When fixtures are imported, record:
 - Local fixture covering injected footprint PCB output:
   - `fixtures/m6/pcbs/injected.yaml`
   - `fixtures/m6/pcbs/injected___pcbs_pcb.kicad_pcb`
+- Local fixture covering MX/Choc variants + asymmetry:
+  - `fixtures/m6/pcbs/mx_choc_asym.yaml`
+  - `fixtures/m6/pcbs/mx_choc_asym___pcbs_pcb.kicad_pcb`
+- Additional footprint fixtures:
+  - `fixtures/m6/pcbs/trrs_rotary_promicro.yaml`
+  - `fixtures/m6/pcbs/trrs_rotary_promicro___pcbs_pcb.kicad_pcb`
+  - `fixtures/m6/pcbs/pad_button_chocmini.yaml`
+  - `fixtures/m6/pcbs/pad_button_chocmini___pcbs_pcb.kicad_pcb`
+  - `fixtures/m6/pcbs/oled_rgb_scrollwheel_slider.yaml`
+  - `fixtures/m6/pcbs/oled_rgb_scrollwheel_slider___pcbs_pcb.kicad_pcb`
+  - `fixtures/m6/pcbs/alps_jumper_omron_via.yaml`
+  - `fixtures/m6/pcbs/alps_jumper_omron_via___pcbs_pcb.kicad_pcb`
+- Reference outputs (goldens) from `fixtures/upstream/fixtures/big.yaml`:
+  - `fixtures/m6/reference_outputs/big/outlines/export.dxf`
+  - `fixtures/m6/reference_outputs/big/outlines/export.svg`
+  - `fixtures/m6/reference_outputs/big/cases/export.jscad`
+  - `fixtures/m6/reference_outputs/big/pcbs/export.kicad_pcb`
+  - `fixtures/m6/pcbs/scrollwheel_slider_front.yaml`
+  - `fixtures/m6/pcbs/scrollwheel_slider_front___pcbs_pcb.kicad_pcb`
+  - `fixtures/m6/pcbs/oled_rgb_mirror.yaml`
+  - `fixtures/m6/pcbs/oled_rgb_mirror___pcbs_pcb.kicad_pcb`
+
+### M7
+
+- Declarative footprint spec fixture (schema proof of concept):
+  - `fixtures/m7/footprints/pad_minimal.yaml`
+  - `fixtures/m7/footprints/pad_templated.yaml`
+  - `fixtures/m7/footprints/pad_missing_placeholder.yaml`
+  - `fixtures/m7/footprints/pad_primitives.yaml`
+  - `fixtures/m7/footprints/primitives_templated.yaml`
+  - `fixtures/m7/footprints/visual_arc_text.yaml`
+  - `fixtures/m7/footprints/diode.yaml`
+  - `footprints/diode.yaml` (default search path)
+- PCB fixture validating footprint specs in KiCad output:
+  - `fixtures/m7/pcbs/spec_pad.yaml`
+  - `fixtures/m7/pcbs/spec_pad___pcbs_pcb.kicad_pcb`
+  - `fixtures/m7/pcbs/spec_visual.yaml`
+  - `fixtures/m7/pcbs/spec_visual___pcbs_pcb.kicad_pcb`
+  - `fixtures/m7/pcbs/spec_kicad8_rect.yaml`
+  - `fixtures/m7/pcbs/spec_kicad8_rect___pcbs_pcb.kicad_pcb`
+  - `fixtures/m7/pcbs/spec_diode.yaml`
+  - `fixtures/m7/pcbs/spec_diode___pcbs_pcb.kicad_pcb`
+  - Visual checks:
+    - Open `fixtures/m7/pcbs/spec_visual___pcbs_pcb.kicad_pcb` and confirm arc sweeps 90° from the +X axis and the label is rotated +30° and hidden.
+    - Open `fixtures/m7/pcbs/spec_kicad8_rect___pcbs_pcb.kicad_pcb` in KiCad 8 and confirm the silk rectangle is emitted as `fp_rect`.
 
 ### Upstream (Full Test Suite Import)
 
@@ -87,3 +132,17 @@ When fixtures are imported, record:
   - `fixtures/upstream/fixtures/minimal_kle.json`
   - `fixtures/upstream/fixtures/minimal.yaml`
   - `fixtures/upstream/fixtures/minimal.yml`
+
+### Upstream Baselines (JS ergogen outputs)
+
+Upstream baselines are optional reference outputs generated from the JS ergogen CLI. They live under:
+
+- `fixtures/upstream-baselines/<commit>/<fixture-name>/`
+
+Each baseline folder should include a `MANIFEST.txt` capturing the commit, command, and generation time.
+
+Use `scripts/update-upstream-baselines.sh <commit> <fixture-yaml> [fixture-name]` to refresh baselines.
+
+To compare against baselines in tests, set:
+
+- `UPSTREAM_BASELINE_DIR=fixtures/upstream-baselines/<commit>/<fixture-name>`

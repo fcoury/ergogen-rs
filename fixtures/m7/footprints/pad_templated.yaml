@@ -1,0 +1,32 @@
+name: pad_templated
+params:
+  net:
+    type: net
+    required: true
+  dx:
+    type: number
+    default: 0
+  dy:
+    type: number
+    default: 0
+  size_x:
+    type: number
+    default: 1
+  size_y:
+    type: number
+    default: 1
+  layer:
+    type: string
+    default: F.Cu
+primitives:
+  - type: pad
+    at:
+      - "{{ dx }}"
+      - "{{ dy }}"
+    size:
+      - "{{ size_x }}"
+      - "{{ size_y }}"
+    layers:
+      - "{{ layer }}"
+      - "F.Mask"
+    net: "{{ net }}"

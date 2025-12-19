@@ -1,0 +1,21 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.footprints:
+  - what: scrollwheel
+    params:
+      from: sw_from
+      to: sw_to
+      A: sw_a
+      B: sw_b
+      C: sw_c
+      D: sw_d
+  - what: slider
+    params:
+      from: sl_from
+      to: sl_to
+    adjust.shift: [40, 0]
+  - what: via
+    params:
+      net: gnd
+    adjust.shift: [80, 0]
