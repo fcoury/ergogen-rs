@@ -1,0 +1,40 @@
+name: pad
+module: SMDPad
+layer: F.Cu
+tedit: 5B24D78E
+ref_prefix: PAD
+net_order:
+  - net
+params:
+  net:
+    type: net
+    required: true
+primitives:
+  - type: pad
+    at:
+      - 0
+      - 0
+    size:
+      - 1
+      - 1
+    rotation: 0
+    layers:
+      - F.Cu
+      - F.Paste
+      - F.Mask
+    net: "{{ net }}"
+    number: "1"
+  - type: pad
+    at:
+      - 0
+      - 0
+    size:
+      - 1
+      - 1
+    rotation: 0
+    layers:
+      - B.Cu
+      - B.Paste
+      - B.Mask
+    net: "{{ net }}"
+    number: "1"

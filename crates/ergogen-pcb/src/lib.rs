@@ -1147,9 +1147,34 @@ fn render_spec_module(
     is_kicad8: bool,
 ) -> String {
     let _ = placement;
-    let ref_str = next_ref("FP", refs);
+    let ref_str = next_ref(&spec.ref_prefix, refs);
     let mut out = String::new();
-    out.push_str(&format!("(module {} (layer F.Cu) (tedit 0)\n\n", spec.name));
+    if let Some(tstamp) = spec.tstamp.as_deref() {
+        out.push_str(&format!(
+            "(module {} (layer {}) (tstamp {})\n\n",
+            spec.module, spec.layer, tstamp
+        ));
+    } else {
+        out.push_str(&format!(
+            "(module {} (layer {}) (tedit {})\n\n",
+            spec.module, spec.layer, spec.tedit
+        ));
+    }
+    if let Some(descr) = spec.descr.as_deref() {
+        out.push_str(&format!(
+            "            (descr \"{}\")\n",
+            escape_kicad_text(descr)
+        ));
+    }
+    if let Some(tags) = spec.tags.as_deref() {
+        out.push_str(&format!(
+            "            (tags \"{}\")\n",
+            escape_kicad_text(tags)
+        ));
+    }
+    if spec.descr.is_some() || spec.tags.is_some() {
+        out.push('\n');
+    }
     out.push_str(&format!("            (at {})\n\n", at));
     out.push_str(&format!(
         "            (fp_text reference \"{}\" (at 0 0) (layer F.SilkS) hide (effects (font (size 1.27 1.27) (thickness 0.15))))\n",
@@ -1157,51 +1182,98 @@ fn render_spec_module(
     ));
     out.push_str("            (fp_text value \"\" (at 0 0) (layer F.SilkS) hide (effects (font (size 1.27 1.27) (thickness 0.15))))\n\n");
 
+    if !spec.net_order.is_empty() {
+        for key in &spec.net_order {
+            if let Some(value) = spec.params.get(key).and_then(param_to_string) {
+                nets.ensure(&value);
+            }
+        }
+    }
+
     let mut pad_idx = 1usize;
     for primitive in &spec.primitives {
         match primitive {
-            ResolvedPrimitive::Pad { at, size, layers, net } => {
-                let (px, py) = to_kicad_xy(at[0], at[1]);
-                let net_id = nets.ensure(net);
+            ResolvedPrimitive::Pad { at, size, rotation, layers, net, number } => {
+                let (px, py) = (at[0], at[1]);
                 let layer_list = layers.join(" ");
-                out.push_str(&format!(
-                    "            (pad {} smd rect (at {} {} 0) (size {} {}) (layers {}) (net {} \"{}\"))\n",
-                    pad_idx,
-                    fmt_num(px),
-                    fmt_num(py),
-                    fmt_num(size[0]),
-                    fmt_num(size[1]),
-                    layer_list,
-                    net_id,
-                    net
-                ));
+                let pad_num = number.clone().unwrap_or_else(|| pad_idx.to_string());
+                let pad_num = format_pad_number(&pad_num);
+                let at_str = format_at_with_rotation(px, py, *rotation);
+                if net.is_empty() {
+                    out.push_str(&format!(
+                        "            (pad {} smd rect (at {}) (size {} {}) (layers {}))\n",
+                        pad_num,
+                        at_str,
+                        fmt_num(size[0]),
+                        fmt_num(size[1]),
+                        layer_list
+                    ));
+                } else {
+                    let net_id = nets.ensure(net);
+                    out.push_str(&format!(
+                        "            (pad {} smd rect (at {}) (size {} {}) (layers {}) (net {} \"{}\"))\n",
+                        pad_num,
+                        at_str,
+                        fmt_num(size[0]),
+                        fmt_num(size[1]),
+                        layer_list,
+                        net_id,
+                        net
+                    ));
+                }
                 pad_idx += 1;
             }
-            ResolvedPrimitive::PadThru { at, size, drill, layers, net, shape } => {
-                let (px, py) = to_kicad_xy(at[0], at[1]);
-                let net_id = nets.ensure(net);
+            ResolvedPrimitive::PadThru { at, size, rotation, drill, layers, net, shape, kind, number } => {
+                let (px, py) = (at[0], at[1]);
                 let layer_list = layers.join(" ");
                 let shape = shape
                     .as_deref()
                     .unwrap_or(if (size[0] - size[1]).abs() < 1e-6 { "circle" } else { "oval" });
-                out.push_str(&format!(
-                    "            (pad {} thru_hole {} (at {} {} 0) (size {} {}) (drill {}) (layers {}) (net {} \"{}\"))\n",
-                    pad_idx,
-                    shape,
-                    fmt_num(px),
-                    fmt_num(py),
-                    fmt_num(size[0]),
-                    fmt_num(size[1]),
-                    fmt_num(*drill),
-                    layer_list,
-                    net_id,
-                    net
-                ));
+                let kind = kind.as_deref().unwrap_or("thru_hole");
+                let pad_num = number.clone().unwrap_or_else(|| pad_idx.to_string());
+                let pad_num = format_pad_number(&pad_num);
+                let at_str = format_at_with_rotation(px, py, *rotation);
+                let drill_str = match drill {
+                    footprint_spec::ResolvedDrill::Scalar(d) => {
+                        format!("(drill {})", fmt_num(*d))
+                    }
+                    footprint_spec::ResolvedDrill::Vector(v) => {
+                        format!("(drill oval {} {})", fmt_num(v[0]), fmt_num(v[1]))
+                    }
+                };
+                if net.is_empty() {
+                    out.push_str(&format!(
+                        "            (pad {} {} {} (at {}) (size {} {}) {} (layers {}))\n",
+                        pad_num,
+                        kind,
+                        shape,
+                        at_str,
+                        fmt_num(size[0]),
+                        fmt_num(size[1]),
+                        drill_str,
+                        layer_list
+                    ));
+                } else {
+                    let net_id = nets.ensure(net);
+                    out.push_str(&format!(
+                        "            (pad {} {} {} (at {}) (size {} {}) {} (layers {}) (net {} \"{}\"))\n",
+                        pad_num,
+                        kind,
+                        shape,
+                        at_str,
+                        fmt_num(size[0]),
+                        fmt_num(size[1]),
+                        drill_str,
+                        layer_list,
+                        net_id,
+                        net
+                    ));
+                }
                 pad_idx += 1;
             }
             ResolvedPrimitive::Circle { center, radius, layer, width } => {
-                let (cx, cy) = to_kicad_xy(center[0], center[1]);
-                let (ex, ey) = to_kicad_xy(center[0] + radius, center[1]);
+                let (cx, cy) = (center[0], center[1]);
+                let (ex, ey) = (center[0] + radius, center[1]);
                 out.push_str(&format!(
                     "            (fp_circle (center {} {}) (end {} {}) (layer {}) (width {}))\n",
                     fmt_num(cx),
@@ -1213,8 +1285,8 @@ fn render_spec_module(
                 ));
             }
             ResolvedPrimitive::Line { start, end, layer, width } => {
-                let (sx, sy) = to_kicad_xy(start[0], start[1]);
-                let (ex, ey) = to_kicad_xy(end[0], end[1]);
+                let (sx, sy) = (start[0], start[1]);
+                let (ex, ey) = (end[0], end[1]);
                 out.push_str(&format!(
                     "            (fp_line (start {} {}) (end {} {}) (layer {}) (width {}))\n",
                     fmt_num(sx),
@@ -1228,8 +1300,8 @@ fn render_spec_module(
             ResolvedPrimitive::Arc { center, radius, start_angle, angle, layer, width } => {
                 let start_vec = rotate_ccw((*radius, 0.0), *start_angle);
                 let end_vec = rotate_ccw((*radius, 0.0), *start_angle + *angle);
-                let (sx, sy) = to_kicad_xy(center[0] + start_vec.0, center[1] + start_vec.1);
-                let (ex, ey) = to_kicad_xy(center[0] + end_vec.0, center[1] + end_vec.1);
+                let (sx, sy) = (center[0] + start_vec.0, center[1] + start_vec.1);
+                let (ex, ey) = (center[0] + end_vec.0, center[1] + end_vec.1);
                 out.push_str(&format!(
                     "            (fp_arc (start {} {}) (end {} {}) (angle {}) (layer {}) (width {}))\n",
                     fmt_num(sx),
@@ -1247,8 +1319,6 @@ fn render_spec_module(
                 let (sx, sy) = (center[0] - hx, center[1] - hy);
                 let (ex, ey) = (center[0] + hx, center[1] + hy);
                 if is_kicad8 {
-                    let (sx, sy) = to_kicad_xy(sx, sy);
-                    let (ex, ey) = to_kicad_xy(ex, ey);
                     out.push_str(&format!(
                         "            (fp_rect (start {} {}) (end {} {}) (layer {}) (width {}))\n",
                         fmt_num(sx),
@@ -1263,8 +1333,6 @@ fn render_spec_module(
                     for i in 0..4 {
                         let (sx, sy) = corners[i];
                         let (ex, ey) = corners[(i + 1) % 4];
-                        let (sx, sy) = to_kicad_xy(sx, sy);
-                        let (ex, ey) = to_kicad_xy(ex, ey);
                         out.push_str(&format!(
                             "            (fp_line (start {} {}) (end {} {}) (layer {}) (width {}))\n",
                             fmt_num(sx),
@@ -1278,7 +1346,7 @@ fn render_spec_module(
                 }
             }
             ResolvedPrimitive::Text { at, text, layer, size, thickness, rotation, justify, hide } => {
-                let (tx, ty) = to_kicad_xy(at[0], at[1]);
+                let (tx, ty) = (at[0], at[1]);
                 let safe = escape_kicad_text(text);
                 let mut effects = format!(
                     "(effects (font (size {} {}) (thickness {}))",
@@ -1312,6 +1380,21 @@ fn render_spec_module(
 
 fn escape_kicad_text(text: &str) -> String {
     text.replace('"', "'")
+}
+
+fn format_pad_number(raw: &str) -> String {
+    if raw.is_empty() {
+        "\"\"".to_string()
+    } else {
+        raw.to_string()
+    }
+}
+
+fn format_at_with_rotation(x: f64, y: f64, rotation: Option<f64>) -> String {
+    match rotation {
+        Some(rot) => format!("{} {} {}", fmt_num(x), fmt_num(y), fmt_num(rot)),
+        None => format!("{} {}", fmt_num(x), fmt_num(y)),
+    }
 }
 
 fn next_ref(prefix: &str, refs: &mut HashMap<String, usize>) -> String {

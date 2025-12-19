@@ -6,6 +6,6 @@ pcbs.pcb.footprints_search_paths:
 pcbs.pcb.footprints:
   - what: spec
     params:
-      spec: diode.yaml
-      from: D_FROM
-      to: D_TO
+      spec: button.yaml
+      from: BTN_FROM
+      to: BTN_TO

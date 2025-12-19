@@ -93,8 +93,8 @@
   )
 
   (net 0 "")
-(net 1 "D_FROM")
-(net 2 "D_TO")
+(net 1 "MX_FROM")
+(net 2 "MX_TO")
 
   (net_class Default "This is the default net class."
     (clearance 0.2)
@@ -104,39 +104,32 @@
     (uvia_dia 0.3)
     (uvia_drill 0.1)
     (add_net "")
-(add_net "D_FROM")
-(add_net "D_TO")
+(add_net "MX_FROM")
+(add_net "MX_TO")
   )
 
   
   
-        (module ComboDiode (layer F.Cu) (tedit 5B24D78E)
+        (module MX (layer F.Cu) (tedit 5DD4F656)
 
             (at 0 0 0)
 
-            (fp_text reference "D1" (at 0 0) (layer F.SilkS) hide (effects (font (size 1.27 1.27) (thickness 0.15))))
+            (fp_text reference "S1" (at 0 0) (layer F.SilkS) hide (effects (font (size 1.27 1.27) (thickness 0.15))))
             (fp_text value "" (at 0 0) (layer F.SilkS) hide (effects (font (size 1.27 1.27) (thickness 0.15))))
 
-            (fp_line (start 0.25 0) (end 0.75 0) (layer F.SilkS) (width 0.1))
-            (fp_line (start 0.25 0.4) (end -0.35 0) (layer F.SilkS) (width 0.1))
-            (fp_line (start 0.25 -0.4) (end 0.25 0.4) (layer F.SilkS) (width 0.1))
-            (fp_line (start -0.35 0) (end 0.25 -0.4) (layer F.SilkS) (width 0.1))
-            (fp_line (start -0.35 0) (end -0.35 0.55) (layer F.SilkS) (width 0.1))
-            (fp_line (start -0.35 0) (end -0.35 -0.55) (layer F.SilkS) (width 0.1))
-            (fp_line (start -0.75 0) (end -0.35 0) (layer F.SilkS) (width 0.1))
-            (fp_line (start 0.25 0) (end 0.75 0) (layer B.SilkS) (width 0.1))
-            (fp_line (start 0.25 0.4) (end -0.35 0) (layer B.SilkS) (width 0.1))
-            (fp_line (start 0.25 -0.4) (end 0.25 0.4) (layer B.SilkS) (width 0.1))
-            (fp_line (start -0.35 0) (end 0.25 -0.4) (layer B.SilkS) (width 0.1))
-            (fp_line (start -0.35 0) (end -0.35 0.55) (layer B.SilkS) (width 0.1))
-            (fp_line (start -0.35 0) (end -0.35 -0.55) (layer B.SilkS) (width 0.1))
-            (fp_line (start -0.75 0) (end -0.35 0) (layer B.SilkS) (width 0.1))
-            (pad 1 smd rect (at -1.65 0 0) (size 0.9 1.2) (layers F.Cu F.Paste F.Mask) (net 2 "D_TO"))
-            (pad 2 smd rect (at 1.65 0 0) (size 0.9 1.2) (layers B.Cu B.Paste B.Mask) (net 1 "D_FROM"))
-            (pad 1 smd rect (at -1.65 0 0) (size 0.9 1.2) (layers B.Cu B.Paste B.Mask) (net 2 "D_TO"))
-            (pad 2 smd rect (at 1.65 0 0) (size 0.9 1.2) (layers F.Cu F.Paste F.Mask) (net 1 "D_FROM"))
-            (pad 1 thru_hole rect (at -3.81 0 0) (size 1.778 1.778) (drill 0.9906) (layers *.Cu *.Mask) (net 2 "D_TO"))
-            (pad 2 thru_hole circle (at 3.81 0 0) (size 1.905 1.905) (drill 0.9906) (layers *.Cu *.Mask) (net 1 "D_FROM"))
+            (fp_line (start -7 -6) (end -7 -7) (layer Dwgs.User) (width 0.15))
+            (fp_line (start -7 7) (end -6 7) (layer Dwgs.User) (width 0.15))
+            (fp_line (start -6 -7) (end -7 -7) (layer Dwgs.User) (width 0.15))
+            (fp_line (start -7 7) (end -7 6) (layer Dwgs.User) (width 0.15))
+            (fp_line (start 7 6) (end 7 7) (layer Dwgs.User) (width 0.15))
+            (fp_line (start 7 -7) (end 6 -7) (layer Dwgs.User) (width 0.15))
+            (fp_line (start 6 7) (end 7 7) (layer Dwgs.User) (width 0.15))
+            (fp_line (start 7 -7) (end 7 -6) (layer Dwgs.User) (width 0.15))
+            (pad "" np_thru_hole circle (at 0 0) (size 3.9878 3.9878) (drill 3.9878) (layers *.Cu *.Mask))
+            (pad "" np_thru_hole circle (at 5.08 0) (size 1.7018 1.7018) (drill 1.7018) (layers *.Cu *.Mask))
+            (pad "" np_thru_hole circle (at -5.08 0) (size 1.7018 1.7018) (drill 1.7018) (layers *.Cu *.Mask))
+            (pad 1 thru_hole circle (at 2.54 -5.08) (size 2.286 2.286) (drill 1.4986) (layers *.Cu *.Mask) (net 1 "MX_FROM"))
+            (pad 2 thru_hole circle (at -3.81 -2.54) (size 2.286 2.286) (drill 1.4986) (layers *.Cu *.Mask) (net 2 "MX_TO"))
 
         )
   

@@ -270,10 +270,12 @@ Each milestone is “mergeable” on its own: tests passing, clear deliverables,
     - [~] Declarative footprint schema + loader + templating/interpolation (parser + resolver in place)
     - [~] Spec-backed footprint rendering (pad primitive via `what: spec`)
     - [~] Spec search paths + caching + additional primitives (line/circle/thru-hole pad/arc/rect/text) + kicad8 fp_rect
+    - [ ] JS footprint execution (dual runtime: Boa for CLI + JS bridge for WASM)
     - [ ] Conversion of built-in footprints (`mx`, `choc`, `diode`, etc.)
     - [ ] KiCad PCB writer (S-expression templates or direct emitter)
   - Exit criteria:
     - [ ] Generated `.kicad_pcb` opens in KiCad without errors (target versions specified in plan)
+    - [ ] JS footprints render in CLI and WASM with parity against upstream outputs
 
 - **M8 — CLI + Bundles + WASM**
   - Goal: ship user-facing entry points.
@@ -281,6 +283,7 @@ Each milestone is “mergeable” on its own: tests passing, clear deliverables,
     - [ ] `ergogen-cli` parity flags (start with the subset needed for fixtures)
     - [ ] Bundle I/O and output directory handling
     - [ ] `ergogen-wasm` bindings exposing a stable API surface
+    - [ ] JS footprint bridge for WASM (host-side evaluator + shared `p` contract)
   - Exit criteria:
     - [ ] End-to-end CLI test(s) cover parsing → points → outlines → export
     - [ ] WASM build produces outputs for at least one fixture (even if not fully optimized)

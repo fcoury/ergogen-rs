@@ -1,0 +1,146 @@
+name: button
+module: E73:SW_TACT_ALPS_SKQGABE010
+layer: F.Cu
+tstamp: 5BF2CC94
+descr: "Low-profile SMD Tactile Switch, https://www.e-switch.com/product-catalog/tact/product-lines/tl3342-series-low-profile-smt-tact-switch"
+tags: "SPST Tactile Switch"
+ref_prefix: B
+net_order:
+  - from
+  - to
+params:
+  from:
+    type: net
+    required: true
+  to:
+    type: net
+    required: true
+primitives:
+  - type: line
+    start:
+      - 2.75
+      - 1.25
+    end:
+      - 1.25
+      - 2.75
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start:
+      - 2.75
+      - -1.25
+    end:
+      - 1.25
+      - -2.75
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start:
+      - 2.75
+      - -1.25
+    end:
+      - 2.75
+      - 1.25
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start:
+      - -1.25
+      - 2.75
+    end:
+      - 1.25
+      - 2.75
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start:
+      - -1.25
+      - -2.75
+    end:
+      - 1.25
+      - -2.75
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start:
+      - -2.75
+      - 1.25
+    end:
+      - -1.25
+      - 2.75
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start:
+      - -2.75
+      - -1.25
+    end:
+      - -1.25
+      - -2.75
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start:
+      - -2.75
+      - -1.25
+    end:
+      - -2.75
+      - 1.25
+    layer: F.SilkS
+    width: 0.15
+  - type: pad
+    at:
+      - -3.1
+      - -1.85
+    size:
+      - 1.8
+      - 1.1
+    rotation: 0
+    layers:
+      - F.Cu
+      - F.Paste
+      - F.Mask
+    net: "{{ from }}"
+    number: "1"
+  - type: pad
+    at:
+      - 3.1
+      - -1.85
+    size:
+      - 1.8
+      - 1.1
+    rotation: 0
+    layers:
+      - F.Cu
+      - F.Paste
+      - F.Mask
+    net: "{{ from }}"
+    number: "1"
+  - type: pad
+    at:
+      - -3.1
+      - 1.85
+    size:
+      - 1.8
+      - 1.1
+    rotation: 0
+    layers:
+      - F.Cu
+      - F.Paste
+      - F.Mask
+    net: "{{ to }}"
+    number: "2"
+  - type: pad
+    at:
+      - 3.1
+      - 1.85
+    size:
+      - 1.8
+      - 1.1
+    rotation: 0
+    layers:
+      - F.Cu
+      - F.Paste
+      - F.Mask
+    net: "{{ to }}"
+    number: "2"

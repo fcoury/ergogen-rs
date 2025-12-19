@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use ergogen_parser::Value;
 use ergogen_pcb::footprint_spec::{
-    FootprintSpec, ParamKind, Primitive, ResolvedPrimitive, ScalarSpec, parse_footprint_spec,
-    resolve_footprint_spec,
+    FootprintSpec, ParamKind, Primitive, ResolvedDrill, ResolvedPrimitive, ScalarSpec,
+    parse_footprint_spec, resolve_footprint_spec,
 };
 use indexmap::IndexMap;
 
@@ -33,7 +33,7 @@ fn parses_minimal_pad_footprint_spec() {
 
     assert_eq!(spec.primitives.len(), 1);
     match &spec.primitives[0] {
-        Primitive::Pad { at, size, layers, net } => {
+        Primitive::Pad { at, size, layers, net, .. } => {
             assert_eq!(
                 *at,
                 [ScalarSpec::Number(0.0), ScalarSpec::Number(0.0)]
@@ -85,7 +85,7 @@ fn resolves_templated_vectors_and_layers() {
 
     let resolved = resolve_footprint_spec(&spec, &params).unwrap();
     match &resolved.primitives[0] {
-        ResolvedPrimitive::Pad { at, size, layers, net } => {
+        ResolvedPrimitive::Pad { at, size, layers, net, .. } => {
             assert_eq!(*at, [1.25, -2.5]);
             assert_eq!(*size, [3.0, 1.5]);
             assert_eq!(layers, &vec!["B.Cu".to_string(), "F.Mask".to_string()]);
@@ -147,6 +147,48 @@ fn parses_arc_rect_text_primitives() {
     assert!(spec.primitives.iter().any(|p| matches!(p, Primitive::Arc { .. })));
     assert!(spec.primitives.iter().any(|p| matches!(p, Primitive::Rect { .. })));
     assert!(spec.primitives.iter().any(|p| matches!(p, Primitive::Text { .. })));
+}
+
+#[test]
+fn parses_pad_thru_kind_and_oval_drill() {
+    let yaml = r#"
+name: pad_thru_kind
+params:
+  net:
+    type: net
+    default: ""
+primitives:
+  - type: pad_thru
+    at: [0, 0]
+    size: [1.0, 2.0]
+    drill: [0.9, 1.5]
+    layers:
+      - "*.Cu"
+      - "*.Mask"
+    net: ""
+    kind: np_thru_hole
+    number: ""
+"#;
+    let spec = parse_footprint_spec(yaml).unwrap();
+    match &spec.primitives[0] {
+        Primitive::PadThru { drill, kind, .. } => {
+            assert!(matches!(drill, ergogen_pcb::footprint_spec::DrillSpec::Vector(_)));
+            assert_eq!(kind.as_deref(), Some("np_thru_hole"));
+        }
+        _ => panic!("expected pad_thru primitive"),
+    }
+
+    let resolved = resolve_footprint_spec(&spec, &IndexMap::new()).unwrap();
+    match &resolved.primitives[0] {
+        ResolvedPrimitive::PadThru { drill, kind, .. } => {
+            assert_eq!(kind.as_deref(), Some("np_thru_hole"));
+            assert_eq!(
+                *drill,
+                ResolvedDrill::Vector([0.9, 1.5])
+            );
+        }
+        _ => panic!("expected pad_thru primitive"),
+    }
 }
 
 #[test]

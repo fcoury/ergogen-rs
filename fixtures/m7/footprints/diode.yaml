@@ -1,4 +1,11 @@
 name: diode
+module: ComboDiode
+layer: F.Cu
+tedit: 5B24D78E
+ref_prefix: D
+net_order:
+  - from
+  - to
 params:
   from:
     type: net
@@ -140,11 +147,13 @@ primitives:
     size:
       - 0.9
       - 1.2
+    rotation: 0
     layers:
       - F.Cu
       - F.Paste
       - F.Mask
     net: "{{ to }}"
+    number: "1"
   - type: pad
     at:
       - 1.65
@@ -152,11 +161,13 @@ primitives:
     size:
       - 0.9
       - 1.2
+    rotation: 0
     layers:
       - B.Cu
       - B.Paste
       - B.Mask
     net: "{{ from }}"
+    number: "2"
   - type: pad
     at:
       - -1.65
@@ -164,11 +175,13 @@ primitives:
     size:
       - 0.9
       - 1.2
+    rotation: 0
     layers:
       - B.Cu
       - B.Paste
       - B.Mask
     net: "{{ to }}"
+    number: "1"
   - type: pad
     at:
       - 1.65
@@ -176,11 +189,13 @@ primitives:
     size:
       - 0.9
       - 1.2
+    rotation: 0
     layers:
       - F.Cu
       - F.Paste
       - F.Mask
     net: "{{ from }}"
+    number: "2"
   - type: pad_thru
     at:
       - -3.81
@@ -188,12 +203,14 @@ primitives:
     size:
       - 1.778
       - 1.778
+    rotation: 0
     drill: 0.9906
     shape: rect
     layers:
       - "*.Cu"
       - "*.Mask"
     net: "{{ to }}"
+    number: "1"
   - type: pad_thru
     at:
       - 3.81
@@ -201,9 +218,11 @@ primitives:
     size:
       - 1.905
       - 1.905
+    rotation: 0
     drill: 0.9906
     shape: circle
     layers:
       - "*.Cu"
       - "*.Mask"
     net: "{{ from }}"
+    number: "2"

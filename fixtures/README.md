@@ -88,7 +88,12 @@ When fixtures are imported, record:
   - `fixtures/m7/footprints/primitives_templated.yaml`
   - `fixtures/m7/footprints/visual_arc_text.yaml`
   - `fixtures/m7/footprints/diode.yaml`
+  - `fixtures/m7/footprints/button.yaml`
+  - `fixtures/m7/footprints/mx_base.yaml`
   - `footprints/diode.yaml` (default search path)
+  - `footprints/pad.yaml` (default search path)
+  - `footprints/button.yaml` (default search path)
+  - `footprints/mx_base.yaml` (default search path)
 - PCB fixture validating footprint specs in KiCad output:
   - `fixtures/m7/pcbs/spec_pad.yaml`
   - `fixtures/m7/pcbs/spec_pad___pcbs_pcb.kicad_pcb`
@@ -98,6 +103,12 @@ When fixtures are imported, record:
   - `fixtures/m7/pcbs/spec_kicad8_rect___pcbs_pcb.kicad_pcb`
   - `fixtures/m7/pcbs/spec_diode.yaml`
   - `fixtures/m7/pcbs/spec_diode___pcbs_pcb.kicad_pcb`
+  - `fixtures/m7/pcbs/spec_pad_parity.yaml`
+  - `fixtures/m7/pcbs/spec_pad_parity___pcbs_pcb.kicad_pcb`
+  - `fixtures/m7/pcbs/spec_button_parity.yaml`
+  - `fixtures/m7/pcbs/spec_button_parity___pcbs_pcb.kicad_pcb`
+  - `fixtures/m7/pcbs/spec_mx_base_parity.yaml`
+  - `fixtures/m7/pcbs/spec_mx_base_parity___pcbs_pcb.kicad_pcb`
   - Visual checks:
     - Open `fixtures/m7/pcbs/spec_visual___pcbs_pcb.kicad_pcb` and confirm arc sweeps 90° from the +X axis and the label is rotated +30° and hidden.
     - Open `fixtures/m7/pcbs/spec_kicad8_rect___pcbs_pcb.kicad_pcb` in KiCad 8 and confirm the silk rectangle is emitted as `fp_rect`.

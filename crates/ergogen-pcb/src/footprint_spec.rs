@@ -22,6 +22,14 @@ pub enum FootprintSpecError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FootprintSpec {
     pub name: String,
+    pub module: Option<String>,
+    pub layer: Option<String>,
+    pub tedit: Option<String>,
+    pub tstamp: Option<String>,
+    pub descr: Option<String>,
+    pub tags: Option<String>,
+    pub ref_prefix: Option<String>,
+    pub net_order: Option<Vec<String>>,
     pub params: IndexMap<String, ParamSpec>,
     pub primitives: Vec<Primitive>,
 }
@@ -48,20 +56,37 @@ pub enum ScalarSpec {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum DrillSpec {
+    Scalar(ScalarSpec),
+    Vector([ScalarSpec; 2]),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ResolvedDrill {
+    Scalar(f64),
+    Vector([f64; 2]),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Primitive {
     Pad {
         at: [ScalarSpec; 2],
         size: [ScalarSpec; 2],
+        rotation: Option<ScalarSpec>,
         layers: Vec<String>,
         net: String,
+        number: Option<String>,
     },
     PadThru {
         at: [ScalarSpec; 2],
         size: [ScalarSpec; 2],
-        drill: ScalarSpec,
+        rotation: Option<ScalarSpec>,
+        drill: DrillSpec,
         layers: Vec<String>,
         net: String,
         shape: Option<String>,
+        kind: Option<String>,
+        number: Option<String>,
     },
     Circle {
         center: [ScalarSpec; 2],
@@ -104,6 +129,14 @@ pub enum Primitive {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResolvedFootprint {
     pub name: String,
+    pub module: String,
+    pub layer: String,
+    pub tedit: String,
+    pub tstamp: Option<String>,
+    pub descr: Option<String>,
+    pub tags: Option<String>,
+    pub ref_prefix: String,
+    pub net_order: Vec<String>,
     pub params: IndexMap<String, Value>,
     pub primitives: Vec<ResolvedPrimitive>,
 }
@@ -113,16 +146,21 @@ pub enum ResolvedPrimitive {
     Pad {
         at: [f64; 2],
         size: [f64; 2],
+        rotation: Option<f64>,
         layers: Vec<String>,
         net: String,
+        number: Option<String>,
     },
     PadThru {
         at: [f64; 2],
         size: [f64; 2],
-        drill: f64,
+        rotation: Option<f64>,
+        drill: ResolvedDrill,
         layers: Vec<String>,
         net: String,
         shape: Option<String>,
+        kind: Option<String>,
+        number: Option<String>,
     },
     Circle {
         center: [f64; 2],
@@ -179,34 +217,53 @@ pub fn resolve_footprint_spec(
             Primitive::Pad {
                 at,
                 size,
+                rotation,
                 layers,
                 net,
+                number,
             } => {
                 let at = resolve_vec2(at, &vars)?;
                 let size = resolve_vec2(size, &vars)?;
+                let rotation = match rotation {
+                    Some(rotation) => Some(resolve_scalar(rotation, &vars)?),
+                    None => None,
+                };
                 let net = interpolate(net, &vars)?;
                 let mut resolved_layers = Vec::new();
                 for layer in layers {
                     resolved_layers.push(interpolate(layer, &vars)?);
                 }
+                let number = match number {
+                    Some(number) => Some(interpolate(number, &vars)?),
+                    None => None,
+                };
                 primitives.push(ResolvedPrimitive::Pad {
                     at,
                     size,
+                    rotation,
                     layers: resolved_layers,
                     net,
+                    number,
                 });
             }
             Primitive::PadThru {
                 at,
                 size,
+                rotation,
                 drill,
                 layers,
                 net,
                 shape,
+                kind,
+                number,
             } => {
                 let at = resolve_vec2(at, &vars)?;
                 let size = resolve_vec2(size, &vars)?;
-                let drill = resolve_scalar(drill, &vars)?;
+                let rotation = match rotation {
+                    Some(rotation) => Some(resolve_scalar(rotation, &vars)?),
+                    None => None,
+                };
+                let drill = resolve_drill(drill, &vars)?;
                 let net = interpolate(net, &vars)?;
                 let mut resolved_layers = Vec::new();
                 for layer in layers {
@@ -216,13 +273,24 @@ pub fn resolve_footprint_spec(
                     Some(shape) => Some(interpolate(shape, &vars)?),
                     None => None,
                 };
+                let kind = match kind {
+                    Some(kind) => Some(interpolate(kind, &vars)?),
+                    None => None,
+                };
+                let number = match number {
+                    Some(number) => Some(interpolate(number, &vars)?),
+                    None => None,
+                };
                 primitives.push(ResolvedPrimitive::PadThru {
                     at,
                     size,
+                    rotation,
                     drill,
                     layers: resolved_layers,
                     net,
                     shape,
+                    kind,
+                    number,
                 });
             }
             Primitive::Circle {
@@ -334,6 +402,14 @@ pub fn resolve_footprint_spec(
     }
     Ok(ResolvedFootprint {
         name: spec.name.clone(),
+        module: spec.module.clone().unwrap_or_else(|| spec.name.clone()),
+        layer: spec.layer.clone().unwrap_or_else(|| "F.Cu".to_string()),
+        tedit: spec.tedit.clone().unwrap_or_else(|| "0".to_string()),
+        tstamp: spec.tstamp.clone(),
+        descr: spec.descr.clone(),
+        tags: spec.tags.clone(),
+        ref_prefix: spec.ref_prefix.clone().unwrap_or_else(|| "FP".to_string()),
+        net_order: spec.net_order.clone().unwrap_or_default(),
         params: resolved_params,
         primitives,
     })
@@ -348,6 +424,20 @@ fn parse_footprint_value(value: &Value) -> Result<FootprintSpec, FootprintSpecEr
         .and_then(value_as_str)
         .ok_or(FootprintSpecError::Invalid("name"))?
         .to_string();
+    let module = map.get("module").and_then(value_as_str).map(|s| s.to_string());
+    let layer = map.get("layer").and_then(value_as_str).map(|s| s.to_string());
+    let tedit = map.get("tedit").and_then(value_as_str).map(|s| s.to_string());
+    let tstamp = map.get("tstamp").and_then(value_as_str).map(|s| s.to_string());
+    let descr = map.get("descr").and_then(value_as_str).map(|s| s.to_string());
+    let tags = map.get("tags").and_then(value_as_str).map(|s| s.to_string());
+    let ref_prefix = map
+        .get("ref_prefix")
+        .and_then(value_as_str)
+        .map(|s| s.to_string());
+    let net_order = match map.get("net_order") {
+        Some(v) => Some(parse_str_list(Some(v), "net_order")?),
+        None => None,
+    };
     let params = match map.get("params") {
         Some(Value::Map(param_map)) => parse_params(param_map)?,
         Some(Value::Null) | None => IndexMap::new(),
@@ -360,6 +450,14 @@ fn parse_footprint_value(value: &Value) -> Result<FootprintSpec, FootprintSpecEr
 
     Ok(FootprintSpec {
         name,
+        module,
+        layer,
+        tedit,
+        tstamp,
+        descr,
+        tags,
+        ref_prefix,
+        net_order,
         params,
         primitives,
     })
@@ -416,28 +514,38 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
             "pad" => {
                 let at = parse_vec2(map.get("at"), "primitives.pad.at")?;
                 let size = parse_vec2(map.get("size"), "primitives.pad.size")?;
+                let rotation = map
+                    .get("rotation")
+                    .map(|v| parse_scalar(v, "primitives.pad.rotation"))
+                    .transpose()?;
                 let layers = parse_str_list(map.get("layers"), "primitives.pad.layers")?;
                 let net = map
                     .get("net")
                     .and_then(value_as_str)
                     .ok_or(FootprintSpecError::Invalid("primitives.pad.net"))?
                     .to_string();
+                let number = map
+                    .get("number")
+                    .map(|v| parse_pad_number(v, "primitives.pad.number"))
+                    .transpose()?;
                 out.push(Primitive::Pad {
                     at,
                     size,
+                    rotation,
                     layers,
                     net,
+                    number,
                 });
             }
             "pad_thru" => {
                 let at = parse_vec2(map.get("at"), "primitives.pad_thru.at")?;
                 let size = parse_vec2(map.get("size"), "primitives.pad_thru.size")?;
-                let drill = parse_scalar(
-                    map.get("drill").ok_or(FootprintSpecError::Invalid(
-                        "primitives.pad_thru.drill",
-                    ))?,
-                    "primitives.pad_thru.drill",
-                )?;
+                let rotation = map
+                    .get("rotation")
+                    .map(|v| parse_scalar(v, "primitives.pad_thru.rotation"))
+                    .transpose()?;
+                let drill =
+                    parse_drill(map.get("drill"), "primitives.pad_thru.drill")?;
                 let layers =
                     parse_str_list(map.get("layers"), "primitives.pad_thru.layers")?;
                 let net = map
@@ -446,13 +554,26 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
                     .ok_or(FootprintSpecError::Invalid("primitives.pad_thru.net"))?
                     .to_string();
                 let shape = map.get("shape").and_then(value_as_str).map(|s| s.to_string());
+                let kind = map.get("kind").and_then(value_as_str).map(|s| s.to_string());
+                if let Some(kind) = &kind {
+                    if kind != "thru_hole" && kind != "np_thru_hole" {
+                        return Err(FootprintSpecError::Invalid("primitives.pad_thru.kind"));
+                    }
+                }
+                let number = map
+                    .get("number")
+                    .map(|v| parse_pad_number(v, "primitives.pad_thru.number"))
+                    .transpose()?;
                 out.push(Primitive::PadThru {
                     at,
                     size,
+                    rotation,
                     drill,
                     layers,
                     net,
                     shape,
+                    kind,
+                    number,
                 });
             }
             "circle" => {
@@ -647,6 +768,14 @@ fn parse_bool_opt(
     }
 }
 
+fn parse_pad_number(v: &Value, at: &'static str) -> Result<String, FootprintSpecError> {
+    match v {
+        Value::String(s) => Ok(s.clone()),
+        Value::Number(n) => Ok(format!("{}", n)),
+        _ => Err(FootprintSpecError::InvalidString(at)),
+    }
+}
+
 fn parse_str_list(v: Option<&Value>, at: &'static str) -> Result<Vec<String>, FootprintSpecError> {
     let Some(v) = v else {
         return Err(FootprintSpecError::InvalidString(at));
@@ -683,6 +812,23 @@ fn parse_scalar(v: &Value, at: &'static str) -> Result<ScalarSpec, FootprintSpec
         Value::Number(n) => Ok(ScalarSpec::Number(*n)),
         Value::String(s) => Ok(ScalarSpec::Template(s.clone())),
         _ => Err(FootprintSpecError::InvalidNumber(at)),
+    }
+}
+
+fn parse_drill(
+    v: Option<&Value>,
+    at: &'static str,
+) -> Result<DrillSpec, FootprintSpecError> {
+    let Some(v) = v else {
+        return Err(FootprintSpecError::InvalidNumber(at));
+    };
+    match v {
+        Value::Seq(seq) if seq.len() == 2 => {
+            let x = parse_scalar(&seq[0], at)?;
+            let y = parse_scalar(&seq[1], at)?;
+            Ok(DrillSpec::Vector([x, y]))
+        }
+        _ => Ok(DrillSpec::Scalar(parse_scalar(v, at)?)),
     }
 }
 
@@ -803,5 +949,18 @@ fn resolve_scalar(
                 .parse::<f64>()
                 .map_err(|_| FootprintSpecError::InvalidNumber("template"))
         }
+    }
+}
+
+fn resolve_drill(
+    v: &DrillSpec,
+    vars: &IndexMap<String, String>,
+) -> Result<ResolvedDrill, FootprintSpecError> {
+    match v {
+        DrillSpec::Scalar(s) => Ok(ResolvedDrill::Scalar(resolve_scalar(s, vars)?)),
+        DrillSpec::Vector(v) => Ok(ResolvedDrill::Vector([
+            resolve_scalar(&v[0], vars)?,
+            resolve_scalar(&v[1], vars)?,
+        ])),
     }
 }
