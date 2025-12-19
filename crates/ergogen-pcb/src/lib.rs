@@ -2,6 +2,7 @@
 
 mod templates;
 pub mod footprint_spec;
+mod js_runtime;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
