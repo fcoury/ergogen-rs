@@ -1,0 +1,63 @@
+name: JS Footprints Upstream Parity
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 3 * * *"
+
+jobs:
+  upstream-js-footprints:
+    runs-on: ubuntu-latest
+    # To gate on a PR label later, uncomment and adjust:
+    # if: github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'run-upstream-js')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Generate upstream JS footprint output
+        run: |
+          set -euo pipefail
+          WORKDIR="target/upstream-js-ergogen"
+          OUTDIR="target/reference-outputs/upstream/js_footprints"
+          rm -rf "${WORKDIR}" "${OUTDIR}"
+          mkdir -p "${WORKDIR}/footprints/ceoloide" "${OUTDIR}"
+          cp fixtures/m7/js_footprints/knuckles_assets/ceoloide/mounting_hole_npth.js \
+            "${WORKDIR}/footprints/ceoloide/"
+          cat > "${WORKDIR}/config.yaml" <<'EOF'
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.template: kicad8
+pcbs.pcb.footprints:
+  - what: ceoloide/mounting_hole_npth
+    params:
+      hole_size: "2.2"
+      hole_drill: "2.2"
+      side: F
+    adjust.shift: [0, 0]
+  - what: ceoloide/mounting_hole_npth
+    params:
+      hole_size: "3.0"
+      hole_drill: "2.4"
+      side: B
+    adjust.shift: [10, 0]
+EOF
+          npx --yes ergogen@4.1.0 "${WORKDIR}" --output "${OUTDIR}" --clear
+          cp "${OUTDIR}/pcbs/pcb.kicad_pcb" \
+            "${OUTDIR}/knuckles_mounting_hole___pcbs_pcb.kicad_pcb"
+
+      - name: Run upstream parity test
+        env:
+          ERGOGEN_UPSTREAM_OUTPUT_DIR: target/reference-outputs/upstream/js_footprints
+        run: cargo test -p ergogen-pcb --features js-footprints --test js_footprints_upstream
