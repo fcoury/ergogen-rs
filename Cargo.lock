@@ -574,7 +574,12 @@ dependencies = [
 name = "ergogen-wasm"
 version = "0.1.0"
 dependencies = [
+ "ergogen-export",
+ "ergogen-geometry",
+ "ergogen-outline",
  "ergogen-pcb",
+ "serde",
+ "serde-wasm-bindgen",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]

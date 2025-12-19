@@ -8,7 +8,12 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+ergogen-export = { path = "../ergogen-export" }
+ergogen-geometry = { path = "../ergogen-geometry" }
+ergogen-outline = { path = "../ergogen-outline" }
+ergogen-pcb = { path = "../ergogen-pcb", features = ["js-footprints-wasm"] }
 
 [dev-dependencies]
-ergogen-pcb = { path = "../ergogen-pcb", features = ["js-footprints-wasm"] }
 wasm-bindgen-test = "0.3"

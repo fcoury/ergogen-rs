@@ -1,5 +1,7 @@
-use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen_test::wasm_bindgen_test;
+use wasm_bindgen::prelude::wasm_bindgen;
+
+use ergogen_export::dxf::{Dxf, NormalizeOptions};
 
 #[wasm_bindgen(module = "/js/footprints.js")]
 unsafe extern "C" {
@@ -23,6 +25,20 @@ fn renders_js_footprint_fixture() {
     let expected =
         include_str!("../../../fixtures/m7/js_footprints/simple___pcbs_pcb.kicad_pcb");
 
-    let got = ergogen_pcb::generate_kicad_pcb_from_yaml_str(yaml, "pcb").unwrap();
+    let got = ergogen_wasm::render_pcb(yaml, "pcb").unwrap();
     assert_eq!(normalize(&got), normalize(expected));
+}
+
+#[wasm_bindgen_test]
+fn renders_outline_dxf_fixture() {
+    let yaml = include_str!("../../../fixtures/m5/outlines/basic.yaml");
+    let expected = include_str!("../../../fixtures/m5/outlines/basic___outlines_outline_dxf.dxf");
+
+    let got = ergogen_wasm::render_dxf(yaml, "outline").unwrap();
+
+    let left = Dxf::parse_str(&got).unwrap();
+    let right = Dxf::parse_str(expected).unwrap();
+    let left_norm = left.normalize(NormalizeOptions::default()).unwrap();
+    let right_norm = right.normalize(NormalizeOptions::default()).unwrap();
+    left_norm.compare_semantic(&right_norm).unwrap();
 }
