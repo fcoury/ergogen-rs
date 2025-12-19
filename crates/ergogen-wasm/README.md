@@ -11,4 +11,21 @@ await init();
 console.log(version());
 ```
 
-This is a skeleton; rendering APIs and JS‑footprint bridging will be added in Phase 2/3.
+This is a skeleton; rendering APIs are still in progress.
+
+## JS Footprints (WASM)
+
+The wasm bridge expects host JS functions to exist:
+
+```js
+import {
+  installErgogenJsFootprints,
+  registerErgogenJsFootprintSource
+} from "./js/footprints.js";
+
+installErgogenJsFootprints();
+registerErgogenJsFootprintSource("simple.js", "module.exports = { ... }");
+```
+
+The host can also provide a global `ergogenJsFootprintSourceLoader(path)` function
+to load footprints dynamically (e.g., via `fetch` or a registry map).

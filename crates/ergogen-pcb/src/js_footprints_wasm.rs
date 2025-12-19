@@ -19,6 +19,20 @@ extern "C" {
 
     #[wasm_bindgen(js_name = ergogenJsFootprintParams)]
     fn js_footprint_params(source: &str) -> JsValue;
+
+    #[wasm_bindgen(js_name = ergogenLoadJsFootprintSource)]
+    fn load_js_footprint_source(path: &str) -> String;
+}
+
+pub fn load_js_source(path: &std::path::Path) -> Result<String, PcbError> {
+    let path_str = path.to_string_lossy();
+    let source = load_js_footprint_source(&path_str);
+    if source.trim().is_empty() {
+        return Err(PcbError::FootprintSpec(format!(
+            "empty JS footprint source for {path_str}"
+        )));
+    }
+    Ok(source)
 }
 
 pub fn render_js_footprint_wasm(
@@ -106,7 +120,10 @@ fn build_p_object(
         Reflect::set(&obj, &JsValue::from_str(name.as_str()), &value).map_err(js_err)?;
     }
 
-    let _keep_alive = (xy_fn, eaxy_fn, local_net_fn, global_net_fn);
+    xy_fn.forget();
+    eaxy_fn.forget();
+    local_net_fn.forget();
+    global_net_fn.forget();
     Ok(obj.into())
 }
 

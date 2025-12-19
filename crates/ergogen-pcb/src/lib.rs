@@ -1132,6 +1132,29 @@ fn resolve_spec_path(path: &str, search_paths: &[PathBuf]) -> Result<PathBuf, Pc
     )))
 }
 
+#[cfg(target_arch = "wasm32")]
+fn resolve_js_path(path: &str, search_paths: &[PathBuf]) -> Option<PathBuf> {
+    let path = if path.ends_with(".js") {
+        PathBuf::from(path)
+    } else {
+        PathBuf::from(format!("{path}.js"))
+    };
+    if path.is_absolute() {
+        return Some(path);
+    }
+    let root = workspace_root();
+    if let Some(base) = search_paths.first() {
+        let base = if base.is_absolute() {
+            base.clone()
+        } else {
+            root.join(base)
+        };
+        return Some(base.join(&path));
+    }
+    Some(root.join(&path))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn resolve_js_path(path: &str, search_paths: &[PathBuf]) -> Option<PathBuf> {
     let path = if path.ends_with(".js") {
         PathBuf::from(path)
@@ -1184,8 +1207,7 @@ fn render_js_from_path(
     }
     #[cfg(all(feature = "js-footprints-wasm", target_arch = "wasm32"))]
     {
-        let source = std::fs::read_to_string(path)
-            .map_err(|e| PcbError::FootprintSpecIo(format!("{}: {e}", path.display())))?;
+        let source = js_footprints_wasm::load_js_source(path)?;
         let side = param_str(params, "side").unwrap_or_else(|| "F".to_string());
         let rendered = js_footprints_wasm::render_js_footprint_wasm(
             &source,

@@ -41,6 +41,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -49,5 +54,11 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
 
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --version 0.2.106
+
       - name: Build wasm crate
         run: cargo build -p ergogen-wasm --target wasm32-unknown-unknown
+
+      - name: Test wasm crate
+        run: CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner cargo test -p ergogen-wasm --target wasm32-unknown-unknown
