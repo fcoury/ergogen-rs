@@ -1,0 +1,9 @@
+points:
+    zones:
+        matrix:
+            columns:
+                left: null
+                right: null
+            rows:
+                bottom: null
+                top: null

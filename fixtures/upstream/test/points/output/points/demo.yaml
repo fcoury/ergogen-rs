@@ -1,0 +1,158 @@
+models:
+    export:
+        models:
+            matrix_left_bottom:
+                paths:
+                    top:
+                        type: line
+                        origin:
+                            - -9
+                            - 9
+                        end:
+                            - 9
+                            - 9
+                    right:
+                        type: line
+                        origin:
+                            - 9
+                            - 9
+                        end:
+                            - 9
+                            - -9
+                    bottom:
+                        type: line
+                        origin:
+                            - 9
+                            - -9
+                        end:
+                            - -9
+                            - -9
+                    left:
+                        type: line
+                        origin:
+                            - -9
+                            - -9
+                        end:
+                            - -9
+                            - 9
+                origin:
+                    - 0
+                    - 0
+            matrix_left_top:
+                paths:
+                    top:
+                        type: line
+                        origin:
+                            - -9
+                            - 28
+                        end:
+                            - 9
+                            - 28
+                    right:
+                        type: line
+                        origin:
+                            - 9
+                            - 28
+                        end:
+                            - 9
+                            - 10
+                    bottom:
+                        type: line
+                        origin:
+                            - 9
+                            - 10
+                        end:
+                            - -9
+                            - 10
+                    left:
+                        type: line
+                        origin:
+                            - -9
+                            - 10
+                        end:
+                            - -9
+                            - 28
+                origin:
+                    - 0
+                    - 0
+            matrix_right_bottom:
+                paths:
+                    top:
+                        type: line
+                        origin:
+                            - 10
+                            - 9
+                        end:
+                            - 28
+                            - 9
+                    right:
+                        type: line
+                        origin:
+                            - 28
+                            - 9
+                        end:
+                            - 28
+                            - -9
+                    bottom:
+                        type: line
+                        origin:
+                            - 28
+                            - -9
+                        end:
+                            - 10
+                            - -9
+                    left:
+                        type: line
+                        origin:
+                            - 10
+                            - -9
+                        end:
+                            - 10
+                            - 9
+                origin:
+                    - 0
+                    - 0
+            matrix_right_top:
+                paths:
+                    top:
+                        type: line
+                        origin:
+                            - 10
+                            - 28
+                        end:
+                            - 28
+                            - 28
+                    right:
+                        type: line
+                        origin:
+                            - 28
+                            - 28
+                        end:
+                            - 28
+                            - 10
+                    bottom:
+                        type: line
+                        origin:
+                            - 28
+                            - 10
+                        end:
+                            - 10
+                            - 10
+                    left:
+                        type: line
+                        origin:
+                            - 10
+                            - 10
+                        end:
+                            - 10
+                            - 28
+                origin:
+                    - 0
+                    - 0
+        origin:
+            - 0
+            - 0
+units: mm
+origin:
+    - 0
+    - 0

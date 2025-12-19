@@ -1,0 +1,7 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.footprints:
+  - what: injected
+  - what: injected
+    adjust.shift: [10, 0]

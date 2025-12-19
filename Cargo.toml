@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/ergogen-cli",
+  "crates/ergogen-core",
+  "crates/ergogen-export",
+  "crates/ergogen-geometry",
+  "crates/ergogen-layout",
+  "crates/ergogen-outline",
+  "crates/ergogen-parser",
+  "crates/ergogen-pcb",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
