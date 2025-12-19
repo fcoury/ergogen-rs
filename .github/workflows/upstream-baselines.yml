@@ -24,6 +24,10 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
+    env:
+      UPSTREAM_BASELINE_COMMIT: ${{ vars.UPSTREAM_BASELINE_COMMIT }}
+      UPSTREAM_BASELINE_FIXTURE: ${{ vars.UPSTREAM_BASELINE_FIXTURE }}
+      UPSTREAM_BASELINE_NAME: ${{ vars.UPSTREAM_BASELINE_NAME }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

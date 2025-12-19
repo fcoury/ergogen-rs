@@ -21,3 +21,9 @@ Notes:
 - To pin a local clone, set `ERGOGEN_UPSTREAM_DIR=/path/to/ergogen`.
 - To override the command, set `ERGOGEN_UPSTREAM_CMD='npx -y ergogen'` (or another CLI command).
 - Outputs land in `fixtures/upstream-baselines/<commit>/<fixture-name>/` with a `MANIFEST.txt`.
+
+CI integration:
+- The upstream baselines workflow reads repository variables if inputs are empty:
+  - `UPSTREAM_BASELINE_COMMIT`
+  - `UPSTREAM_BASELINE_FIXTURE`
+  - `UPSTREAM_BASELINE_NAME`
