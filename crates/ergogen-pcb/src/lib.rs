@@ -2,9 +2,12 @@
 
 mod templates;
 pub mod footprint_spec;
+mod js_footprints_shared;
 mod js_runtime;
 #[cfg(feature = "js-footprints")]
 mod js_footprints;
+#[cfg(all(feature = "js-footprints-wasm", target_arch = "wasm32"))]
+mod js_footprints_wasm;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -17,6 +20,9 @@ use ergogen_parser::{Error as ParserError, PreparedConfig, Units, Value};
 use indexmap::IndexMap;
 
 use footprint_spec::{ResolvedPrimitive, parse_footprint_spec, resolve_footprint_spec};
+
+#[cfg(all(target_arch = "wasm32", feature = "js-footprints"))]
+compile_error!("Feature `js-footprints` (Boa) is not supported on wasm32; enable `js-footprints-wasm` instead.");
 use templates::{
     KICAD5_HEADER, KICAD8_HEADER,
     button_template, choc_template, chocmini_template, diode_template, injected_template,
@@ -1160,7 +1166,7 @@ fn render_js_from_path(
     refs: &mut HashMap<String, usize>,
     nets: &mut NetIndex,
 ) -> Result<(String, String), PcbError> {
-    #[cfg(feature = "js-footprints")]
+    #[cfg(all(feature = "js-footprints", not(target_arch = "wasm32")))]
     {
         let source = std::fs::read_to_string(path)
             .map_err(|e| PcbError::FootprintSpecIo(format!("{}: {e}", path.display())))?;
@@ -1176,7 +1182,22 @@ fn render_js_from_path(
         )?;
         return Ok((rendered, String::new()));
     }
-    #[cfg(not(feature = "js-footprints"))]
+    #[cfg(all(feature = "js-footprints-wasm", target_arch = "wasm32"))]
+    {
+        let source = std::fs::read_to_string(path)
+            .map_err(|e| PcbError::FootprintSpecIo(format!("{}: {e}", path.display())))?;
+        let side = param_str(params, "side").unwrap_or_else(|| "F".to_string());
+        let rendered = js_footprints_wasm::render_js_footprint_wasm(
+            &source,
+            placement,
+            params,
+            refs,
+            nets,
+            side,
+        )?;
+        return Ok((rendered, String::new()));
+    }
+    #[cfg(not(any(feature = "js-footprints", feature = "js-footprints-wasm")))]
     {
         let _ = path;
         let _ = placement;
@@ -1184,7 +1205,8 @@ fn render_js_from_path(
         let _ = refs;
         let _ = nets;
         Err(PcbError::FootprintSpec(
-            "JS footprints are disabled (enable feature js-footprints)".to_string(),
+            "JS footprints are disabled (enable feature js-footprints or js-footprints-wasm)"
+                .to_string(),
         ))
     }
 }
