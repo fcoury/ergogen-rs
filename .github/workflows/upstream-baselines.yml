@@ -1,0 +1,90 @@
+name: Upstream Baselines
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Upstream ergogen commit hash"
+        required: false
+      fixture:
+        description: "Fixture YAML path"
+        required: false
+        default: "fixtures/upstream/fixtures/big.yaml"
+      fixture_name:
+        description: "Baseline folder name"
+        required: false
+        default: "big"
+      compare:
+        description: "Run comparison tests against baselines"
+        required: false
+        default: "false"
+  schedule:
+    - cron: "0 3 * * 1"
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Resolve inputs
+        id: inputs
+        run: |
+          commit="${{ inputs.commit }}"
+          fixture="${{ inputs.fixture }}"
+          fixture_name="${{ inputs.fixture_name }}"
+          compare="${{ inputs.compare }}"
+
+          if [[ -z "${commit}" ]]; then
+            commit="${UPSTREAM_BASELINE_COMMIT:-}"
+          fi
+          if [[ -z "${fixture}" ]]; then
+            fixture="${UPSTREAM_BASELINE_FIXTURE:-fixtures/upstream/fixtures/big.yaml}"
+          fi
+          if [[ -z "${fixture_name}" ]]; then
+            fixture_name="${UPSTREAM_BASELINE_NAME:-big}"
+          fi
+
+          echo "commit=${commit}" >> "$GITHUB_OUTPUT"
+          echo "fixture=${fixture}" >> "$GITHUB_OUTPUT"
+          echo "fixture_name=${fixture_name}" >> "$GITHUB_OUTPUT"
+          echo "compare=${compare}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if no commit configured
+        if: ${{ steps.inputs.outputs.commit == '' }}
+        run: echo "No upstream commit provided; skipping baseline generation."
+
+      - name: Generate baselines
+        if: ${{ steps.inputs.outputs.commit != '' }}
+        run: |
+          ./scripts/update-upstream-baselines.sh \
+            "${{ steps.inputs.outputs.commit }}" \
+            "${{ steps.inputs.outputs.fixture }}" \
+            "${{ steps.inputs.outputs.fixture_name }}"
+
+      - name: Compare baselines
+        if: ${{ steps.inputs.outputs.commit != '' && steps.inputs.outputs.compare == 'true' }}
+        env:
+          UPSTREAM_BASELINE_DIR: fixtures/upstream-baselines/${{ steps.inputs.outputs.commit }}/${{ steps.inputs.outputs.fixture_name }}
+        run: cargo test -p ergogen-export --test reference_outputs
+
+      - name: Upload baselines
+        if: ${{ steps.inputs.outputs.commit != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-baselines-${{ steps.inputs.outputs.commit }}-${{ steps.inputs.outputs.fixture_name }}
+          path: fixtures/upstream-baselines/${{ steps.inputs.outputs.commit }}/${{ steps.inputs.outputs.fixture_name }}
