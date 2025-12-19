@@ -1,7 +1,7 @@
 # Detailed Rust Migration Execution Plan
 
 **Last Updated:** 2025-12-19  
-**Status:** In Progress (**M0–M2 complete**, **M3 mostly complete**, **M5 complete**, **M6 groundwork implemented + fixture expansion**)  
+**Status:** In Progress (**M0–M2 complete**, **M3 mostly complete**, **M5 complete**, **M6 groundwork implemented + fixture expansion**, **M7 underway: spec parser/renderer + initial footprint conversion**)  
 **Target:** Ergogen v4.x behavior -> Rust implementation (CLI + WASM)
 
 This document is the “what to do next, in what order” execution plan. The higher-level rationale and architectural decisions live in `plans/migrate-ergogen-to-rust.md`.
