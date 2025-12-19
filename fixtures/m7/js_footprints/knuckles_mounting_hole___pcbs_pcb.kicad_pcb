@@ -82,18 +82,46 @@
   )
 
   (net 0 "")
-(net 1 "GND")
-(net 2 "FP1_A")
+
 
   
-(footprint "js_simple"
-  (layer F.Cu)
-  (at 0 0 0)
-  (property "Reference" "FP1" (at 0 0) (layer F.SilkS) hide)
-  (pad "1" thru_hole circle (at 0 0) (size 1 1) (drill 0.5) (layers *.Cu *.Mask) (net 1 "GND"))
-  (pad "2" thru_hole circle (at 1 2) (size 1 1) (drill 0.5) (layers *.Cu *.Mask) (net 2 "FP1_A"))
-  (fp_text user "JS" (at 0 1) (layer F.SilkS))
-)
+
+  (footprint "ceoloide:mounting_hole_npth"
+    (layer "F.Cu")
+    (at 0 0 0)
+    (property "Reference" "MH1"
+      (at 0 2.55 0)
+      (layer "F.SilkS")
+      hide
+      (effects (font (size 1 1) (thickness 0.15)))
+    )
+    (pad "" np_thru_hole circle
+      (at 0 0 0)
+      (size 2.2 2.2)
+      (drill 2.2)
+      (layers "*.Cu" "*.Mask")
+    )
+  )
+  
+  
+
+  (footprint "ceoloide:mounting_hole_npth"
+    (layer "B.Cu")
+    (at 10 0 0)
+    (property "Reference" "MH2"
+      (at 0 2.55 0)
+      (layer "B.SilkS")
+      hide
+      (effects (font (size 1 1) (thickness 0.15)))
+    )
+    (pad "" np_thru_hole circle
+      (at 0 0 0)
+      (size 3.0 3.0)
+      (drill 2.4)
+      (layers "*.Cu" "*.Mask")
+    )
+  )
+  
         
 
 )
