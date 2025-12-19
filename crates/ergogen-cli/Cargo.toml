@@ -8,6 +8,8 @@ name = "ergogen"
 path = "src/main.rs"
 
 [dependencies]
+clap = { version = "4", features = ["derive"] }
+ergogen-dxf2png = { path = "../ergogen-dxf2png" }
 
 [dev-dependencies]
 ergogen-export = { path = "../ergogen-export" }

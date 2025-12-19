@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "crates/ergogen-cli",
   "crates/ergogen-core",
+  "crates/ergogen-dxf2png",
   "crates/ergogen-export",
   "crates/ergogen-geometry",
   "crates/ergogen-layout",

@@ -1,0 +1,10 @@
+[package]
+name = "ergogen-dxf2png"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ergogen-export = { path = "../ergogen-export" }
+image = { version = "0.25", default-features = false, features = ["png"] }
+thiserror = "2.0.9"
+tiny-skia = "0.11"
