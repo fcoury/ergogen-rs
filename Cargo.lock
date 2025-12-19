@@ -544,6 +544,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ergogen-wasm"
+version = "0.1.0"
+dependencies = [
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"

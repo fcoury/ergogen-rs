@@ -10,6 +10,7 @@ members = [
   "crates/ergogen-outline",
   "crates/ergogen-parser",
   "crates/ergogen-pcb",
+  "crates/ergogen-wasm",
 ]
 
 [workspace.package]
