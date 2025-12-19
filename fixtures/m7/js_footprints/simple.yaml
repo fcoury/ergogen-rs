@@ -1,0 +1,10 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.footprints_search_paths:
+  - fixtures/m7/js_footprints
+pcbs.pcb.footprints:
+  - what: simple
+    params:
+      net: GND
+      label: JS
