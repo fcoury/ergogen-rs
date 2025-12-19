@@ -204,6 +204,13 @@ impl<'a> JsContext<'a> {
     }
 
     fn net_from_name(&mut self, name: String) -> JsNet {
+        if name.is_empty() {
+            return JsNet {
+                name,
+                index: 0,
+                str: "(net 0 \"\")".to_string(),
+            };
+        }
         let index = self.nets.ensure(&name);
         let safe = escape_kicad_text(&name);
         JsNet {

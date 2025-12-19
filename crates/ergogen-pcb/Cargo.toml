@@ -13,3 +13,7 @@ cavalier_contours = "0.6"
 indexmap = "2"
 serde_json = "1"
 thiserror = "1"
+boa_engine = { version = "0.19", optional = true }
+
+[features]
+js-footprints = ["boa_engine"]

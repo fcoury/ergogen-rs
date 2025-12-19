@@ -3,6 +3,8 @@
 mod templates;
 pub mod footprint_spec;
 mod js_runtime;
+#[cfg(feature = "js-footprints")]
+mod js_footprints;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -843,6 +845,32 @@ fn render_footprint(
     let at = format!("{} {} {}", fmt_num(at_x), fmt_num(at_y), fmt_num(placement.r));
     let net_order = default_net_order(def.what.as_str());
 
+    if def.what == "spec" {
+        let spec_path = params
+            .get("spec")
+            .and_then(param_to_string)
+            .ok_or_else(|| PcbError::FootprintSpec("missing params.spec".to_string()))?;
+        let resolved_path = resolve_spec_path(&spec_path, spec_search_paths)?;
+        let spec = spec_cache.load(&resolved_path)?;
+        let mut spec_params = params.clone();
+        spec_params.shift_remove("spec");
+        let resolved =
+            resolve_footprint_spec(&spec, &spec_params)
+                .map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
+        let module = render_spec_module(&resolved, &at, placement, nets, refs, is_kicad8);
+        return Ok((module, String::new()));
+    }
+
+    if let Some(js_path) = resolve_js_path(&def.what, spec_search_paths) {
+        return render_js_from_path(
+            &js_path,
+            placement,
+            params,
+            refs,
+            nets,
+        );
+    }
+
     match def.what.as_str() {
         "trace_test" => {
             let side = param_str(params, "side").unwrap_or_else(|| "F".to_string());
@@ -958,21 +986,6 @@ fn render_footprint(
                 ("end2_y", &fmt_num(e2y)),
             ]);
             let module = render_template(template, &ctx);
-            Ok((module, String::new()))
-        }
-        "spec" => {
-            let spec_path = params
-                .get("spec")
-                .and_then(param_to_string)
-                .ok_or_else(|| PcbError::FootprintSpec("missing params.spec".to_string()))?;
-            let resolved_path = resolve_spec_path(&spec_path, spec_search_paths)?;
-            let spec = spec_cache.load(&resolved_path)?;
-            let mut spec_params = params.clone();
-            spec_params.shift_remove("spec");
-            let resolved =
-                resolve_footprint_spec(&spec, &spec_params)
-                    .map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
-            let module = render_spec_module(&resolved, &at, placement, nets, refs, is_kicad8);
             Ok((module, String::new()))
         }
         "mx" => render_template_module(
@@ -1111,6 +1124,69 @@ fn resolve_spec_path(path: &str, search_paths: &[PathBuf]) -> Result<PathBuf, Pc
     Err(PcbError::FootprintSpecIo(format!(
         "spec not found: {path}"
     )))
+}
+
+fn resolve_js_path(path: &str, search_paths: &[PathBuf]) -> Option<PathBuf> {
+    let path = if path.ends_with(".js") {
+        PathBuf::from(path)
+    } else {
+        PathBuf::from(format!("{path}.js"))
+    };
+    if path.is_absolute() {
+        return if path.exists() { Some(path) } else { None };
+    }
+    let cwd = std::env::current_dir().ok();
+    let root = workspace_root();
+    let mut candidates = Vec::new();
+    if let Some(cwd) = cwd {
+        candidates.push(cwd.join(&path));
+    }
+    candidates.push(root.join(&path));
+    for base in search_paths {
+        let base = if base.is_absolute() {
+            base.clone()
+        } else {
+            root.join(base)
+        };
+        candidates.push(base.join(&path));
+    }
+    candidates.into_iter().find(|p| p.exists())
+}
+
+fn render_js_from_path(
+    path: &PathBuf,
+    placement: Placement,
+    params: &IndexMap<String, Value>,
+    refs: &mut HashMap<String, usize>,
+    nets: &mut NetIndex,
+) -> Result<(String, String), PcbError> {
+    #[cfg(feature = "js-footprints")]
+    {
+        let source = std::fs::read_to_string(path)
+            .map_err(|e| PcbError::FootprintSpecIo(format!("{}: {e}", path.display())))?;
+        let mut module = js_footprints::load_js_module(&source)?;
+        let side = param_str(params, "side").unwrap_or_else(|| "F".to_string());
+        let rendered = js_footprints::render_js_footprint(
+            &mut module,
+            placement,
+            params,
+            refs,
+            nets,
+            side,
+        )?;
+        return Ok((rendered, String::new()));
+    }
+    #[cfg(not(feature = "js-footprints"))]
+    {
+        let _ = path;
+        let _ = placement;
+        let _ = params;
+        let _ = refs;
+        let _ = nets;
+        Err(PcbError::FootprintSpec(
+            "JS footprints are disabled (enable feature js-footprints)".to_string(),
+        ))
+    }
 }
 
 fn collect_spec_search_paths(v: Option<&Value>) -> Vec<PathBuf> {
