@@ -14,6 +14,8 @@ ergogen-export = { path = "../ergogen-export" }
 ergogen-geometry = { path = "../ergogen-geometry" }
 ergogen-outline = { path = "../ergogen-outline" }
 ergogen-pcb = { path = "../ergogen-pcb", features = ["js-footprints-wasm"] }
+ergogen-parser = { path = "../ergogen-parser" }
+indexmap = "2"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

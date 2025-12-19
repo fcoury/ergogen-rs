@@ -1,7 +1,8 @@
-use wasm_bindgen_test::wasm_bindgen_test;
 use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen_test::wasm_bindgen_test;
 
 use ergogen_export::dxf::{Dxf, NormalizeOptions};
+use ergogen_export::svg;
 
 #[wasm_bindgen(module = "/js/footprints.js")]
 unsafe extern "C" {
@@ -41,4 +42,14 @@ fn renders_outline_dxf_fixture() {
     let left_norm = left.normalize(NormalizeOptions::default()).unwrap();
     let right_norm = right.normalize(NormalizeOptions::default()).unwrap();
     left_norm.compare_semantic(&right_norm).unwrap();
+}
+
+#[wasm_bindgen_test]
+fn renders_outline_svg_fixture() {
+    let yaml = include_str!("../../../fixtures/m5/outlines/basic.yaml");
+    let dxf = ergogen_wasm::render_dxf(yaml, "outline").unwrap();
+    let expected_svg = svg::svg_from_dxf(&Dxf::parse_str(&dxf).unwrap()).unwrap();
+
+    let got = ergogen_wasm::render_svg(yaml, "outline").unwrap();
+    assert_eq!(normalize(&got), normalize(&expected_svg));
 }

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ergogen WASM Example</title>
+    <style>
+      body {
+        font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+        margin: 24px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 160px;
+      }
+      pre {
+        white-space: pre-wrap;
+        background: #f3f3f3;
+        padding: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Ergogen WASM Example</h1>
+    <p>Edit YAML and click Render.</p>
+    <textarea id="yaml"></textarea>
+    <button id="render">Render PCB</button>
+    <h2>Output</h2>
+    <pre id="output"></pre>
+    <script type="module" src="./index.js"></script>
+  </body>
+</html>
