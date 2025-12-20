@@ -1,0 +1,16 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.template: kicad8
+pcbs.pcb.footprints_search_paths:
+  - knuckles/ergogen/footprints
+pcbs.pcb.footprints:
+  - what: ceoloide/mcu_nice_nano
+    params:
+      reversible: true
+      only_required_jumpers: true
+      use_rectangular_jumpers: true
+      show_silk_labels_on_both_sides: true
+      P0: RX
+      P1: TX
+
