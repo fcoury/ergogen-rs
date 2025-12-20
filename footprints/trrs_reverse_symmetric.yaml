@@ -1,0 +1,170 @@
+name: trrs_reverse_symmetric
+module: TRRS-PJ-320A-dual
+layer: F.Cu
+tedit: 5970F8E5
+ref_prefix: TRRS
+net_order:
+  - A
+  - B
+  - C
+  - D
+params:
+  A:
+    type: net
+    required: true
+  B:
+    type: net
+    required: true
+  C:
+    type: net
+    required: true
+  D:
+    type: net
+    required: true
+primitives:
+  - type: text
+    kind: reference
+    at: [0, 14.2]
+    layer: Dwgs.User
+  - type: text
+    kind: value
+    text: TRRS-PJ-320A-dual
+    at: [0, -5.6]
+    layer: F.Fab
+
+  - type: line
+    start: [0.5, -2]
+    end: [-5.1, -2]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-5.1, 0]
+    end: [-5.1, -2]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [0.5, 0]
+    end: [0.5, -2]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-5.35, 0]
+    end: [-5.35, 12.1]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [0.75, 0]
+    end: [0.75, 12.1]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [0.75, 12.1]
+    end: [-5.35, 12.1]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [0.75, 0]
+    end: [-5.35, 0]
+    layer: Dwgs.User
+    width: 0.15
+
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [-2.3, 8.6]
+    size: [1.5, 1.5]
+    drill: 1.5
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [-2.3, 1.6]
+    size: [1.5, 1.5]
+    drill: 1.5
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+
+  - type: pad_thru
+    kind: thru_hole
+    shape: oval
+    at: [0, 11.3]
+    rotation: 0
+    size: [1.6, 2.2]
+    drill: [0.9, 1.5]
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ A }}"
+    number: "1"
+  - type: pad_thru
+    kind: thru_hole
+    shape: oval
+    at: [-4.6, 10.2]
+    rotation: 0
+    size: [1.6, 2.2]
+    drill: [0.9, 1.5]
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ B }}"
+    number: "2"
+  - type: pad_thru
+    kind: thru_hole
+    shape: oval
+    at: [-4.6, 6.2]
+    rotation: 0
+    size: [1.6, 2.2]
+    drill: [0.9, 1.5]
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ C }}"
+    number: "3"
+  - type: pad_thru
+    kind: thru_hole
+    shape: oval
+    at: [-4.6, 3.2]
+    rotation: 0
+    size: [1.6, 2.2]
+    drill: [0.9, 1.5]
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ D }}"
+    number: "4"
+
+  - type: pad_thru
+    kind: thru_hole
+    shape: oval
+    at: [-4.6, 11.3]
+    rotation: 0
+    size: [1.6, 2.2]
+    drill: [0.9, 1.5]
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ A }}"
+    number: "1"
+  - type: pad_thru
+    kind: thru_hole
+    shape: oval
+    at: [0, 10.2]
+    rotation: 0
+    size: [1.6, 2.2]
+    drill: [0.9, 1.5]
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ B }}"
+    number: "2"
+  - type: pad_thru
+    kind: thru_hole
+    shape: oval
+    at: [0, 6.2]
+    rotation: 0
+    size: [1.6, 2.2]
+    drill: [0.9, 1.5]
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ C }}"
+    number: "3"
+  - type: pad_thru
+    kind: thru_hole
+    shape: oval
+    at: [0, 3.2]
+    rotation: 0
+    size: [1.6, 2.2]
+    drill: [0.9, 1.5]
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ D }}"
+    number: "4"

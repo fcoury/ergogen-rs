@@ -1597,6 +1597,21 @@ fn render_spec_module(
                     _ => text.as_str(),
                 };
                 let safe = escape_kicad_text(rendered_text);
+                let text_token = if kind == "value" {
+                    // Upstream templates typically emit `fp_text value <atom>` without quotes.
+                    // Only quote when required to keep the output parseable (spaces, parens, empty).
+                    let needs_quotes = safe.is_empty()
+                        || safe
+                            .chars()
+                            .any(|c| c.is_whitespace() || c == '"' || c == '(' || c == ')');
+                    if needs_quotes {
+                        format!("\"{safe}\"")
+                    } else {
+                        safe.clone()
+                    }
+                } else {
+                    format!("\"{safe}\"")
+                };
                 let mut effects = format!(
                     "(effects (font (size {} {}) (thickness {}))",
                     fmt_num(size[0]),
@@ -1610,9 +1625,9 @@ fn render_spec_module(
                 let at_str =
                     format_at_with_rotation(tx, ty, Some(*rotation).filter(|r| r.abs() > 1e-9));
                 out.push_str(&format!(
-                    "            (fp_text {} \"{}\" (at {}) (layer {}){} {})\n",
+                    "            (fp_text {} {} (at {}) (layer {}){} {})\n",
                     kind,
-                    safe,
+                    text_token,
                     at_str,
                     layer,
                     if *hide { " hide" } else { "" },
@@ -2662,9 +2677,7 @@ mod template_vars_tests {
 
         let rendered = render_spec_module(&spec, "0 0 0", placement, &mut nets, &mut refs, false);
         assert!(rendered.contains("(fp_text reference \"TRRS1\" (at 0 14.2) (layer Dwgs.User)"));
-        assert!(
-            rendered.contains("(fp_text value \"TRRS-PJ-320A-dual\" (at 0 -5.6) (layer F.Fab)")
-        );
+        assert!(rendered.contains("(fp_text value TRRS-PJ-320A-dual (at 0 -5.6) (layer F.Fab)"));
         assert!(rendered.contains("(fp_text user \"USR\" (at 1 2 90) (layer F.SilkS) hide"));
         assert!(!rendered.contains("(at 0 14.2 0)"));
         assert!(rendered.contains("))\n"));
