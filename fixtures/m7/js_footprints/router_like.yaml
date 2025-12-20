@@ -1,0 +1,14 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.template: kicad8
+pcbs.pcb.footprints_search_paths:
+  - fixtures/m7/js_footprints
+pcbs.pcb.footprints:
+  - what: router_like
+    params:
+      net: GND
+      width: 0.2
+      locked: true
+      route: 'f(0,0)(1,0)<VCC>f(0,0)(0,1)'
+
