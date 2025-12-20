@@ -1,0 +1,12 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.template: kicad8
+pcbs.pcb.footprints_search_paths:
+  - knuckles/ergogen/footprints
+pcbs.pcb.footprints:
+  - what: promicro_pretty
+    params:
+      P0: RX
+      P1: TX
+

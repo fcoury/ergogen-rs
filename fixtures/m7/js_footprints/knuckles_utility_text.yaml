@@ -1,0 +1,20 @@
+meta.author: Ergogen Tests
+meta.version: v9.9
+points.zones.matrix:
+pcbs.pcb.template: kicad8
+pcbs.pcb.footprints_search_paths:
+  - knuckles/ergogen/footprints
+pcbs.pcb.footprints:
+  - what: ceoloide/utility_text
+    params:
+      text: hello from utility_text
+      reversible: true
+      layer: SilkS
+      height: 1
+      width: 1
+      thickness: 0.15
+      bold: true
+      italic: true
+      knockout: true
+      align: top left
+

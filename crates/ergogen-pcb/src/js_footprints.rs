@@ -23,6 +23,11 @@ pub struct JsFootprintModule {
 
 pub fn load_js_module(source: &str) -> Result<JsFootprintModule, PcbError> {
     let mut ctx = Context::default();
+    // Some real-world footprints (e.g. large/verbose KiCad template literals) can exceed Boa's
+    // conservative default runtime limits even without recursion. Bump these so upstream
+    // libraries load successfully.
+    ctx.runtime_limits_mut().set_stack_size_limit(16 * 1024);
+    ctx.runtime_limits_mut().set_recursion_limit(8 * 1024);
     let wrapped = format!(
         "globalThis.module = {{ exports: {{}} }}; globalThis.exports = module.exports;\n{}\nmodule.exports;",
         source
