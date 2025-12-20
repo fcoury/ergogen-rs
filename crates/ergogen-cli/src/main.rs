@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use ergogen_dxf2png::{RenderOptions, save_dxf_as_png};
+
+mod render;
 
 #[derive(Parser)]
 #[command(name = "ergogen")]
@@ -46,6 +48,26 @@ enum Commands {
         #[arg(long, default_value = "000000")]
         stroke: String,
     },
+    /// Render a config (YAML) into outlines/pcbs/cases outputs
+    Render(RenderArgs),
+}
+
+#[derive(Args)]
+struct RenderArgs {
+    /// Input config path (file) or bundle folder (containing config.yaml)
+    input: PathBuf,
+
+    /// Output folder (default: ./output)
+    #[arg(short, long, default_value = "output")]
+    output: PathBuf,
+
+    /// Include debug outputs (source/, points/, and `_` prefixed definitions)
+    #[arg(long)]
+    debug: bool,
+
+    /// Delete the output folder before rendering
+    #[arg(long)]
+    clean: bool,
 }
 
 fn main() {
@@ -92,6 +114,17 @@ fn main() {
                     eprintln!("Error: {}", e);
                     std::process::exit(1);
                 }
+            }
+        }
+        Commands::Render(RenderArgs {
+            input,
+            output,
+            debug,
+            clean,
+        }) => {
+            if let Err(e) = render::run_render(input, output, debug, clean) {
+                eprintln!("Error: {e}");
+                std::process::exit(1);
             }
         }
     }

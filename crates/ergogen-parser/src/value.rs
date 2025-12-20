@@ -93,7 +93,9 @@ impl Value {
         let normalized =
             normalize_yaml_flow_sequence_holes(&normalize_yaml_flow_sequence_expressions(yaml));
         let v: serde_yaml::Value = serde_yaml::from_str(&normalized)?;
-        Self::try_from_yaml_value(&v)
+        let mut out = Self::try_from_yaml_value(&v)?;
+        resolve_yaml_merges(&mut out);
+        Ok(out)
     }
 
     fn try_from_yaml_value(v: &serde_yaml::Value) -> Result<Self, Error> {
@@ -490,6 +492,55 @@ fn normalize_flow_item(item: &str) -> String {
     let trailing = &item[item.len() - trailing_len..];
     let escaped = trimmed.replace('\'', "''");
     format!("{leading}'{escaped}'{trailing}")
+}
+
+fn resolve_yaml_merges(value: &mut Value) {
+    match value {
+        Value::Map(map) => {
+            // First resolve merges recursively so merged maps are fully expanded too.
+            for (_, v) in map.iter_mut() {
+                resolve_yaml_merges(v);
+            }
+
+            let merge_v = map.shift_remove("<<");
+            let Some(merge_v) = merge_v else {
+                return;
+            };
+
+            let mut merged: IndexMap<String, Value> = IndexMap::new();
+            let mut merge_sources: Vec<IndexMap<String, Value>> = Vec::new();
+            match merge_v {
+                Value::Map(m) => merge_sources.push(m),
+                Value::Seq(seq) => {
+                    for v in seq {
+                        if let Value::Map(m) = v {
+                            merge_sources.push(m);
+                        }
+                    }
+                }
+                _ => {}
+            }
+
+            // YAML merge is shallow; later sources override earlier ones, and explicit keys override all merges.
+            for m in merge_sources {
+                for (k, v) in m {
+                    merged.insert(k, v);
+                }
+            }
+
+            let explicit = std::mem::take(map);
+            for (k, v) in explicit {
+                merged.insert(k, v);
+            }
+            *map = merged;
+        }
+        Value::Seq(seq) => {
+            for v in seq.iter_mut() {
+                resolve_yaml_merges(v);
+            }
+        }
+        _ => {}
+    }
 }
 
 #[cfg(test)]

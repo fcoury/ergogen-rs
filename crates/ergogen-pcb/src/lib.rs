@@ -24,8 +24,9 @@ use cavalier_contours::polyline::{PlineSource, seg_arc_radius_and_center};
 use ergogen_core::{Point, PointMeta};
 use ergogen_geometry::region::Region;
 use ergogen_layout::{PointsOutput, anchor, parse_points};
-use ergogen_parser::{Error as ParserError, PreparedConfig, Units, Value};
+use ergogen_parser::{Error as ParserError, PreparedConfig, Units, Value, extend_all};
 use indexmap::IndexMap;
+use regex::Regex;
 
 use footprint_spec::{ResolvedPrimitive, parse_footprint_spec, resolve_footprint_spec};
 
@@ -63,8 +64,9 @@ enum Asym {
     Clone,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct Placement {
+    name: String,
     x: f64,
     y: f64,
     r: f64,
@@ -867,7 +869,8 @@ fn render_footprint(
     spec_search_paths: &[PathBuf],
     is_kicad8: bool,
 ) -> Result<(String, String), PcbError> {
-    let params = &def.params;
+    let vars = template_vars_for_point(points, prepared, &placement);
+    let params = resolve_footprint_params(&def.params, &vars, &prepared.units, "pcbs.footprints")?;
     let (at_x, at_y) = to_kicad_xy(placement.x, placement.y);
     let at = format!(
         "{} {} {}",
@@ -893,12 +896,12 @@ fn render_footprint(
     }
 
     if let Some(js_path) = resolve_js_path(&def.what, spec_search_paths) {
-        return render_js_from_path(&js_path, placement, params, refs, nets);
+        return render_js_from_path(&js_path, placement, &params, refs, nets);
     }
 
     match def.what.as_str() {
         "trace_test" => {
-            let side = param_str(params, "side").unwrap_or_else(|| "F".to_string());
+            let side = param_str(&params, "side").unwrap_or_else(|| "F".to_string());
             let mirror_side = params
                 .get("mirror")
                 .and_then(|v| v.get_path("side"))
@@ -909,7 +912,7 @@ fn render_footprint(
                 side
             };
             let template = trace_template(&side);
-            let module = render_with_nets(template, &at, None, params, nets, None);
+            let module = render_with_nets(template, &at, None, &params, nets, None);
             let width_v = params
                 .get("width")
                 .ok_or(PcbError::Unsupported("trace_test missing width"))?;
@@ -920,7 +923,7 @@ fn render_footprint(
             let dy = round_to(dy, 6);
             let end_x = at_x + dx;
             let end_y = at_y + dy;
-            let net_name = param_str(params, "P1").unwrap_or_else(|| "P1".to_string());
+            let net_name = param_str(&params, "P1").unwrap_or_else(|| "P1".to_string());
             let net_id = nets.ensure(&net_name);
             let segment = format!(
                 "                (segment (start {} {}) (end {} {}) (width {}) (layer {}.Cu) (net {}))",
@@ -936,8 +939,8 @@ fn render_footprint(
         }
         "zone_test" => {
             let template = test_zone_template();
-            let module = render_with_nets(template, &at, None, params, nets, None);
-            let net_name = param_str(params, "P1").unwrap_or_else(|| "P1".to_string());
+            let module = render_with_nets(template, &at, None, &params, nets, None);
+            let net_name = param_str(&params, "P1").unwrap_or_else(|| "P1".to_string());
             let net_id = nets.ensure(&net_name);
             let local_pts = [(5.0, 5.0), (5.0, -5.0), (-5.0, -5.0), (-5.0, 5.0)];
             let mut pts = Vec::new();
@@ -959,7 +962,7 @@ fn render_footprint(
         }
         "dynamic_net_test" => {
             let template = test_dynamic_net_template();
-            let module = render_with_nets(template, &at, None, params, nets, None);
+            let module = render_with_nets(template, &at, None, &params, nets, None);
             Ok((module, String::new()))
         }
         "anchor_test" => {
@@ -1020,75 +1023,90 @@ fn render_footprint(
             let module = render_template(template, &ctx);
             Ok((module, String::new()))
         }
-        "mx" => {
-            render_template_module(mx_template(params), "S", &at, params, nets, refs, net_order)
-        }
-        "choc" => render_template_module(
-            choc_template(params),
+        "mx" => render_template_module(
+            mx_template(&params),
             "S",
             &at,
-            params,
+            &params,
+            nets,
+            refs,
+            net_order,
+        ),
+        "choc" => render_template_module(
+            choc_template(&params),
+            "S",
+            &at,
+            &params,
             nets,
             refs,
             net_order,
         ),
         "chocmini" => render_template_module(
-            chocmini_template(params),
+            chocmini_template(&params),
             "S",
             &at,
-            params,
+            &params,
             nets,
             refs,
             net_order,
         ),
         "diode" => {
-            render_template_module(diode_template(), "D", &at, params, nets, refs, net_order)
+            render_template_module(diode_template(), "D", &at, &params, nets, refs, net_order)
         }
         "button" => render_template_module(
-            button_template(params),
+            button_template(&params),
             "B",
             &at,
-            params,
+            &params,
             nets,
             refs,
             net_order,
         ),
         "pad" => render_template_module(
-            pad_template(params),
+            pad_template(&params),
             "PAD",
             &at,
-            params,
+            &params,
             nets,
             refs,
             net_order,
         ),
         "promicro" => render_template_module(
-            promicro_template(params),
+            promicro_template(&params),
             "MCU",
             &at,
-            params,
+            &params,
             nets,
             refs,
             net_order,
         ),
         "trrs" => render_template_module(
-            trrs_template(params),
+            trrs_template(&params),
             "TRRS",
             &at,
-            params,
+            &params,
             nets,
             refs,
             net_order,
         ),
-        "injected" => {
-            render_template_module(injected_template(), "I", &at, params, nets, refs, net_order)
-        }
+        "injected" => render_template_module(
+            injected_template(),
+            "I",
+            &at,
+            &params,
+            nets,
+            refs,
+            net_order,
+        ),
         "alps" | "jstph" | "jumper" | "oled" | "omron" | "rgb" | "rotary" | "scrollwheel"
         | "slider" | "via" => {
-            let (template, prefix) = rest_template(def.what.as_str(), params);
-            render_template_module(template, prefix, &at, params, nets, refs, net_order)
+            let (template, prefix) = rest_template(def.what.as_str(), &params);
+            render_template_module(template, prefix, &at, &params, nets, refs, net_order)
         }
-        _ => Err(PcbError::Unsupported("unsupported footprint")),
+        _ => Err(PcbError::FootprintSpec(format!(
+            "unsupported footprint: {}",
+            def.what
+        ))),
     }
 }
 
@@ -1129,12 +1147,12 @@ fn resolve_spec_path(path: &str, search_paths: &[PathBuf]) -> Result<PathBuf, Pc
     let root = workspace_root();
     candidates.push(root.join(&raw));
     for base in search_paths {
-        let base = if base.is_absolute() {
-            base.clone()
-        } else {
-            root.join(base)
-        };
-        candidates.push(base.join(&raw));
+        if base.is_absolute() {
+            candidates.push(base.join(&raw));
+            continue;
+        }
+        candidates.push(cwd.join(base).join(&raw));
+        candidates.push(root.join(base).join(&raw));
     }
 
     for candidate in candidates {
@@ -1155,14 +1173,16 @@ fn resolve_js_path(path: &str, search_paths: &[PathBuf]) -> Option<PathBuf> {
     if path.is_absolute() {
         return Some(path);
     }
+    let cwd = std::env::current_dir().ok();
     let root = workspace_root();
     if let Some(base) = search_paths.first() {
-        let base = if base.is_absolute() {
-            base.clone()
-        } else {
-            root.join(base)
-        };
-        return Some(base.join(&path));
+        if base.is_absolute() {
+            return Some(base.join(&path));
+        }
+        if let Some(cwd) = cwd.as_ref() {
+            return Some(cwd.join(base).join(&path));
+        }
+        return Some(root.join(base).join(&path));
     }
     Some(root.join(&path))
 }
@@ -1180,17 +1200,19 @@ fn resolve_js_path(path: &str, search_paths: &[PathBuf]) -> Option<PathBuf> {
     let cwd = std::env::current_dir().ok();
     let root = workspace_root();
     let mut candidates = Vec::new();
-    if let Some(cwd) = cwd {
+    if let Some(cwd) = cwd.as_ref() {
         candidates.push(cwd.join(&path));
     }
     candidates.push(root.join(&path));
     for base in search_paths {
-        let base = if base.is_absolute() {
-            base.clone()
-        } else {
-            root.join(base)
-        };
-        candidates.push(base.join(&path));
+        if base.is_absolute() {
+            candidates.push(base.join(&path));
+            continue;
+        }
+        if let Some(cwd) = cwd.as_ref() {
+            candidates.push(cwd.join(base).join(&path));
+        }
+        candidates.push(root.join(base).join(&path));
     }
     candidates.into_iter().find(|p| p.exists())
 }
@@ -1204,12 +1226,19 @@ fn render_js_from_path(
 ) -> Result<(String, String), PcbError> {
     #[cfg(all(feature = "js-footprints", not(target_arch = "wasm32")))]
     {
+        let prefix_js_err = |err: PcbError| match err {
+            PcbError::FootprintSpec(msg) => {
+                PcbError::FootprintSpec(format!("{}: {msg}", path.display()))
+            }
+            other => other,
+        };
         let source = std::fs::read_to_string(path)
             .map_err(|e| PcbError::FootprintSpecIo(format!("{}: {e}", path.display())))?;
-        let mut module = js_footprints::load_js_module(&source)?;
+        let mut module = js_footprints::load_js_module(&source).map_err(prefix_js_err)?;
         let side = param_str(params, "side").unwrap_or_else(|| "F".to_string());
         let rendered =
-            js_footprints::render_js_footprint(&mut module, placement, params, refs, nets, side)?;
+            js_footprints::render_js_footprint(&mut module, placement, params, refs, nets, side)
+                .map_err(prefix_js_err)?;
         Ok((rendered, String::new()))
     }
     #[cfg(all(feature = "js-footprints-wasm", target_arch = "wasm32"))]
@@ -1853,12 +1882,13 @@ fn placements_for_where(
     match where_v {
         Value::Bool(true) => {
             let mut out = Vec::new();
-            for p in points.values() {
+            for (name, p) in points.iter() {
                 let mirrored = p.meta.mirrored.unwrap_or(false);
                 if (asym == Asym::Source && mirrored) || (asym == Asym::Clone && !mirrored) {
                     continue;
                 }
                 out.push(Placement {
+                    name: name.clone(),
                     x: p.x,
                     y: p.y,
                     r: p.r,
@@ -1868,18 +1898,71 @@ fn placements_for_where(
             Ok(out)
         }
         Value::Null => Ok(vec![Placement {
+            name: String::new(),
             x: 0.0,
             y: 0.0,
             r: 0.0,
             mirrored: false,
         }]),
         Value::Bool(false) => Ok(Vec::new()),
+        Value::String(s) if looks_like_regex_literal(s) => {
+            let re = parse_regex_literal(s).map_err(|_| PcbError::Unsupported("invalid regex"))?;
+
+            let mut out = Vec::new();
+            for (name, p) in points.iter() {
+                if !re.is_match(name) && !p.meta.tags.iter().any(|t| re.is_match(t)) {
+                    continue;
+                }
+                let mirrored = p.meta.mirrored.unwrap_or(false);
+                if (asym == Asym::Source && mirrored) || (asym == Asym::Clone && !mirrored) {
+                    continue;
+                }
+                out.push(Placement {
+                    name: name.clone(),
+                    x: p.x,
+                    y: p.y,
+                    r: p.r,
+                    mirrored,
+                });
+            }
+            Ok(out)
+        }
+        Value::Seq(seq) if seq.iter().all(|v| matches!(v, Value::String(_))) => {
+            let mut wanted: Vec<&str> = Vec::with_capacity(seq.len());
+            for v in seq {
+                let Value::String(s) = v else { continue };
+                wanted.push(s.as_str());
+            }
+            if wanted.is_empty() {
+                return Ok(Vec::new());
+            }
+
+            let mut out = Vec::new();
+            for (name, p) in points.iter() {
+                let mirrored = p.meta.mirrored.unwrap_or(false);
+                if (asym == Asym::Source && mirrored) || (asym == Asym::Clone && !mirrored) {
+                    continue;
+                }
+                if !p.meta.tags.iter().any(|t| wanted.contains(&t.as_str())) {
+                    continue;
+                }
+                out.push(Placement {
+                    name: name.clone(),
+                    x: p.x,
+                    y: p.y,
+                    r: p.r,
+                    mirrored,
+                });
+            }
+            Ok(out)
+        }
         other => {
             let start = Point::new(0.0, 0.0, 0.0, PointMeta::default());
             let base =
                 anchor::parse_anchor(other, "pcbs.where", ref_points, start.clone(), units, false)?;
             match asym {
                 Asym::Source => Ok(vec![Placement {
+                    name: String::new(),
                     x: base.x,
                     y: base.y,
                     r: base.r,
@@ -1889,6 +1972,7 @@ fn placements_for_where(
                     let m =
                         anchor::parse_anchor(other, "pcbs.where", ref_points, start, units, true)?;
                     Ok(vec![Placement {
+                        name: String::new(),
                         x: m.x,
                         y: m.y,
                         r: m.r,
@@ -1903,6 +1987,7 @@ fn placements_for_where(
                         && (base.r - m.r).abs() < 1e-9
                     {
                         Ok(vec![Placement {
+                            name: String::new(),
                             x: base.x,
                             y: base.y,
                             r: base.r,
@@ -1911,12 +1996,14 @@ fn placements_for_where(
                     } else {
                         Ok(vec![
                             Placement {
+                                name: String::new(),
                                 x: base.x,
                                 y: base.y,
                                 r: base.r,
                                 mirrored: base.meta.mirrored,
                             },
                             Placement {
+                                name: String::new(),
                                 x: m.x,
                                 y: m.y,
                                 r: m.r,
@@ -1928,6 +2015,33 @@ fn placements_for_where(
             }
         }
     }
+}
+
+fn looks_like_regex_literal(s: &str) -> bool {
+    s.starts_with('/') && s.len() >= 2 && s[1..].contains('/')
+}
+
+fn parse_regex_literal(raw: &str) -> Result<Regex, ()> {
+    // JS-style: /pattern/flags (we only care about `i` today)
+    let mut chars = raw.chars();
+    if chars.next() != Some('/') {
+        return Err(());
+    }
+
+    let last_slash = raw.rfind('/').ok_or(())?;
+    if last_slash == 0 {
+        return Err(());
+    }
+
+    let pat = &raw[1..last_slash];
+    let flags = &raw[last_slash + 1..];
+    let mut pat = pat.to_string();
+
+    if flags.contains('i') {
+        pat = format!("(?i){pat}");
+    }
+
+    Regex::new(&pat).map_err(|_| ())
 }
 
 fn apply_adjust_if_present(
@@ -1952,6 +2066,7 @@ fn apply_adjust_if_present(
     );
     let adjusted = anchor::parse_anchor(adjust, "pcbs.adjust", ref_points, start, units, false)?;
     Ok(Placement {
+        name: p.name,
         x: adjusted.x,
         y: adjusted.y,
         r: adjusted.r,
@@ -2151,6 +2266,99 @@ fn render_template_value(v: &Value, vars: &HashMap<String, String>) -> Result<Va
     }
 }
 
+fn resolve_param_expressions(v: &Value, units: &Units, at: &str) -> Value {
+    match v {
+        Value::String(s) => {
+            let s = s.trim();
+            if s.is_empty() || s.contains("{{") {
+                return v.clone();
+            }
+            if let Ok(n) = s.parse::<f64>() {
+                return Value::Number(n);
+            }
+            if let Some(n) = units.get(s) {
+                return Value::Number(n);
+            }
+            if let Ok(n) = units.eval(at, s) {
+                return Value::Number(n);
+            }
+            v.clone()
+        }
+        Value::Seq(seq) => Value::Seq(
+            seq.iter()
+                .enumerate()
+                .map(|(i, vv)| resolve_param_expressions(vv, units, &format!("{at}[{}]", i + 1)))
+                .collect(),
+        ),
+        Value::Map(map) => {
+            let mut out = map.clone();
+            for (k, vv) in out.iter_mut() {
+                *vv = resolve_param_expressions(vv, units, &format!("{at}.{k}"));
+            }
+            Value::Map(out)
+        }
+        _ => v.clone(),
+    }
+}
+
+fn resolve_footprint_params(
+    params: &IndexMap<String, Value>,
+    vars: &HashMap<String, String>,
+    units: &Units,
+    at: &str,
+) -> Result<IndexMap<String, Value>, PcbError> {
+    fn render_template_missing_empty(template: &str, ctx: &HashMap<String, String>) -> String {
+        let mut out = String::new();
+        let mut rest = template;
+        while let Some(start) = rest.find("{{") {
+            let before = &rest[..start];
+            out.push_str(before);
+            let after = &rest[start + 2..];
+            if let Some(end) = after.find("}}") {
+                let name = after[..end].trim();
+                if let Some(val) = ctx.get(name) {
+                    out.push_str(val);
+                }
+                rest = &after[end + 2..];
+            } else {
+                out.push_str(rest);
+                return out;
+            }
+        }
+        out.push_str(rest);
+        out
+    }
+
+    fn render_templates_deep(v: &Value, vars: &HashMap<String, String>) -> Value {
+        match v {
+            Value::String(s) => Value::String(render_template_missing_empty(s, vars)),
+            Value::Seq(seq) => Value::Seq(
+                seq.iter()
+                    .map(|vv| render_templates_deep(vv, vars))
+                    .collect(),
+            ),
+            Value::Map(map) => {
+                let mut out = map.clone();
+                for (k, vv) in out.iter_mut() {
+                    *vv = render_templates_deep(vv, vars);
+                    // Ensure nested merges (<<) are already expanded by the parser; keep as-is here.
+                    let _ = k;
+                }
+                Value::Map(out)
+            }
+            _ => v.clone(),
+        }
+    }
+
+    let mut out = IndexMap::new();
+    for (k, v) in params {
+        let templated = render_templates_deep(v, vars);
+        let evaluated = resolve_param_expressions(&templated, units, &format!("{at}.params.{k}"));
+        out.insert(k.clone(), evaluated);
+    }
+    Ok(out)
+}
+
 fn eval_point(v: &Value, units: &Units) -> Result<(f64, f64), PcbError> {
     match v {
         Value::Map(m) => {
@@ -2186,11 +2394,16 @@ fn template_vars_for_point(
     placement: &Placement,
 ) -> HashMap<String, String> {
     let mut vars = HashMap::new();
-    let name = points
-        .iter()
-        .find(|(_, p)| p.x == placement.x && p.y == placement.y && p.r == placement.r)
-        .map(|(k, _)| k.clone())
-        .unwrap_or_default();
+
+    let name = if !placement.name.is_empty() {
+        placement.name.clone()
+    } else {
+        points
+            .iter()
+            .find(|(_, p)| p.x == placement.x && p.y == placement.y && p.r == placement.r)
+            .map(|(k, _)| k.clone())
+            .unwrap_or_default()
+    };
 
     if let Some(p) = points.get(&name) {
         vars.insert("name".to_string(), p.meta.name.clone());
@@ -2198,6 +2411,55 @@ fn template_vars_for_point(
         vars.insert("colrow".to_string(), p.meta.colrow.clone());
         vars.insert("zone.name".to_string(), p.meta.zone.name.clone());
         vars.insert("col.name".to_string(), p.meta.col.name.clone());
+
+        let zone_name = p.meta.zone.name.as_str();
+        let col_name = p.meta.col.name.as_str();
+        let row_name = p.meta.row.as_str();
+
+        let global_key = prepared
+            .canonical
+            .get_path("points.key")
+            .cloned()
+            .unwrap_or(Value::Null);
+        let zone_key = prepared
+            .canonical
+            .get_path(&format!("points.zones.{zone_name}.key"))
+            .cloned()
+            .unwrap_or(Value::Null);
+        let col_key = if !col_name.is_empty() {
+            prepared
+                .canonical
+                .get_path(&format!("points.zones.{zone_name}.columns.{col_name}.key"))
+                .cloned()
+                .unwrap_or(Value::Null)
+        } else {
+            Value::Null
+        };
+        let row_key = if !col_name.is_empty() && !row_name.is_empty() {
+            prepared
+                .canonical
+                .get_path(&format!(
+                    "points.zones.{zone_name}.columns.{col_name}.rows.{row_name}.key"
+                ))
+                .cloned()
+                .unwrap_or(Value::Null)
+        } else {
+            Value::Null
+        };
+
+        let merged_key = extend_all(&[global_key, zone_key.clone(), col_key, row_key]);
+        insert_scalar_templates(&mut vars, None, &merged_key);
+        insert_scalar_templates(&mut vars, Some("key"), &merged_key);
+        insert_scalar_templates(&mut vars, Some("zone.key"), &zone_key);
+
+        if !row_name.is_empty()
+            && let Some(v) = prepared
+                .canonical
+                .get_path(&format!("points.zones.{zone_name}.rows.{row_name}.row_net"))
+                .and_then(param_to_string)
+        {
+            vars.entry("row_net".to_string()).or_insert(v);
+        }
 
         if let Some(val) = prepared
             .canonical
@@ -2220,4 +2482,75 @@ fn template_vars_for_point(
     }
 
     vars
+}
+
+fn insert_scalar_templates(vars: &mut HashMap<String, String>, prefix: Option<&str>, v: &Value) {
+    match v {
+        Value::Map(m) => {
+            for (k, child) in m {
+                let next_prefix = match prefix {
+                    Some(p) if !p.is_empty() => format!("{p}.{k}"),
+                    Some(_) => k.clone(),
+                    None => k.clone(),
+                };
+                insert_scalar_templates(vars, Some(&next_prefix), child);
+            }
+        }
+        Value::Seq(_) | Value::Null => {}
+        other => {
+            let Some(s) = param_to_string(other) else {
+                return;
+            };
+            let Some(p) = prefix else { return };
+            vars.entry(p.to_string()).or_insert(s);
+        }
+    }
+}
+
+#[cfg(test)]
+mod template_vars_tests {
+    use super::*;
+
+    #[test]
+    fn template_vars_include_knuckles_key_led_nets() {
+        let yaml_path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../knuckles/ergogen/config.yaml");
+        let yaml = std::fs::read_to_string(&yaml_path).unwrap();
+        let prepared = PreparedConfig::from_yaml_str(&yaml).unwrap();
+        let points = parse_points(&prepared.canonical, &prepared.units).unwrap();
+
+        let ref_points: IndexMap<String, Point> = points
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    Point::new(
+                        v.x,
+                        v.y,
+                        v.r,
+                        PointMeta {
+                            mirrored: v.meta.mirrored.unwrap_or(false),
+                        },
+                    ),
+                )
+            })
+            .collect();
+
+        let placements = placements_for_where(
+            Some(&Value::String("/key/".to_string())),
+            Asym::Both,
+            &points,
+            &ref_points,
+            &prepared.units,
+        )
+        .unwrap();
+        let placement = placements
+            .iter()
+            .find(|p| p.name == "matrix_outer_top")
+            .expect("matrix_outer_top placement exists");
+
+        let vars = template_vars_for_point(&points, &prepared, placement);
+        assert_eq!(vars.get("key.led_prev").map(String::as_str), Some("LED_18"));
+        assert_eq!(vars.get("key.led_next").map(String::as_str), Some("LED_19"));
+    }
 }

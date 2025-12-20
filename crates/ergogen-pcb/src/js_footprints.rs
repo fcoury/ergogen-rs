@@ -149,11 +149,10 @@ fn json_to_js_value(value: &JsonValue, ctx: &mut Context) -> Result<JsValue, Pcb
 fn js_params_to_json(params: &JsValue, ctx: &mut Context) -> Result<JsonValue, PcbError> {
     // Boa's `to_json` conversion panics on `undefined` (notably inside objects/arrays),
     // while upstream JS footprints commonly use `undefined` as a sentinel for "required".
-    // Use JS' own JSON rules instead:
-    // - object properties with `undefined` values are omitted
-    // - array elements that are `undefined` become `null`
     //
-    // This matches `JSON.stringify(...)` behavior and keeps required-ness detection correct.
+    // Use JS' own JSON rules, but with a replacer that converts `undefined` into `null` so we
+    // preserve keys like `P2: undefined` (ceoloide footprints) instead of dropping them.
+    //
     // Stash before we stringify; this is intentionally global in the JS context.
     let _ = ctx.register_global_property(
         js_string!("__ergogen_tmp_params"),
@@ -164,7 +163,8 @@ fn js_params_to_json(params: &JsValue, ctx: &mut Context) -> Result<JsonValue, P
     // Re-run stringify now that the global is set.
     let json_str = ctx
         .eval(Source::from_bytes(
-            "JSON.stringify(globalThis.__ergogen_tmp_params)".as_bytes(),
+            "JSON.stringify(globalThis.__ergogen_tmp_params, (k, v) => v === undefined ? null : v)"
+                .as_bytes(),
         ))
         .map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
 
@@ -287,6 +287,7 @@ module.exports = {
 "#;
         let mut module = load_js_module(source).unwrap();
         let placement = Placement {
+            name: String::new(),
             x: 0.0,
             y: 0.0,
             r: 0.0,

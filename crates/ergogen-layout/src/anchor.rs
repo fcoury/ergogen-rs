@@ -135,10 +135,10 @@ fn resolve_ref(
     match raw {
         Value::String(s) => {
             let r = mirror_ref(s, mirror);
-            points
-                .get(&r)
-                .cloned()
-                .ok_or(LayoutError::UnknownPointRef { name: r })
+            points.get(&r).cloned().ok_or(LayoutError::UnknownPointRef {
+                name: r,
+                at: name.to_string(),
+            })
         }
         other => parse_anchor(other, name, points, start, units, mirror),
     }

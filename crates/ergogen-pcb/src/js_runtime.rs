@@ -87,7 +87,7 @@ fn parse_js_param_value(name: &str, value: &JsonValue) -> Result<JsParamSpec, Js
             JsonValue::Null => {
                 return Ok(JsParamSpec {
                     kind: JsParamKind::Net,
-                    required: false,
+                    required: true,
                     default: None,
                 });
             }
@@ -262,6 +262,7 @@ mod tests {
     #[test]
     fn xy_and_eaxy_apply_rotation_and_translation() {
         let placement = Placement {
+            name: String::new(),
             x: 10.0,
             y: 20.0,
             r: 90.0,
@@ -291,6 +292,7 @@ mod tests {
     #[test]
     fn local_and_global_net_naming_and_indices() {
         let placement = Placement {
+            name: String::new(),
             x: 0.0,
             y: 0.0,
             r: 0.0,

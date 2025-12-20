@@ -10,12 +10,14 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 ergogen-dxf2png = { path = "../ergogen-dxf2png" }
-
-[dev-dependencies]
 ergogen-export = { path = "../ergogen-export" }
 ergogen-layout = { path = "../ergogen-layout" }
 ergogen-outline = { path = "../ergogen-outline" }
 ergogen-parser = { path = "../ergogen-parser" }
-ergogen-pcb = { path = "../ergogen-pcb" }
+ergogen-pcb = { path = "../ergogen-pcb", features = ["js-footprints"] }
 serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+
+[dev-dependencies]
 serde_json = "1"
+tempfile = "3"

@@ -465,6 +465,8 @@ dependencies = [
  "ergogen-pcb",
  "serde",
  "serde_json",
+ "serde_yaml",
+ "tempfile",
 ]
 
 [[package]]
@@ -565,6 +567,7 @@ dependencies = [
  "ergogen-parser",
  "indexmap",
  "js-sys",
+ "regex",
  "serde-wasm-bindgen",
  "serde_json",
  "thiserror 1.0.69",

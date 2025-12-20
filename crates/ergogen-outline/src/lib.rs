@@ -202,13 +202,6 @@ fn generate_outline_region_inner(
                     // pointy/beveled joints.
                     expand_region_rect_only(&referenced, amount, joints)?
                 } else {
-                    // For now, only round joints are supported for general regions (sufficient for
-                    // `outlines.yaml`).
-                    if joints != ExpandJoints::Round {
-                        return Err(OutlineError::Unsupported(
-                            "general expand only supports round joints for now",
-                        ));
-                    }
                     expand_region_round(&referenced, amount)?
                 };
             }
@@ -1389,11 +1382,40 @@ fn placements_for_where(
 
             let mut out = Vec::new();
             for (name, p) in points.iter() {
-                if !re.is_match(name) {
+                if !re.is_match(name) && !p.meta.tags.iter().any(|t| re.is_match(t)) {
                     continue;
                 }
                 let mirrored = p.meta.mirrored.unwrap_or(false);
                 if (asym == Asym::Source && mirrored) || (asym == Asym::Clone && !mirrored) {
+                    continue;
+                }
+                out.push(Placement {
+                    x: p.x,
+                    y: p.y,
+                    r: p.r,
+                    mirrored,
+                    bind_trbl: p.meta.bind,
+                });
+            }
+            Ok(out)
+        }
+        Value::Seq(seq) if seq.iter().all(|v| matches!(v, Value::String(_))) => {
+            let mut wanted: Vec<&str> = Vec::with_capacity(seq.len());
+            for v in seq {
+                let Value::String(s) = v else { continue };
+                wanted.push(s.as_str());
+            }
+            if wanted.is_empty() {
+                return Ok(Vec::new());
+            }
+
+            let mut out = Vec::new();
+            for p in points.values() {
+                let mirrored = p.meta.mirrored.unwrap_or(false);
+                if (asym == Asym::Source && mirrored) || (asym == Asym::Clone && !mirrored) {
+                    continue;
+                }
+                if !p.meta.tags.iter().any(|t| wanted.contains(&t.as_str())) {
                     continue;
                 }
                 out.push(Placement {

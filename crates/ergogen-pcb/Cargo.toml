@@ -11,6 +11,7 @@ ergogen-outline = { path = "../ergogen-outline" }
 ergogen-parser = { path = "../ergogen-parser" }
 cavalier_contours = "0.6"
 indexmap = "2"
+regex = "1"
 serde_json = "1"
 thiserror = "1"
 boa_engine = { version = "0.19", optional = true }

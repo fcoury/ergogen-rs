@@ -19,8 +19,8 @@ pub enum LayoutError {
     #[error("Key \"{name}\" defined more than once!")]
     DuplicateKey { name: String },
 
-    #[error("unknown point reference \"{name}\"")]
-    UnknownPointRef { name: String },
+    #[error("unknown point reference \"{name}\" at \"{at}\"")]
+    UnknownPointRef { name: String, at: String },
 
     #[error("invalid number at \"{at}\"")]
     InvalidNumber { at: String },
@@ -62,6 +62,7 @@ pub struct KeyMeta {
     pub shift: [f64; 2],
     pub rotate: f64,
     pub adjust: Value,
+    pub tags: Vec<String>,
     pub width: f64,
     pub height: f64,
     pub padding: f64,
@@ -280,6 +281,7 @@ fn default_key(units: &Units) -> KeyMeta {
         shift: [0.0, 0.0],
         rotate: 0.0,
         adjust: Value::Map(IndexMap::new()),
+        tags: Vec::new(),
         width: units.get("$default_width").unwrap_or(18.0),
         height: units.get("$default_height").unwrap_or(18.0),
         padding: units.get("$default_padding").unwrap_or(19.0),
@@ -749,6 +751,18 @@ fn eval_string(v: &Value, at: &str) -> Result<String, LayoutError> {
     }
 }
 
+fn eval_tags(v: Option<&Value>, at: &str) -> Result<Vec<String>, LayoutError> {
+    let Some(v) = v else {
+        return Ok(Vec::new());
+    };
+    match v {
+        Value::Null => Ok(Vec::new()),
+        Value::String(s) => Ok(vec![s.clone()]),
+        Value::Seq(seq) => seq.iter().map(|x| eval_string(x, at)).collect(),
+        _ => Err(LayoutError::InvalidString { at: at.to_string() }),
+    }
+}
+
 fn eval_xy(units: &Units, v: &Value, at: &str) -> Result<[f64; 2], LayoutError> {
     match v {
         Value::Seq(seq) if seq.len() == 2 => Ok([
@@ -860,6 +874,10 @@ fn key_to_value(k: &KeyMeta) -> Value {
         ),
         ("rotate".to_string(), Value::Number(k.rotate)),
         ("adjust".to_string(), k.adjust.clone()),
+        (
+            "tags".to_string(),
+            Value::Seq(k.tags.iter().cloned().map(Value::String).collect()),
+        ),
         ("width".to_string(), Value::Number(k.width)),
         ("height".to_string(), Value::Number(k.height)),
         ("padding".to_string(), Value::Number(k.padding)),
@@ -928,6 +946,7 @@ fn value_to_keymeta(v: &Value, units: &Units, at: &str) -> Result<KeyMeta, Layou
             .get("adjust")
             .cloned()
             .unwrap_or(Value::Map(IndexMap::new())),
+        tags: eval_tags(m.get("tags"), &format!("{at}.tags"))?,
         width: eval_number(
             units,
             m.get("width").unwrap_or(&Value::Number(0.0)),
