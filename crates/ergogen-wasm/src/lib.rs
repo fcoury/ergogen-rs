@@ -14,6 +14,19 @@ pub fn version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+#[wasm_bindgen]
+pub fn set_virtual_fs(files: JsValue) -> Result<(), JsValue> {
+    let map: IndexMap<String, String> = serde_wasm_bindgen::from_value(files)
+        .map_err(|e| to_js_error("wasm", format!("invalid virtual fs map: {e}")))?;
+    ergogen_pcb::set_virtual_files(map);
+    Ok(())
+}
+
+#[wasm_bindgen]
+pub fn clear_virtual_fs() {
+    ergogen_pcb::clear_virtual_files();
+}
+
 #[derive(Serialize)]
 struct ErgogenError {
     kind: String,

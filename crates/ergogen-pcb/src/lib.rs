@@ -16,6 +16,7 @@ mod js_footprints_wasm;
 ))]
 mod js_runtime;
 mod templates;
+mod vfs;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -40,6 +41,20 @@ use templates::{
     test_anchor_template, test_arrobj_template, test_dynamic_net_template, test_zone_template,
     trace_template, trrs_template,
 };
+
+/// Sets a virtual file map used for footprint/spec loading.
+///
+/// Intended for WASM consumers (no filesystem access), but it also works in native tests.
+/// Keys should be the same strings you'd use in `what:` (e.g. `ceoloide/led.js`) or resolved
+/// relative paths like `footprints/ceoloide/led.js`.
+pub fn set_virtual_files(map: IndexMap<String, String>) {
+    vfs::set(map);
+}
+
+/// Clears the virtual file map.
+pub fn clear_virtual_files() {
+    vfs::clear();
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum PcbError {
@@ -111,8 +126,7 @@ impl SpecCache {
         if let Some(spec) = self.specs.get(path) {
             return Ok(spec.clone());
         }
-        let yaml = std::fs::read_to_string(path)
-            .map_err(|e| PcbError::FootprintSpecIo(format!("{}: {e}", path.display())))?;
+        let yaml = read_file_to_string(path)?;
         let spec =
             parse_footprint_spec(&yaml).map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
         self.specs.insert(path.clone(), spec.clone());
@@ -1156,11 +1170,21 @@ fn resolve_spec_path(path: &str, search_paths: &[PathBuf]) -> Result<PathBuf, Pc
     }
 
     for candidate in candidates {
-        if candidate.exists() {
+        let s = candidate.to_string_lossy();
+        if candidate.exists() || vfs::contains(&s) {
             return Ok(candidate);
         }
     }
     Err(PcbError::FootprintSpecIo(format!("spec not found: {path}")))
+}
+
+fn read_file_to_string(path: &PathBuf) -> Result<String, PcbError> {
+    let key = path.to_string_lossy();
+    if let Some(s) = vfs::read(&key) {
+        return Ok(s);
+    }
+    std::fs::read_to_string(path)
+        .map_err(|e| PcbError::FootprintSpecIo(format!("{}: {e}", path.display())))
 }
 
 #[cfg(target_arch = "wasm32")]

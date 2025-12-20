@@ -9,6 +9,7 @@ use crate::js_footprints_shared::{
     next_ref, resolve_designator, resolve_net_name, resolve_param_value,
 };
 use crate::js_runtime::{JsNet, JsParamSpec, parse_js_params};
+use crate::vfs;
 use crate::{NetIndex, PcbError, Placement, escape_kicad_text, fmt_num, rotate_ccw, to_kicad_xy};
 use ergogen_parser::Value as ErgogenValue;
 
@@ -26,6 +27,14 @@ extern "C" {
 
 pub fn load_js_source(path: &std::path::Path) -> Result<String, PcbError> {
     let path_str = path.to_string_lossy();
+    if let Some(source) = vfs::read(&path_str) {
+        if source.trim().is_empty() {
+            return Err(PcbError::FootprintSpec(format!(
+                "empty JS footprint source for {path_str}"
+            )));
+        }
+        return Ok(source);
+    }
     let source = load_js_footprint_source(&path_str);
     if source.trim().is_empty() {
         return Err(PcbError::FootprintSpec(format!(
