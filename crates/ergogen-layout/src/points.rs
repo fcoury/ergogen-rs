@@ -759,6 +759,23 @@ fn eval_tags(v: Option<&Value>, at: &str) -> Result<Vec<String>, LayoutError> {
         Value::Null => Ok(Vec::new()),
         Value::String(s) => Ok(vec![s.clone()]),
         Value::Seq(seq) => seq.iter().map(|x| eval_string(x, at)).collect(),
+        Value::Map(m) => {
+            let mut out = Vec::new();
+            for (k, v) in m {
+                let include = match v {
+                    Value::Bool(b) => *b,
+                    Value::Null => false,
+                    Value::Number(n) => *n != 0.0,
+                    Value::String(s) => !s.is_empty(),
+                    Value::Seq(seq) => !seq.is_empty(),
+                    Value::Map(map) => !map.is_empty(),
+                };
+                if include {
+                    out.push(k.clone());
+                }
+            }
+            Ok(out)
+        }
         _ => Err(LayoutError::InvalidString { at: at.to_string() }),
     }
 }
