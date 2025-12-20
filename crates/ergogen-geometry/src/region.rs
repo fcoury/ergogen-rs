@@ -55,8 +55,10 @@ impl Region {
         }
 
         self.pos = normalize_winding(union_pline_set(new_pos), PlineOrientation::CounterClockwise);
-        self.neg
-            .extend(normalize_winding(union_pline_set(new_neg), PlineOrientation::Clockwise));
+        self.neg.extend(normalize_winding(
+            union_pline_set(new_neg),
+            PlineOrientation::Clockwise,
+        ));
     }
 }
 
@@ -158,10 +160,7 @@ fn union_pline_set_with_holes(
     (plines, holes)
 }
 
-fn normalize_winding(
-    plines: Vec<Polyline<f64>>,
-    desired: PlineOrientation,
-) -> Vec<Polyline<f64>> {
+fn normalize_winding(plines: Vec<Polyline<f64>>, desired: PlineOrientation) -> Vec<Polyline<f64>> {
     plines
         .into_iter()
         .map(|mut pl| {

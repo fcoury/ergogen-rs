@@ -32,14 +32,16 @@ fn normalize_upstream(s: &str) -> String {
 }
 
 fn upstream_dir() -> Option<PathBuf> {
-    std::env::var("ERGOGEN_UPSTREAM_OUTPUT_DIR").ok().map(|raw| {
-        let path = PathBuf::from(raw);
-        if path.is_absolute() {
-            path
-        } else {
-            workspace_root().join(path)
-        }
-    })
+    std::env::var("ERGOGEN_UPSTREAM_OUTPUT_DIR")
+        .ok()
+        .map(|raw| {
+            let path = PathBuf::from(raw);
+            if path.is_absolute() {
+                path
+            } else {
+                workspace_root().join(path)
+            }
+        })
 }
 
 #[cfg(feature = "js-footprints")]

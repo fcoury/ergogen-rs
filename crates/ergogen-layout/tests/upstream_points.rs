@@ -155,36 +155,89 @@ fn upstream_points_with_golden_points_match() {
                     assert_meta_eq(&base, &pname, "mirrored", got, expected, got == expected);
                 }
                 if let Some(expected) = meta.colrow {
-                    assert_meta_eq(&base, &pname, "colrow", &p.meta.colrow, &expected, p.meta.colrow == expected);
+                    assert_meta_eq(
+                        &base,
+                        &pname,
+                        "colrow",
+                        &p.meta.colrow,
+                        &expected,
+                        p.meta.colrow == expected,
+                    );
                 }
                 if let Some(expected) = meta.name {
-                    assert_meta_eq(&base, &pname, "name", &p.meta.name, &expected, p.meta.name == expected);
+                    assert_meta_eq(
+                        &base,
+                        &pname,
+                        "name",
+                        &p.meta.name,
+                        &expected,
+                        p.meta.name == expected,
+                    );
                 }
                 if let Some(expected) = meta.row {
-                    assert_meta_eq(&base, &pname, "row", &p.meta.row, &expected, p.meta.row == expected);
+                    assert_meta_eq(
+                        &base,
+                        &pname,
+                        "row",
+                        &p.meta.row,
+                        &expected,
+                        p.meta.row == expected,
+                    );
                 }
                 if let Some(expected) = meta.asym {
                     let got = asym_to_str(p);
                     assert_meta_eq(&base, &pname, "asym", &got, &expected, got == expected);
                 }
                 if let Some(expected) = meta.bind {
-                    assert_eq!(expected.len(), 4, "fixture={base} point={pname} field=bind expected length 4");
+                    assert_eq!(
+                        expected.len(),
+                        4,
+                        "fixture={base} point={pname} field=bind expected length 4"
+                    );
                     for (idx, expected_v) in expected.iter().enumerate() {
-                        assert_close(p.meta.bind[idx], *expected_v, 1e-6, &base, &pname, &format!("bind[{idx}]"));
+                        assert_close(
+                            p.meta.bind[idx],
+                            *expected_v,
+                            1e-6,
+                            &base,
+                            &pname,
+                            &format!("bind[{idx}]"),
+                        );
                     }
                 }
                 if let Some(zone) = meta.zone {
                     if let Some(expected) = zone.name {
-                        assert_meta_eq(&base, &pname, "zone.name", &p.meta.zone.name, &expected, p.meta.zone.name == expected);
+                        assert_meta_eq(
+                            &base,
+                            &pname,
+                            "zone.name",
+                            &p.meta.zone.name,
+                            &expected,
+                            p.meta.zone.name == expected,
+                        );
                     }
                 }
                 if let Some(col) = meta.col {
                     if let Some(expected) = col.name {
-                        assert_meta_eq(&base, &pname, "col.name", &p.meta.col.name, &expected, p.meta.col.name == expected);
+                        assert_meta_eq(
+                            &base,
+                            &pname,
+                            "col.name",
+                            &p.meta.col.name,
+                            &expected,
+                            p.meta.col.name == expected,
+                        );
                     }
                 }
                 if let Some(expected) = meta.skip {
-                    assert_meta_eq(&base, &pname, "skip", p.meta.skip, expected, p.meta.skip == expected);
+                    assert_meta_eq(
+                        &base,
+                        &pname,
+                        "skip",
+                        p.meta.skip,
+                        expected,
+                        p.meta.skip == expected,
+                    );
                 }
                 if let Some(expected) = meta.width {
                     assert_close(p.meta.width, expected, 1e-6, &base, &pname, "width");

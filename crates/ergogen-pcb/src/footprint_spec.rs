@@ -424,12 +424,30 @@ fn parse_footprint_value(value: &Value) -> Result<FootprintSpec, FootprintSpecEr
         .and_then(value_as_str)
         .ok_or(FootprintSpecError::Invalid("name"))?
         .to_string();
-    let module = map.get("module").and_then(value_as_str).map(|s| s.to_string());
-    let layer = map.get("layer").and_then(value_as_str).map(|s| s.to_string());
-    let tedit = map.get("tedit").and_then(value_as_str).map(|s| s.to_string());
-    let tstamp = map.get("tstamp").and_then(value_as_str).map(|s| s.to_string());
-    let descr = map.get("descr").and_then(value_as_str).map(|s| s.to_string());
-    let tags = map.get("tags").and_then(value_as_str).map(|s| s.to_string());
+    let module = map
+        .get("module")
+        .and_then(value_as_str)
+        .map(|s| s.to_string());
+    let layer = map
+        .get("layer")
+        .and_then(value_as_str)
+        .map(|s| s.to_string());
+    let tedit = map
+        .get("tedit")
+        .and_then(value_as_str)
+        .map(|s| s.to_string());
+    let tstamp = map
+        .get("tstamp")
+        .and_then(value_as_str)
+        .map(|s| s.to_string());
+    let descr = map
+        .get("descr")
+        .and_then(value_as_str)
+        .map(|s| s.to_string());
+    let tags = map
+        .get("tags")
+        .and_then(value_as_str)
+        .map(|s| s.to_string());
     let ref_prefix = map
         .get("ref_prefix")
         .and_then(value_as_str)
@@ -544,17 +562,21 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
                     .get("rotation")
                     .map(|v| parse_scalar(v, "primitives.pad_thru.rotation"))
                     .transpose()?;
-                let drill =
-                    parse_drill(map.get("drill"), "primitives.pad_thru.drill")?;
-                let layers =
-                    parse_str_list(map.get("layers"), "primitives.pad_thru.layers")?;
+                let drill = parse_drill(map.get("drill"), "primitives.pad_thru.drill")?;
+                let layers = parse_str_list(map.get("layers"), "primitives.pad_thru.layers")?;
                 let net = map
                     .get("net")
                     .and_then(value_as_str)
                     .ok_or(FootprintSpecError::Invalid("primitives.pad_thru.net"))?
                     .to_string();
-                let shape = map.get("shape").and_then(value_as_str).map(|s| s.to_string());
-                let kind = map.get("kind").and_then(value_as_str).map(|s| s.to_string());
+                let shape = map
+                    .get("shape")
+                    .and_then(value_as_str)
+                    .map(|s| s.to_string());
+                let kind = map
+                    .get("kind")
+                    .and_then(value_as_str)
+                    .map(|s| s.to_string());
                 if let Some(kind) = &kind {
                     if kind != "thru_hole" && kind != "np_thru_hole" {
                         return Err(FootprintSpecError::Invalid("primitives.pad_thru.kind"));
@@ -689,17 +711,14 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
                     .ok_or(FootprintSpecError::Invalid("primitives.text.layer"))?
                     .to_string();
                 let size = parse_vec2_opt(map.get("size"), "primitives.text.size", [1.0, 1.0])?;
-                let thickness = parse_scalar_opt(
-                    map.get("thickness"),
-                    "primitives.text.thickness",
-                    0.15,
-                )?;
-                let rotation = parse_scalar_opt(
-                    map.get("rotation"),
-                    "primitives.text.rotation",
-                    0.0,
-                )?;
-                let justify = map.get("justify").and_then(value_as_str).map(|s| s.to_string());
+                let thickness =
+                    parse_scalar_opt(map.get("thickness"), "primitives.text.thickness", 0.15)?;
+                let rotation =
+                    parse_scalar_opt(map.get("rotation"), "primitives.text.rotation", 0.0)?;
+                let justify = map
+                    .get("justify")
+                    .and_then(value_as_str)
+                    .map(|s| s.to_string());
                 let hide = parse_bool_opt(map.get("hide"), "primitives.text.hide", false)?;
                 out.push(Primitive::Text {
                     at,
@@ -718,10 +737,7 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
     Ok(out)
 }
 
-fn parse_vec2(
-    v: Option<&Value>,
-    at: &'static str,
-) -> Result<[ScalarSpec; 2], FootprintSpecError> {
+fn parse_vec2(v: Option<&Value>, at: &'static str) -> Result<[ScalarSpec; 2], FootprintSpecError> {
     let Some(v) = v else {
         return Err(FootprintSpecError::InvalidVector(at));
     };
@@ -742,7 +758,10 @@ fn parse_vec2_opt(
 ) -> Result<[ScalarSpec; 2], FootprintSpecError> {
     match v {
         Some(v) => parse_vec2(Some(v), at),
-        None => Ok([ScalarSpec::Number(default[0]), ScalarSpec::Number(default[1])]),
+        None => Ok([
+            ScalarSpec::Number(default[0]),
+            ScalarSpec::Number(default[1]),
+        ]),
     }
 }
 
@@ -815,10 +834,7 @@ fn parse_scalar(v: &Value, at: &'static str) -> Result<ScalarSpec, FootprintSpec
     }
 }
 
-fn parse_drill(
-    v: Option<&Value>,
-    at: &'static str,
-) -> Result<DrillSpec, FootprintSpecError> {
+fn parse_drill(v: Option<&Value>, at: &'static str) -> Result<DrillSpec, FootprintSpecError> {
     let Some(v) = v else {
         return Err(FootprintSpecError::InvalidNumber(at));
     };
@@ -895,15 +911,16 @@ fn value_to_string(name: &str, value: &Value) -> Result<String, FootprintSpecErr
     match value {
         Value::String(s) => Ok(s.clone()),
         Value::Number(n) => Ok(format!("{}", n)),
-        Value::Bool(b) => Ok(if *b { "true".to_string() } else { "false".to_string() }),
+        Value::Bool(b) => Ok(if *b {
+            "true".to_string()
+        } else {
+            "false".to_string()
+        }),
         _ => Err(FootprintSpecError::InvalidParamType(name.to_string())),
     }
 }
 
-fn interpolate(
-    raw: &str,
-    vars: &IndexMap<String, String>,
-) -> Result<String, FootprintSpecError> {
+fn interpolate(raw: &str, vars: &IndexMap<String, String>) -> Result<String, FootprintSpecError> {
     let mut out = String::new();
     let mut rest = raw;
     while let Some(start) = rest.find("{{") {
@@ -930,10 +947,7 @@ fn resolve_vec2(
     v: &[ScalarSpec; 2],
     vars: &IndexMap<String, String>,
 ) -> Result<[f64; 2], FootprintSpecError> {
-    Ok([
-        resolve_scalar(&v[0], vars)?,
-        resolve_scalar(&v[1], vars)?,
-    ])
+    Ok([resolve_scalar(&v[0], vars)?, resolve_scalar(&v[1], vars)?])
 }
 
 fn resolve_scalar(

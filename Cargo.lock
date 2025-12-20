@@ -576,6 +576,7 @@ version = "0.1.0"
 dependencies = [
  "ergogen-export",
  "ergogen-geometry",
+ "ergogen-layout",
  "ergogen-outline",
  "ergogen-parser",
  "ergogen-pcb",

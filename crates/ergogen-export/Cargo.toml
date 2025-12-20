@@ -6,11 +6,11 @@ edition.workspace = true
 [dependencies]
 cavalier_contours = "0.6.0"
 ergogen-geometry = { path = "../ergogen-geometry" }
+ergogen-outline = { path = "../ergogen-outline" }
 ergogen-parser = { path = "../ergogen-parser" }
 indexmap = "2.7.0"
 ryu = "1.0.18"
 thiserror = "2.0.9"
 
 [dev-dependencies]
-ergogen-outline = { path = "../ergogen-outline" }
 ergogen-pcb = { path = "../ergogen-pcb" }

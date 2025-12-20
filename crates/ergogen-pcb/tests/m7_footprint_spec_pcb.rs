@@ -16,9 +16,7 @@ fn fixture_dir() -> PathBuf {
 }
 
 fn normalize(s: &str) -> String {
-    s.replace("\r\n", "\n")
-        .trim_end_matches('\n')
-        .to_string()
+    s.replace("\r\n", "\n").trim_end_matches('\n').to_string()
 }
 
 #[test]
@@ -52,6 +50,10 @@ fn m7_footprint_spec_pcb_matches_golden() {
         }
 
         let expected = std::fs::read_to_string(&expected_path).unwrap();
-        assert_eq!(normalize(&got), normalize(&expected), "fixture {stem} mismatch");
+        assert_eq!(
+            normalize(&got),
+            normalize(&expected),
+            "fixture {stem} mismatch"
+        );
     }
 }

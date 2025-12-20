@@ -1,7 +1,7 @@
 use cavalier_contours::polyline::{PlineOrientation, PlineSource, PlineSourceMut};
+use ergogen_geometry::Polyline;
 use ergogen_geometry::primitives::{rectangle, rounded_rectangle};
 use ergogen_geometry::region::Region;
-use ergogen_geometry::Polyline;
 use proptest::prelude::*;
 
 fn bbox(pl: &Polyline<f64>) -> (f64, f64, f64, f64) {

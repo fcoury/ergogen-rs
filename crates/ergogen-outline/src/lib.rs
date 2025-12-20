@@ -4,12 +4,12 @@ use indexmap::IndexMap;
 use regex::Regex;
 use std::collections::HashSet;
 
+use cavalier_contours::polyline::{PlineOffsetOptions, PlineOrientation, PlineSource};
 use ergogen_core::{Point, PointMeta};
 use ergogen_geometry::region::Region;
-use ergogen_geometry::{Polyline, primitives, BooleanOp};
+use ergogen_geometry::{BooleanOp, Polyline, primitives};
 use ergogen_layout::{PointsOutput, anchor, parse_points};
 use ergogen_parser::{Error as ParserError, PreparedConfig, Value};
-use cavalier_contours::polyline::{PlineOffsetOptions, PlineOrientation, PlineSource};
 
 mod hulljs;
 mod makerjs_path;
@@ -113,13 +113,31 @@ fn generate_outline_region_inner(
 
                 match op {
                     OutlineRefOp::Subtract => {
-                        apply_region_op(&mut region, "subtract", referenced, &mut stack, &mut carry_neg);
+                        apply_region_op(
+                            &mut region,
+                            "subtract",
+                            referenced,
+                            &mut stack,
+                            &mut carry_neg,
+                        );
                     }
                     OutlineRefOp::Stack => {
-                        apply_region_op(&mut region, "stack", referenced, &mut stack, &mut carry_neg);
+                        apply_region_op(
+                            &mut region,
+                            "stack",
+                            referenced,
+                            &mut stack,
+                            &mut carry_neg,
+                        );
                     }
                     OutlineRefOp::Intersect => {
-                        apply_region_op(&mut region, "intersect", referenced, &mut stack, &mut carry_neg);
+                        apply_region_op(
+                            &mut region,
+                            "intersect",
+                            referenced,
+                            &mut stack,
+                            &mut carry_neg,
+                        );
                     }
                     OutlineRefOp::Add => {
                         apply_region_op(&mut region, "add", referenced, &mut stack, &mut carry_neg);
@@ -176,7 +194,10 @@ fn generate_outline_region_inner(
                     parse_expand_spec(obj.get("expand"), obj.get("joints"), &prepared.units)?;
                 referenced = if amount == 0.0 {
                     referenced
-                } else if referenced.pos.len() == 1 && referenced.neg.is_empty() && try_rectangle_params(&referenced.pos[0]).is_some() {
+                } else if referenced.pos.len() == 1
+                    && referenced.neg.is_empty()
+                    && try_rectangle_params(&referenced.pos[0]).is_some()
+                {
                     // Preserve our existing "rectangle-only" behavior for fixtures that validate
                     // pointy/beveled joints.
                     expand_region_rect_only(&referenced, amount, joints)?
@@ -238,8 +259,16 @@ fn generate_outline_region_inner(
                     None | Some(Value::Null) => 0.0,
                     Some(v) => eval_number(&prepared.units, v, "outlines.bevel")?,
                 };
-                let bevel = if bevel > 0.0 { bevel.next_down() } else { bevel };
-                let corner = if corner_from_fillet { corner.next_up() } else { corner };
+                let bevel = if bevel > 0.0 {
+                    bevel.next_down()
+                } else {
+                    bevel
+                };
+                let corner = if corner_from_fillet {
+                    corner.next_up()
+                } else {
+                    corner
+                };
 
                 // Ergogen provides `sx`/`sy` as the shape size in the expression env for anchor math
                 // within outlines.
@@ -437,10 +466,8 @@ fn generate_outline_region_inner(
                     if std::env::var_os("ERGOGEN_DUMP_HULL_SAMPLES").is_some() {
                         let dump_dir = std::env::temp_dir().join("ergogen-hull-dumps");
                         let _ = std::fs::create_dir_all(&dump_dir);
-                        let mut fname = format!(
-                            "{outline_name}__concavity-{}__extend-{}",
-                            concavity, extend
-                        );
+                        let mut fname =
+                            format!("{outline_name}__concavity-{}__extend-{}", concavity, extend);
                         fname = fname.replace(['/', '\\', ' '], "_");
                         let path = dump_dir.join(format!("{fname}.samples.txt"));
                         let mut out = String::new();
@@ -454,10 +481,8 @@ fn generate_outline_region_inner(
                     if std::env::var_os("ERGOGEN_DUMP_HULL_RAW").is_some() {
                         let dump_dir = std::env::temp_dir().join("ergogen-hull-dumps");
                         let _ = std::fs::create_dir_all(&dump_dir);
-                        let mut fname = format!(
-                            "{outline_name}__concavity-{}__extend-{}",
-                            concavity, extend
-                        );
+                        let mut fname =
+                            format!("{outline_name}__concavity-{}__extend-{}", concavity, extend);
                         fname = fname.replace(['/', '\\', ' '], "_");
                         let path = dump_dir.join(format!("{fname}.hull_raw.txt"));
                         let mut out = String::new();
@@ -581,8 +606,10 @@ fn generate_outline_region_inner(
                                         "s_curve segments require 2 points (from, to)",
                                     ));
                                 }
-                                let segs =
-                                    makerjs_path::s_curve_primitives(parsed_points[0], parsed_points[1])?;
+                                let segs = makerjs_path::s_curve_primitives(
+                                    parsed_points[0],
+                                    parsed_points[1],
+                                )?;
                                 prims.extend(segs);
                             }
                             "bezier" => {
@@ -621,17 +648,24 @@ fn generate_outline_region_inner(
                     let prims = prims
                         .into_iter()
                         .map(|seg| match seg {
-                            makerjs_path::Primitive::Line { a, b } => makerjs_path::Primitive::Line {
-                                a: {
-                                    let (x, y) = position_xy((a[0], a[1]), p);
-                                    [x, y]
-                                },
-                                b: {
-                                    let (x, y) = position_xy((b[0], b[1]), p);
-                                    [x, y]
-                                },
-                            },
-                            makerjs_path::Primitive::Arc { arc, a, b, reversed } => {
+                            makerjs_path::Primitive::Line { a, b } => {
+                                makerjs_path::Primitive::Line {
+                                    a: {
+                                        let (x, y) = position_xy((a[0], a[1]), p);
+                                        [x, y]
+                                    },
+                                    b: {
+                                        let (x, y) = position_xy((b[0], b[1]), p);
+                                        [x, y]
+                                    },
+                                }
+                            }
+                            makerjs_path::Primitive::Arc {
+                                arc,
+                                a,
+                                b,
+                                reversed,
+                            } => {
                                 let (ox, oy) = position_xy((arc.origin[0], arc.origin[1]), p);
                                 let a = {
                                     let (x, y) = position_xy((a[0], a[1]), p);
@@ -1062,14 +1096,8 @@ fn apply_adjust_if_present(
             mirrored: p.mirrored,
         },
     );
-    let adjusted = anchor::parse_anchor(
-        adjust,
-        "outlines.adjust",
-        ref_points,
-        start,
-        units,
-        false,
-    )?;
+    let adjusted =
+        anchor::parse_anchor(adjust, "outlines.adjust", ref_points, start, units, false)?;
     Ok(Placement {
         x: adjusted.x,
         y: adjusted.y,
@@ -1169,7 +1197,11 @@ fn parse_anchor_with_key_meta(
         }
     }
 
-    Ok(AnchorWithKeyMeta { point, width, height })
+    Ok(AnchorWithKeyMeta {
+        point,
+        width,
+        height,
+    })
 }
 
 fn anchor_ref_string<'a>(raw: &'a Value) -> Option<&'a str> {
@@ -1217,10 +1249,7 @@ fn simplify_closed_ring_points(mut pts: Vec<[f64; 2]>) -> Vec<[f64; 2]> {
     // Drop consecutive duplicates.
     let mut deduped: Vec<[f64; 2]> = Vec::with_capacity(pts.len());
     for p in pts {
-        if deduped
-            .last()
-            .is_some_and(|last| points_equal_xy(*last, p))
-        {
+        if deduped.last().is_some_and(|last| points_equal_xy(*last, p)) {
             continue;
         }
         deduped.push(p);

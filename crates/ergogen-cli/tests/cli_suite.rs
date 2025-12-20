@@ -113,10 +113,7 @@ struct FixtureConfig {
     prepared: PreparedConfig,
 }
 
-fn load_fixture_config(
-    fixture_dir: &Path,
-    command: &CliCommand,
-) -> Result<FixtureConfig, String> {
+fn load_fixture_config(fixture_dir: &Path, command: &CliCommand) -> Result<FixtureConfig, String> {
     let Some(input) = &command.input else {
         return Err("Usage: ergogen <config_file> [options]".to_string());
     };
@@ -171,10 +168,7 @@ fn load_fixture_config(
         }
     }
 
-    Ok(FixtureConfig {
-        raw,
-        prepared,
-    })
+    Ok(FixtureConfig { raw, prepared })
 }
 
 fn check_bundle_templates(root: &Path, canonical: &Value) -> Option<String> {
@@ -249,7 +243,11 @@ fn points_demo_lines(points: &PointsOutput) -> Vec<Line> {
     entities
 }
 
-fn compare_points_yaml(prepared: &PreparedConfig, expected_path: &Path, fixture: &str) -> Result<(), String> {
+fn compare_points_yaml(
+    prepared: &PreparedConfig,
+    expected_path: &Path,
+    fixture: &str,
+) -> Result<(), String> {
     let expected_raw = std::fs::read_to_string(expected_path).map_err(|e| e.to_string())?;
     let expected = Value::from_yaml_str(&expected_raw).map_err(|e| e.to_string())?;
     let Value::Map(expected_points) = expected else {
@@ -353,11 +351,13 @@ fn compare_points_yaml(prepared: &PreparedConfig, expected_path: &Path, fixture:
             "meta.rotate",
         );
 
-        let expected_adjust = meta.get("adjust").ok_or_else(|| {
-            format!("fixture={fixture} point {name} meta.adjust missing")
-        })?;
+        let expected_adjust = meta
+            .get("adjust")
+            .ok_or_else(|| format!("fixture={fixture} point {name} meta.adjust missing"))?;
         if !value_semantic_eq(expected_adjust, &p.meta.adjust) {
-            return Err(format!("fixture={fixture} point {name} meta.adjust mismatch"));
+            return Err(format!(
+                "fixture={fixture} point {name} meta.adjust mismatch"
+            ));
         }
 
         assert_close(
@@ -392,13 +392,7 @@ fn compare_points_yaml(prepared: &PreparedConfig, expected_path: &Path, fixture:
             &name,
             "meta.autobind",
         );
-        assert_bool(
-            p.meta.skip,
-            meta.get("skip"),
-            fixture,
-            &name,
-            "meta.skip",
-        )?;
+        assert_bool(p.meta.skip, meta.get("skip"), fixture, &name, "meta.skip")?;
         let expected_asym = value_as_str(meta.get("asym"))?;
         let actual_asym = format!("{:?}", p.meta.asym).to_lowercase();
         if expected_asym != actual_asym {
@@ -414,17 +408,13 @@ fn compare_points_yaml(prepared: &PreparedConfig, expected_path: &Path, fixture:
             &name,
             "meta.colrow",
         )?;
-        assert_str(
-            &p.meta.name,
-            meta.get("name"),
-            fixture,
-            &name,
-            "meta.name",
-        )?;
+        assert_str(&p.meta.name, meta.get("name"), fixture, &name, "meta.name")?;
 
         if let Some(zone_v) = meta.get("zone") {
             let Value::Map(zone_map) = zone_v else {
-                return Err(format!("fixture={fixture} point {name} meta.zone must be a map"));
+                return Err(format!(
+                    "fixture={fixture} point {name} meta.zone must be a map"
+                ));
             };
             if let Some(zone_name) = zone_map.get("name") {
                 assert_str(
@@ -438,7 +428,9 @@ fn compare_points_yaml(prepared: &PreparedConfig, expected_path: &Path, fixture:
         }
         if let Some(col_v) = meta.get("col") {
             let Value::Map(col_map) = col_v else {
-                return Err(format!("fixture={fixture} point {name} meta.col must be a map"));
+                return Err(format!(
+                    "fixture={fixture} point {name} meta.col must be a map"
+                ));
             };
             if let Some(col_name) = col_map.get("name") {
                 assert_str(
@@ -451,19 +443,15 @@ fn compare_points_yaml(prepared: &PreparedConfig, expected_path: &Path, fixture:
             }
         }
 
-        assert_str(
-            &p.meta.row,
-            meta.get("row"),
-            fixture,
-            &name,
-            "meta.row",
-        )?;
+        assert_str(&p.meta.row, meta.get("row"), fixture, &name, "meta.row")?;
 
-        let bind_v = meta.get("bind").ok_or_else(|| {
-            format!("fixture={fixture} point {name} meta.bind missing")
-        })?;
+        let bind_v = meta
+            .get("bind")
+            .ok_or_else(|| format!("fixture={fixture} point {name} meta.bind missing"))?;
         let Value::Seq(bind_seq) = bind_v else {
-            return Err(format!("fixture={fixture} point {name} meta.bind must be seq"));
+            return Err(format!(
+                "fixture={fixture} point {name} meta.bind must be seq"
+            ));
         };
         if bind_seq.len() != 4 {
             return Err(format!("fixture={fixture} point {name} meta.bind len != 4"));
@@ -483,7 +471,11 @@ fn compare_points_yaml(prepared: &PreparedConfig, expected_path: &Path, fixture:
     Ok(())
 }
 
-fn compare_units_yaml(prepared: &PreparedConfig, expected_path: &Path, fixture: &str) -> Result<(), String> {
+fn compare_units_yaml(
+    prepared: &PreparedConfig,
+    expected_path: &Path,
+    fixture: &str,
+) -> Result<(), String> {
     let expected_raw = std::fs::read_to_string(expected_path).map_err(|e| e.to_string())?;
     let expected = Value::from_yaml_str(&expected_raw).map_err(|e| e.to_string())?;
     let Value::Map(expected_map) = expected else {
@@ -554,8 +546,14 @@ fn collect_lines_from_model(value: &Value, out: &mut Vec<Line>) -> Result<(), St
             let start = vec2_from_value(origin_v)?;
             let end = vec2_from_value(end_v)?;
             out.push(Line {
-                start: Point2 { x: start[0], y: start[1] },
-                end: Point2 { x: end[0], y: end[1] },
+                start: Point2 {
+                    x: start[0],
+                    y: start[1],
+                },
+                end: Point2 {
+                    x: end[0],
+                    y: end[1],
+                },
             });
         }
     }
@@ -618,7 +616,11 @@ fn compare_dxf(lines: &[Line], expected_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn compare_outline_dxf(prepared: &PreparedConfig, outline: &str, expected_path: &Path) -> Result<Vec<Line>, String> {
+fn compare_outline_dxf(
+    prepared: &PreparedConfig,
+    outline: &str,
+    expected_path: &Path,
+) -> Result<Vec<Line>, String> {
     let dxf = outline_dxf(prepared, outline)?;
     let opts = fixture_dxf_opts();
     let normalized = dxf.normalize(opts).map_err(|e| e.to_string())?;
@@ -672,7 +674,11 @@ fn parse_svg(svg: &str) -> Result<ParsedSvg, String> {
     let height = extract_svg_attr(svg, "height")?;
     let d = extract_svg_path(svg)?;
     let lines = parse_svg_path(&d)?;
-    Ok(ParsedSvg { width, height, lines })
+    Ok(ParsedSvg {
+        width,
+        height,
+        lines,
+    })
 }
 
 fn extract_svg_attr(svg: &str, name: &str) -> Result<f64, String> {
@@ -681,7 +687,8 @@ fn extract_svg_attr(svg: &str, name: &str) -> Result<f64, String> {
     let rest = &svg[start..];
     let end = rest.find("mm\"").ok_or("svg attribute missing")?;
     let raw = &rest[..end];
-    raw.parse::<f64>().map_err(|_| "invalid svg number".to_string())
+    raw.parse::<f64>()
+        .map_err(|_| "invalid svg number".to_string())
 }
 
 fn extract_svg_path(svg: &str) -> Result<String, String> {
@@ -701,19 +708,38 @@ fn parse_svg_path(d: &str) -> Result<Vec<Line>, String> {
     while i < tokens.len() {
         match tokens[i] {
             "M" => {
-                let x = tokens.get(i + 1).ok_or("svg path M missing x")?.parse::<f64>().map_err(|_| "svg number")?;
-                let y = tokens.get(i + 2).ok_or("svg path M missing y")?.parse::<f64>().map_err(|_| "svg number")?;
+                let x = tokens
+                    .get(i + 1)
+                    .ok_or("svg path M missing x")?
+                    .parse::<f64>()
+                    .map_err(|_| "svg number")?;
+                let y = tokens
+                    .get(i + 2)
+                    .ok_or("svg path M missing y")?
+                    .parse::<f64>()
+                    .map_err(|_| "svg number")?;
                 let p = Point2 { x, y };
                 current = Some(p);
                 start = Some(p);
                 i += 3;
             }
             "L" => {
-                let x = tokens.get(i + 1).ok_or("svg path L missing x")?.parse::<f64>().map_err(|_| "svg number")?;
-                let y = tokens.get(i + 2).ok_or("svg path L missing y")?.parse::<f64>().map_err(|_| "svg number")?;
+                let x = tokens
+                    .get(i + 1)
+                    .ok_or("svg path L missing x")?
+                    .parse::<f64>()
+                    .map_err(|_| "svg number")?;
+                let y = tokens
+                    .get(i + 2)
+                    .ok_or("svg path L missing y")?
+                    .parse::<f64>()
+                    .map_err(|_| "svg number")?;
                 let next = Point2 { x, y };
                 if let Some(cur) = current {
-                    lines.push(Line { start: cur, end: next });
+                    lines.push(Line {
+                        start: cur,
+                        end: next,
+                    });
                 }
                 current = Some(next);
                 i += 3;
@@ -740,13 +766,18 @@ fn value_semantic_eq(a: &Value, b: &Value) -> bool {
         (Value::Number(x), Value::Number(y)) => (*x - *y).abs() <= 1e-9,
         (Value::String(x), Value::String(y)) => x == y,
         (Value::Seq(xs), Value::Seq(ys)) => {
-            xs.len() == ys.len() && xs.iter().zip(ys.iter()).all(|(x, y)| value_semantic_eq(x, y))
+            xs.len() == ys.len()
+                && xs
+                    .iter()
+                    .zip(ys.iter())
+                    .all(|(x, y)| value_semantic_eq(x, y))
         }
         (Value::Map(xs), Value::Map(ys)) => {
             if xs.len() != ys.len() {
                 return false;
             }
-            xs.iter().all(|(k, v)| ys.get(k).is_some_and(|vv| value_semantic_eq(v, vv)))
+            xs.iter()
+                .all(|(k, v)| ys.get(k).is_some_and(|vv| value_semantic_eq(v, vv)))
         }
         _ => false,
     }
@@ -755,9 +786,7 @@ fn value_semantic_eq(a: &Value, b: &Value) -> bool {
 fn value_as_f64(v: Option<&Value>) -> Result<f64, String> {
     match v {
         Some(Value::Number(n)) => Ok(*n),
-        Some(Value::String(s)) => s
-            .parse::<f64>()
-            .map_err(|_| "invalid number".to_string()),
+        Some(Value::String(s)) => s.parse::<f64>().map_err(|_| "invalid number".to_string()),
         _ => Err("invalid number".to_string()),
     }
 }
@@ -814,7 +843,9 @@ fn assert_bool(
         Some(Value::Bool(b)) => Err(format!(
             "fixture={fixture} point={point} field={field} got={got} expected={b}"
         )),
-        _ => Err(format!("fixture={fixture} point={point} field={field} invalid bool")),
+        _ => Err(format!(
+            "fixture={fixture} point={point} field={field} invalid bool"
+        )),
     }
 }
 
@@ -830,7 +861,9 @@ fn assert_str(
         Some(Value::String(s)) => Err(format!(
             "fixture={fixture} point={point} field={field} got={got} expected={s}"
         )),
-        _ => Err(format!("fixture={fixture} point={point} field={field} invalid string")),
+        _ => Err(format!(
+            "fixture={fixture} point={point} field={field} invalid string"
+        )),
     }
 }
 
@@ -897,9 +930,9 @@ fn upstream_cli_fixtures_run_against_rust_implementation() {
 
         if error_path.exists() {
             let expected_snippet = std::fs::read_to_string(&error_path).unwrap();
-            let err = load_fixture_config(&dir, &command).err().unwrap_or_else(|| {
-                "Expected error but fixture succeeded".to_string()
-            });
+            let err = load_fixture_config(&dir, &command)
+                .err()
+                .unwrap_or_else(|| "Expected error but fixture succeeded".to_string());
             assert!(
                 err.contains(expected_snippet.trim()),
                 "fixture=cli/{name} expected snippet {:?} in error {err:?}",
@@ -914,7 +947,10 @@ fn upstream_cli_fixtures_run_against_rust_implementation() {
             Err(err) => panic!("fixture=cli/{name} failed to load config: {err}"),
         };
 
-        if let Some(log_expected) = log_path.exists().then(|| std::fs::read_to_string(&log_path).unwrap()) {
+        if let Some(log_expected) = log_path
+            .exists()
+            .then(|| std::fs::read_to_string(&log_path).unwrap())
+        {
             let has_primary_outputs = reference_dir.join("outlines").exists()
                 || reference_dir.join("cases").exists()
                 || reference_dir.join("pcbs").exists();
@@ -952,7 +988,11 @@ fn upstream_cli_fixtures_run_against_rust_implementation() {
         let mut reference_files = Vec::new();
         collect_files_recursive(&reference_dir, &mut reference_files);
         for path in reference_files {
-            let rel = path.strip_prefix(&reference_dir).unwrap().to_string_lossy().to_string();
+            let rel = path
+                .strip_prefix(&reference_dir)
+                .unwrap()
+                .to_string_lossy()
+                .to_string();
 
             match rel.as_str() {
                 "source/raw.txt" => {
@@ -1021,10 +1061,12 @@ fn upstream_cli_fixtures_run_against_rust_implementation() {
                         .file_stem()
                         .and_then(|s| s.to_str())
                         .unwrap();
-                    let lines = outline_lines(&cfg.prepared, outline)
-                        .unwrap_or_else(|e| panic!("fixture=cli/{name} outline yaml mismatch: {e}"));
-                    compare_model_yaml(&lines, &path)
-                        .unwrap_or_else(|e| panic!("fixture=cli/{name} outline yaml mismatch: {e}"));
+                    let lines = outline_lines(&cfg.prepared, outline).unwrap_or_else(|e| {
+                        panic!("fixture=cli/{name} outline yaml mismatch: {e}")
+                    });
+                    compare_model_yaml(&lines, &path).unwrap_or_else(|e| {
+                        panic!("fixture=cli/{name} outline yaml mismatch: {e}")
+                    });
                 }
                 _ if rel.starts_with("cases/") && rel.ends_with(".jscad") => {
                     let case_name = Path::new(&rel)
@@ -1053,7 +1095,8 @@ fn upstream_cli_fixtures_run_against_rust_implementation() {
                     if normalize_text(&got) != normalize_text(&expected) {
                         let out_dir = std::env::temp_dir().join("ergogen-cli-suite");
                         std::fs::create_dir_all(&out_dir).unwrap();
-                        let out_path = out_dir.join(format!("{name}__generated_{pcb_name}.kicad_pcb"));
+                        let out_path =
+                            out_dir.join(format!("{name}__generated_{pcb_name}.kicad_pcb"));
                         std::fs::write(&out_path, &got).unwrap();
                         panic!("fixture=cli/{name} pcb mismatch: {pcb_name}");
                     }
@@ -1076,7 +1119,10 @@ fn upstream_cli_fixtures_run_against_rust_implementation() {
         }
     }
 
-    assert!(compared > 0, "cli suite compared nothing; harness is broken");
+    assert!(
+        compared > 0,
+        "cli suite compared nothing; harness is broken"
+    );
     eprintln!("cli suite: compared={compared} skipped={skipped}");
 }
 

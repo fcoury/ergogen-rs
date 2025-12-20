@@ -217,7 +217,13 @@ fn push_subpath(path: &mut String, sub: &str) {
 fn line_path(line: Line, transform: impl Fn(Point2) -> Point2) -> String {
     let start = transform(line.start);
     let end = transform(line.end);
-    format!("M {} {} L {} {}", fmt_num(start.x), fmt_num(start.y), fmt_num(end.x), fmt_num(end.y))
+    format!(
+        "M {} {} L {} {}",
+        fmt_num(start.x),
+        fmt_num(start.y),
+        fmt_num(end.x),
+        fmt_num(end.y)
+    )
 }
 
 fn arc_path(arc: Arc, transform: impl Fn(Point2) -> Point2) -> String {
@@ -413,11 +419,7 @@ fn arc_point(center: Point2, radius: f64, angle_deg: f64) -> Point2 {
 fn arc_sweep_ccw(start_deg: f64, end_deg: f64) -> f64 {
     let s = norm_deg(start_deg);
     let e = norm_deg(end_deg);
-    if s <= e {
-        e - s
-    } else {
-        360.0 - (s - e)
-    }
+    if s <= e { e - s } else { 360.0 - (s - e) }
 }
 
 fn norm_deg(mut deg: f64) -> f64 {

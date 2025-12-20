@@ -14,7 +14,9 @@ pub fn mx_template(params: &IndexMap<String, Value>) -> &'static str {
         (false, true, false) => include_str!("../templates/footprints/mx/reverse.tpl"),
         (false, false, true) => include_str!("../templates/footprints/mx/hotswap.tpl"),
         (false, true, true) => include_str!("../templates/footprints/mx/reverse_hotswap.tpl"),
-        (true, true, true) => include_str!("../templates/footprints/mx/keycaps_reverse_hotswap.tpl"),
+        (true, true, true) => {
+            include_str!("../templates/footprints/mx/keycaps_reverse_hotswap.tpl")
+        }
         _ => include_str!("../templates/footprints/mx/base.tpl"),
     }
 }
@@ -29,7 +31,9 @@ pub fn choc_template(params: &IndexMap<String, Value>) -> &'static str {
         (false, true, false) => include_str!("../templates/footprints/choc/reverse.tpl"),
         (false, false, true) => include_str!("../templates/footprints/choc/hotswap.tpl"),
         (false, true, true) => include_str!("../templates/footprints/choc/reverse_hotswap.tpl"),
-        (true, true, true) => include_str!("../templates/footprints/choc/keycaps_reverse_hotswap.tpl"),
+        (true, true, true) => {
+            include_str!("../templates/footprints/choc/keycaps_reverse_hotswap.tpl")
+        }
         _ => include_str!("../templates/footprints/choc/base.tpl"),
     }
 }
@@ -59,10 +63,7 @@ pub fn button_template(params: &IndexMap<String, Value>) -> &'static str {
 pub fn pad_template(params: &IndexMap<String, Value>) -> &'static str {
     let align = param_str(params, "align").unwrap_or_default();
     let mirrored = param_bool(params, "mirrored");
-    let front = params
-        .get("front")
-        .and_then(param_bool_opt)
-        .unwrap_or(true);
+    let front = params.get("front").and_then(param_bool_opt).unwrap_or(true);
     let has_text = params.get("text").is_some();
 
     if !front {
@@ -107,22 +108,40 @@ pub fn injected_template() -> &'static str {
 pub fn rest_template(what: &str, params: &IndexMap<String, Value>) -> (&'static str, &'static str) {
     match what {
         "alps" => (include_str!("../templates/footprints/rest/alps.tpl"), "S"),
-        "jstph" => (include_str!("../templates/footprints/rest/jstph.tpl"), "JST"),
+        "jstph" => (
+            include_str!("../templates/footprints/rest/jstph.tpl"),
+            "JST",
+        ),
         "jumper" => (include_str!("../templates/footprints/rest/jumper.tpl"), "J"),
-        "oled" => (include_str!("../templates/footprints/rest/oled.tpl"), "OLED"),
+        "oled" => (
+            include_str!("../templates/footprints/rest/oled.tpl"),
+            "OLED",
+        ),
         "omron" => (include_str!("../templates/footprints/rest/omron.tpl"), "S"),
         "rgb" => (include_str!("../templates/footprints/rest/rgb.tpl"), "LED"),
-        "rotary" => (include_str!("../templates/footprints/rest/rotary.tpl"), "ROT"),
+        "rotary" => (
+            include_str!("../templates/footprints/rest/rotary.tpl"),
+            "ROT",
+        ),
         "scrollwheel" => {
             if param_bool(params, "reverse") {
-                (include_str!("../templates/footprints/rest/scrollwheel_reverse.tpl"), "REF")
+                (
+                    include_str!("../templates/footprints/rest/scrollwheel_reverse.tpl"),
+                    "REF",
+                )
             } else {
-                (include_str!("../templates/footprints/rest/scrollwheel.tpl"), "REF")
+                (
+                    include_str!("../templates/footprints/rest/scrollwheel.tpl"),
+                    "REF",
+                )
             }
         }
         "slider" => {
             if param_str(params, "side").as_deref() == Some("B") {
-                (include_str!("../templates/footprints/rest/slider_back.tpl"), "T")
+                (
+                    include_str!("../templates/footprints/rest/slider_back.tpl"),
+                    "T",
+                )
             } else {
                 (include_str!("../templates/footprints/rest/slider.tpl"), "T")
             }

@@ -12,7 +12,11 @@ fn normalize(s: &str) -> String {
 fn parity_case(name: &str, template_yaml: &str, spec_yaml: &str) {
     let template = generate_kicad_pcb_from_yaml_str(template_yaml, "pcb").unwrap();
     let spec = generate_kicad_pcb_from_yaml_str(spec_yaml, "pcb").unwrap();
-    assert_eq!(normalize(&spec), normalize(&template), "{name} parity mismatch");
+    assert_eq!(
+        normalize(&spec),
+        normalize(&template),
+        "{name} parity mismatch"
+    );
 }
 
 #[test]

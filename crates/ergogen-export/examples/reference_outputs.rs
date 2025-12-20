@@ -27,7 +27,9 @@ fn fixture_dxf_opts() -> NormalizeOptions {
 
 fn main() {
     let mut args = std::env::args().skip(1);
-    let yaml_path = args.next().expect("usage: reference_outputs <yaml> [out-dir]");
+    let yaml_path = args
+        .next()
+        .expect("usage: reference_outputs <yaml> [out-dir]");
     let out_dir = if let Some(dir) = args.next() {
         PathBuf::from(dir)
     } else {

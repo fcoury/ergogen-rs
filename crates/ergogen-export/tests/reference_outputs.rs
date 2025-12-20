@@ -51,7 +51,10 @@ fn compare_or_update(path: &Path, contents: &str, update: bool) {
 fn compare_raw_text(golden: &Path, raw: &Path) {
     let golden_contents = std::fs::read_to_string(golden).unwrap();
     let raw_contents = std::fs::read_to_string(raw).unwrap();
-    assert_eq!(normalize_text(&raw_contents), normalize_text(&golden_contents));
+    assert_eq!(
+        normalize_text(&raw_contents),
+        normalize_text(&golden_contents)
+    );
 }
 
 #[test]

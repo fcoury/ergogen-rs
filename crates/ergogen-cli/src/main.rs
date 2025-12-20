@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use ergogen_dxf2png::{save_dxf_as_png, RenderOptions};
+use ergogen_dxf2png::{RenderOptions, save_dxf_as_png};
 
 #[derive(Parser)]
 #[command(name = "ergogen")]

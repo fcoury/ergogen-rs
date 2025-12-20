@@ -3,6 +3,10 @@ use wasm_bindgen_test::wasm_bindgen_test;
 
 use ergogen_export::dxf::{Dxf, NormalizeOptions};
 use ergogen_export::svg;
+use ergogen_layout::PointsOutput;
+use ergogen_parser::Value as ErgogenValue;
+use indexmap::IndexMap;
+use serde::Deserialize;
 
 #[wasm_bindgen(module = "/js/footprints.js")]
 unsafe extern "C" {
@@ -10,10 +14,46 @@ unsafe extern "C" {
     fn registerErgogenJsFootprintSource(path: &str, source: &str);
 }
 
+#[derive(Deserialize)]
+struct DemoOutput {
+    dxf: String,
+    svg: String,
+}
+
+#[derive(Deserialize)]
+struct OutlineOutput {
+    dxf: String,
+    svg: String,
+}
+
+#[derive(Deserialize)]
+#[allow(dead_code)]
+struct CaseOutput {
+    jscad: String,
+}
+
+#[derive(Deserialize)]
+#[allow(dead_code)]
+struct ErgogenError {
+    kind: String,
+    message: String,
+    target: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct RenderAllOutput {
+    canonical: ErgogenValue,
+    points: PointsOutput,
+    units: IndexMap<String, f64>,
+    demo: DemoOutput,
+    pcbs: IndexMap<String, String>,
+    outlines: IndexMap<String, OutlineOutput>,
+    cases: IndexMap<String, CaseOutput>,
+    errors: Vec<ErgogenError>,
+}
+
 fn normalize(s: &str) -> String {
-    s.replace("\r\n", "\n")
-        .trim_end_matches('\n')
-        .to_string()
+    s.replace("\r\n", "\n").trim_end_matches('\n').to_string()
 }
 
 #[wasm_bindgen_test]
@@ -23,8 +63,7 @@ fn renders_js_footprint_fixture() {
     registerErgogenJsFootprintSource("simple.js", js_source);
 
     let yaml = include_str!("../../../fixtures/m7/js_footprints/simple.yaml");
-    let expected =
-        include_str!("../../../fixtures/m7/js_footprints/simple___pcbs_pcb.kicad_pcb");
+    let expected = include_str!("../../../fixtures/m7/js_footprints/simple___pcbs_pcb.kicad_pcb");
 
     let got = ergogen_wasm::render_pcb(yaml, "pcb").unwrap();
     assert_eq!(normalize(&got), normalize(expected));
@@ -52,4 +91,23 @@ fn renders_outline_svg_fixture() {
 
     let got = ergogen_wasm::render_svg(yaml, "outline").unwrap();
     assert_eq!(normalize(&got), normalize(&expected_svg));
+}
+
+#[wasm_bindgen_test]
+fn render_all_includes_points_units_demo() {
+    let yaml = include_str!("../../../fixtures/m5/outlines/basic.yaml");
+    let value = ergogen_wasm::render_all(yaml).unwrap();
+    let output: RenderAllOutput = serde_wasm_bindgen::from_value(value).unwrap();
+
+    assert!(output.canonical.as_map().is_some());
+    assert!(!output.points.is_empty());
+    assert!(!output.units.is_empty());
+    assert!(!output.demo.dxf.trim().is_empty());
+    assert!(!output.demo.svg.trim().is_empty());
+    let outline = output.outlines.get("outline").expect("outline output");
+    assert!(!outline.dxf.trim().is_empty());
+    assert!(!outline.svg.trim().is_empty());
+    assert!(output.pcbs.is_empty());
+    assert!(output.cases.is_empty());
+    assert!(output.errors.is_empty());
 }

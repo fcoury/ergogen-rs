@@ -33,15 +33,15 @@ fn parses_minimal_pad_footprint_spec() {
 
     assert_eq!(spec.primitives.len(), 1);
     match &spec.primitives[0] {
-        Primitive::Pad { at, size, layers, net, .. } => {
-            assert_eq!(
-                *at,
-                [ScalarSpec::Number(0.0), ScalarSpec::Number(0.0)]
-            );
-            assert_eq!(
-                *size,
-                [ScalarSpec::Number(2.5), ScalarSpec::Number(2.5)]
-            );
+        Primitive::Pad {
+            at,
+            size,
+            layers,
+            net,
+            ..
+        } => {
+            assert_eq!(*at, [ScalarSpec::Number(0.0), ScalarSpec::Number(0.0)]);
+            assert_eq!(*size, [ScalarSpec::Number(2.5), ScalarSpec::Number(2.5)]);
             assert_eq!(layers, &vec!["F.Cu".to_string(), "F.Mask".to_string()]);
             assert_eq!(net, "{{ net }}");
         }
@@ -85,7 +85,13 @@ fn resolves_templated_vectors_and_layers() {
 
     let resolved = resolve_footprint_spec(&spec, &params).unwrap();
     match &resolved.primitives[0] {
-        ResolvedPrimitive::Pad { at, size, layers, net, .. } => {
+        ResolvedPrimitive::Pad {
+            at,
+            size,
+            layers,
+            net,
+            ..
+        } => {
             assert_eq!(*at, [1.25, -2.5]);
             assert_eq!(*size, [3.0, 1.5]);
             assert_eq!(layers, &vec!["B.Cu".to_string(), "F.Mask".to_string()]);
@@ -135,7 +141,10 @@ fn parses_pad_thru_shape() {
             _ => None,
         })
         .collect();
-    assert_eq!(shapes, vec![Some("rect".to_string()), Some("circle".to_string())]);
+    assert_eq!(
+        shapes,
+        vec![Some("rect".to_string()), Some("circle".to_string())]
+    );
 }
 
 #[test]
@@ -144,9 +153,21 @@ fn parses_arc_rect_text_primitives() {
     let yaml = std::fs::read_to_string(yaml_path).unwrap();
     let spec = parse_footprint_spec(&yaml).unwrap();
 
-    assert!(spec.primitives.iter().any(|p| matches!(p, Primitive::Arc { .. })));
-    assert!(spec.primitives.iter().any(|p| matches!(p, Primitive::Rect { .. })));
-    assert!(spec.primitives.iter().any(|p| matches!(p, Primitive::Text { .. })));
+    assert!(
+        spec.primitives
+            .iter()
+            .any(|p| matches!(p, Primitive::Arc { .. }))
+    );
+    assert!(
+        spec.primitives
+            .iter()
+            .any(|p| matches!(p, Primitive::Rect { .. }))
+    );
+    assert!(
+        spec.primitives
+            .iter()
+            .any(|p| matches!(p, Primitive::Text { .. }))
+    );
 }
 
 #[test]
@@ -172,7 +193,10 @@ primitives:
     let spec = parse_footprint_spec(yaml).unwrap();
     match &spec.primitives[0] {
         Primitive::PadThru { drill, kind, .. } => {
-            assert!(matches!(drill, ergogen_pcb::footprint_spec::DrillSpec::Vector(_)));
+            assert!(matches!(
+                drill,
+                ergogen_pcb::footprint_spec::DrillSpec::Vector(_)
+            ));
             assert_eq!(kind.as_deref(), Some("np_thru_hole"));
         }
         _ => panic!("expected pad_thru primitive"),
@@ -182,10 +206,7 @@ primitives:
     match &resolved.primitives[0] {
         ResolvedPrimitive::PadThru { drill, kind, .. } => {
             assert_eq!(kind.as_deref(), Some("np_thru_hole"));
-            assert_eq!(
-                *drill,
-                ResolvedDrill::Vector([0.9, 1.5])
-            );
+            assert_eq!(*drill, ResolvedDrill::Vector([0.9, 1.5]));
         }
         _ => panic!("expected pad_thru primitive"),
     }
@@ -208,50 +229,77 @@ fn resolves_shape_templates() {
 
     let resolved = resolve_footprint_spec(&spec, &params).unwrap();
 
-    let circle = resolved.primitives.iter().find_map(|p| {
-        if let ResolvedPrimitive::Circle { radius, width, .. } = p {
-            Some((*radius, *width))
-        } else {
-            None
-        }
-    }).unwrap();
+    let circle = resolved
+        .primitives
+        .iter()
+        .find_map(|p| {
+            if let ResolvedPrimitive::Circle { radius, width, .. } = p {
+                Some((*radius, *width))
+            } else {
+                None
+            }
+        })
+        .unwrap();
     assert_eq!(circle.0, 3.0);
     assert_eq!(circle.1, 0.25);
 
-    let line = resolved.primitives.iter().find_map(|p| {
-        if let ResolvedPrimitive::Line { width, .. } = p {
-            Some(*width)
-        } else {
-            None
-        }
-    }).unwrap();
+    let line = resolved
+        .primitives
+        .iter()
+        .find_map(|p| {
+            if let ResolvedPrimitive::Line { width, .. } = p {
+                Some(*width)
+            } else {
+                None
+            }
+        })
+        .unwrap();
     assert_eq!(line, 0.25);
 
-    let arc = resolved.primitives.iter().find_map(|p| {
-        if let ResolvedPrimitive::Arc { angle, .. } = p {
-            Some(*angle)
-        } else {
-            None
-        }
-    }).unwrap();
+    let arc = resolved
+        .primitives
+        .iter()
+        .find_map(|p| {
+            if let ResolvedPrimitive::Arc { angle, .. } = p {
+                Some(*angle)
+            } else {
+                None
+            }
+        })
+        .unwrap();
     assert_eq!(arc, 45.0);
 
-    let rect = resolved.primitives.iter().find_map(|p| {
-        if let ResolvedPrimitive::Rect { size, .. } = p {
-            Some(*size)
-        } else {
-            None
-        }
-    }).unwrap();
+    let rect = resolved
+        .primitives
+        .iter()
+        .find_map(|p| {
+            if let ResolvedPrimitive::Rect { size, .. } = p {
+                Some(*size)
+            } else {
+                None
+            }
+        })
+        .unwrap();
     assert_eq!(rect, [5.0, 2.5]);
 
-    let text = resolved.primitives.iter().find_map(|p| {
-        if let ResolvedPrimitive::Text { text, size, thickness, justify, .. } = p {
-            Some((text.as_str(), *size, *thickness, justify.clone()))
-        } else {
-            None
-        }
-    }).unwrap();
+    let text = resolved
+        .primitives
+        .iter()
+        .find_map(|p| {
+            if let ResolvedPrimitive::Text {
+                text,
+                size,
+                thickness,
+                justify,
+                ..
+            } = p
+            {
+                Some((text.as_str(), *size, *thickness, justify.clone()))
+            } else {
+                None
+            }
+        })
+        .unwrap();
     assert_eq!(text.0, "HELLO");
     assert_eq!(text.1, [1.1, 1.1]);
     assert_eq!(text.2, 0.25);

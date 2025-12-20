@@ -2,16 +2,17 @@ use std::collections::HashMap;
 
 use boa_engine::{
     Context, JsError, JsResult, JsString, JsValue, NativeFunction, Source, js_string,
-    object::ObjectInitializer,
-    property::Attribute,
+    object::ObjectInitializer, property::Attribute,
 };
 use indexmap::IndexMap;
 use serde_json::Value as JsonValue;
 
+use crate::js_footprints_shared::{
+    next_ref, resolve_designator, resolve_net_name, resolve_param_value,
+};
 use crate::js_runtime::{JsContext, JsParamSpec, parse_js_params};
-use crate::js_footprints_shared::{next_ref, resolve_designator, resolve_net_name, resolve_param_value};
-use crate::{NetIndex, Placement, PcbError};
-use ergogen_parser::{Value as ErgogenValue};
+use crate::{NetIndex, PcbError, Placement};
+use ergogen_parser::Value as ErgogenValue;
 
 #[derive(Debug)]
 pub struct JsFootprintModule {
@@ -38,14 +39,18 @@ pub fn load_js_module(source: &str) -> Result<JsFootprintModule, PcbError> {
         .get(js_string!("params"), &mut ctx)
         .map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
     let params_json = js_value_to_json(&params_val, &mut ctx)?;
-    let params = parse_js_params(&params_json)
-        .map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
+    let params =
+        parse_js_params(&params_json).map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
 
     let body_val = module_obj
         .get(js_string!("body"), &mut ctx)
         .map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
 
-    Ok(JsFootprintModule { params, body: body_val, ctx })
+    Ok(JsFootprintModule {
+        params,
+        body: body_val,
+        ctx,
+    })
 }
 
 pub fn render_js_footprint(
@@ -97,12 +102,32 @@ fn build_p_object(
 
     let mut builder = ObjectInitializer::new(ctx);
     builder
-        .property(js_string!("at"), JsString::from(js_ctx.at()), Attribute::all())
+        .property(
+            js_string!("at"),
+            JsString::from(js_ctx.at()),
+            Attribute::all(),
+        )
         .property(js_string!("r"), JsValue::from(js_ctx.r()), Attribute::all())
-        .property(js_string!("rot"), JsValue::from(js_ctx.rot()), Attribute::all())
-        .property(js_string!("ref"), JsString::from(js_ctx.ref_str()), Attribute::all())
-        .property(js_string!("ref_hide"), JsString::from(js_ctx.ref_hide()), Attribute::all())
-        .property(js_string!("side"), JsString::from(js_ctx.side()), Attribute::all());
+        .property(
+            js_string!("rot"),
+            JsValue::from(js_ctx.rot()),
+            Attribute::all(),
+        )
+        .property(
+            js_string!("ref"),
+            JsString::from(js_ctx.ref_str()),
+            Attribute::all(),
+        )
+        .property(
+            js_string!("ref_hide"),
+            JsString::from(js_ctx.ref_hide()),
+            Attribute::all(),
+        )
+        .property(
+            js_string!("side"),
+            JsString::from(js_ctx.side()),
+            Attribute::all(),
+        );
 
     builder
         .function(make_xy_fn(js_ctx), js_string!("xy"), 2)
@@ -151,7 +176,11 @@ fn make_eaxy_fn(js_ctx: &mut JsContext<'_>) -> NativeFunction {
 fn make_local_net_fn(js_ctx: &mut JsContext<'_>) -> NativeFunction {
     let ptr = js_ctx as *mut JsContext as *mut JsContext<'static>;
     NativeFunction::from_copy_closure(move |_, args, ctx| {
-        let name = args.get(0).and_then(|v| v.as_string()).map(|s| s.to_std_string().unwrap_or_default()).unwrap_or_default();
+        let name = args
+            .get(0)
+            .and_then(|v| v.as_string())
+            .map(|s| s.to_std_string().unwrap_or_default())
+            .unwrap_or_default();
         let js_ctx = unsafe { &mut *ptr };
         let net = js_ctx.local_net(&name);
         net_to_js(ctx, net)
@@ -161,7 +190,11 @@ fn make_local_net_fn(js_ctx: &mut JsContext<'_>) -> NativeFunction {
 fn make_global_net_fn(js_ctx: &mut JsContext<'_>) -> NativeFunction {
     let ptr = js_ctx as *mut JsContext as *mut JsContext<'static>;
     NativeFunction::from_copy_closure(move |_, args, ctx| {
-        let name = args.get(0).and_then(|v| v.as_string()).map(|s| s.to_std_string().unwrap_or_default()).unwrap_or_default();
+        let name = args
+            .get(0)
+            .and_then(|v| v.as_string())
+            .map(|s| s.to_std_string().unwrap_or_default())
+            .unwrap_or_default();
         let js_ctx = unsafe { &mut *ptr };
         let net = js_ctx.global_net(&name);
         net_to_js(ctx, net)
@@ -177,9 +210,21 @@ fn net_to_js(ctx: &mut Context, net: crate::js_runtime::JsNet) -> JsResult<JsVal
     });
     let mut builder = ObjectInitializer::new(ctx);
     builder
-        .property(js_string!("name"), JsString::from(net.name.as_str()), Attribute::all())
-        .property(js_string!("index"), JsValue::from(net.index as f64), Attribute::all())
-        .property(js_string!("str"), JsString::from(net.str.as_str()), Attribute::all())
+        .property(
+            js_string!("name"),
+            JsString::from(net.name.as_str()),
+            Attribute::all(),
+        )
+        .property(
+            js_string!("index"),
+            JsValue::from(net.index as f64),
+            Attribute::all(),
+        )
+        .property(
+            js_string!("str"),
+            JsString::from(net.str.as_str()),
+            Attribute::all(),
+        )
         .function(to_string, js_string!("toString"), 0);
     Ok(builder.build().into())
 }

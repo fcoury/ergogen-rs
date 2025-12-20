@@ -27,7 +27,10 @@ pub struct MakerArc {
 
 #[derive(Debug, Clone)]
 pub enum Primitive {
-    Line { a: [f64; 2], b: [f64; 2] },
+    Line {
+        a: [f64; 2],
+        b: [f64; 2],
+    },
     Arc {
         arc: MakerArc,
         a: [f64; 2],
@@ -41,7 +44,11 @@ impl Primitive {
         match self {
             Primitive::Line { a, b } => (*a, *b),
             Primitive::Arc { a, b, reversed, .. } => {
-                if *reversed { (*b, *a) } else { (*a, *b) }
+                if *reversed {
+                    (*b, *a)
+                } else {
+                    (*a, *b)
+                }
             }
         }
     }
@@ -152,7 +159,10 @@ fn arc_point(arc: MakerArc, angle_deg: f64) -> [f64; 2] {
 }
 
 pub fn arc_endpoints(arc: MakerArc) -> ([f64; 2], [f64; 2]) {
-    (arc_point(arc, arc.start_angle_deg), arc_point(arc, arc.end_angle_deg))
+    (
+        arc_point(arc, arc.start_angle_deg),
+        arc_point(arc, arc.end_angle_deg),
+    )
 }
 
 fn arc_point_at_ratio(arc: MakerArc, ratio: f64) -> [f64; 2] {
@@ -166,7 +176,11 @@ fn point_distance(a: [f64; 2], b: [f64; 2]) -> f64 {
     (dx * dx + dy * dy).sqrt()
 }
 
-pub fn arc_from_3_points(a: [f64; 2], b: [f64; 2], c: [f64; 2]) -> Result<MakerArc, MakerJsPathError> {
+pub fn arc_from_3_points(
+    a: [f64; 2],
+    b: [f64; 2],
+    c: [f64; 2],
+) -> Result<MakerArc, MakerJsPathError> {
     // Faithful port of MakerJS "Circle from 3 points":
     // - build 2 lines sharing the middle point
     // - rotate each by 90deg around its midpoint (MakerJS rotation uses rounded polar)
@@ -178,7 +192,10 @@ pub fn arc_from_3_points(a: [f64; 2], b: [f64; 2], c: [f64; 2]) -> Result<MakerA
     }
 
     fn midpoint(line: Line2) -> [f64; 2] {
-        [(line.origin[0] + line.end[0]) / 2.0, (line.origin[1] + line.end[1]) / 2.0]
+        [
+            (line.origin[0] + line.end[0]) / 2.0,
+            (line.origin[1] + line.end[1]) / 2.0,
+        ]
     }
 
     fn add(a: [f64; 2], b: [f64; 2]) -> [f64; 2] {
@@ -188,7 +205,8 @@ pub fn arc_from_3_points(a: [f64; 2], b: [f64; 2], c: [f64; 2]) -> Result<MakerA
     fn from_polar(angle_rad: f64, radius: f64) -> [f64; 2] {
         // MakerJs.point.fromPolar: rounds trig results to 1e-7 and has exact-zero fast paths.
         let (s, c) = angle_rad.sin_cos();
-        let x = if (angle_rad - PI / 2.0).abs() == 0.0 || (angle_rad - 3.0 * PI / 2.0).abs() == 0.0 {
+        let x = if (angle_rad - PI / 2.0).abs() == 0.0 || (angle_rad - 3.0 * PI / 2.0).abs() == 0.0
+        {
             0.0
         } else {
             makerjs_round(radius * c, 1e-7)
@@ -335,8 +353,15 @@ struct TPoint {
 
 #[derive(Debug, Clone)]
 enum ArcOrLine {
-    Arc { arc: MakerArc, end_t: f64 },
-    Line { a: [f64; 2], b: [f64; 2], end_t: f64 },
+    Arc {
+        arc: MakerArc,
+        end_t: f64,
+    },
+    Line {
+        a: [f64; 2],
+        b: [f64; 2],
+        end_t: f64,
+    },
 }
 
 fn bezier_compute(seed: &BezierSeed, t: f64) -> [f64; 2] {
@@ -394,7 +419,10 @@ fn bezier_derivative(seed: &BezierSeed, t: f64) -> [f64; 2] {
     let a = mt * mt;
     let b = mt * t * 2.0;
     let c = t * t;
-    [a * d0[0] + b * d1[0] + c * d2[0], a * d0[1] + b * d1[1] + c * d2[1]]
+    [
+        a * d0[0] + b * d1[0] + c * d2[0],
+        a * d0[1] + b * d1[1] + c * d2[1],
+    ]
 }
 
 fn bezier_length(seed: &BezierSeed) -> f64 {
@@ -547,7 +575,13 @@ fn bezier_extrema_values(seed: &BezierSeed) -> Vec<f64> {
     extrema
 }
 
-fn bezier_error(seed: &BezierSeed, start_t: f64, end_t: f64, arc: MakerArc, arc_reversed: bool) -> f64 {
+fn bezier_error(
+    seed: &BezierSeed,
+    start_t: f64,
+    end_t: f64,
+    arc: MakerArc,
+    arc_reversed: bool,
+) -> f64 {
     let t_span = end_t - start_t;
     let m = |ratio: f64| {
         let t = start_t + t_span * ratio;
@@ -587,7 +621,10 @@ fn get_largest_arc(seed: &BezierSeed, start_t: f64, end_t: f64, accuracy: f64) -
             Ok(a) => a,
             Err(_) => {
                 if let Some(a) = last_good {
-                    return ArcOrLine::Arc { arc: a, end_t: lower.t };
+                    return ArcOrLine::Arc {
+                        arc: a,
+                        end_t: lower.t,
+                    };
                 }
                 break;
             }
@@ -610,7 +647,10 @@ fn get_largest_arc(seed: &BezierSeed, start_t: f64, end_t: f64, accuracy: f64) -
 
         if lower.t == upper.t {
             if let Some(a) = last_good {
-                return ArcOrLine::Arc { arc: a, end_t: lower.t };
+                return ArcOrLine::Arc {
+                    arc: a,
+                    end_t: lower.t,
+                };
             }
         }
 
@@ -638,10 +678,7 @@ fn get_largest_arc(seed: &BezierSeed, start_t: f64, end_t: f64, accuracy: f64) -
     }
 }
 
-pub fn bezier_curve_primitives(
-    seed: BezierSeed,
-    accuracy: Option<f64>,
-) -> Vec<Primitive> {
+pub fn bezier_curve_primitives(seed: BezierSeed, accuracy: Option<f64>) -> Vec<Primitive> {
     // MakerJs BezierCurve:
     // - if linear, output a single line.
     // - otherwise approximate via arcs/lines.
@@ -709,8 +746,16 @@ fn angle_mirror(angle_deg: f64, mirror_x: bool, mirror_y: bool) -> f64 {
 fn mirror_arc(arc: MakerArc, mirror_x: bool, mirror_y: bool) -> MakerArc {
     // MakerJs.path.mirrorMap[Arc]
     let origin = [
-        if mirror_x { -arc.origin[0] } else { arc.origin[0] },
-        if mirror_y { -arc.origin[1] } else { arc.origin[1] },
+        if mirror_x {
+            -arc.origin[0]
+        } else {
+            arc.origin[0]
+        },
+        if mirror_y {
+            -arc.origin[1]
+        } else {
+            arc.origin[1]
+        },
     ];
     let start = angle_mirror(arc.start_angle_deg, mirror_x, mirror_y);
     let end = angle_mirror(arc_end_angle_deg(arc), mirror_x, mirror_y);
@@ -723,7 +768,10 @@ fn mirror_arc(arc: MakerArc, mirror_x: bool, mirror_y: bool) -> MakerArc {
     }
 }
 
-pub fn s_curve_primitives(from: [f64; 2], to: [f64; 2]) -> Result<Vec<Primitive>, MakerJsPathError> {
+pub fn s_curve_primitives(
+    from: [f64; 2],
+    to: [f64; 2],
+) -> Result<Vec<Primitive>, MakerJsPathError> {
     // Port of MakerJs.models.SCurve plus the `outlines.js` mirror+move logic.
     if from[0] == to[0] {
         return Err(MakerJsPathError::NotClosedChain);
@@ -768,7 +816,10 @@ pub fn s_curve_primitives(from: [f64; 2], to: [f64; 2]) -> Result<Vec<Primitive>
     // model mirror + move (outlines.js)
     let mut arcs = vec![curve_start, curve_end];
     if mirror_x || mirror_y {
-        arcs = arcs.into_iter().map(|a| mirror_arc(a, mirror_x, mirror_y)).collect();
+        arcs = arcs
+            .into_iter()
+            .map(|a| mirror_arc(a, mirror_x, mirror_y))
+            .collect();
     }
     for a in &mut arcs {
         a.origin[0] += from[0];

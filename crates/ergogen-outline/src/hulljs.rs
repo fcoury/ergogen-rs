@@ -30,7 +30,11 @@ impl Pt {
 }
 
 fn sort_by_x(mut pts: Vec<Pt>) -> Vec<Pt> {
-    pts.sort_by(|a, b| a.x.partial_cmp(&b.x).unwrap().then_with(|| a.y.partial_cmp(&b.y).unwrap()));
+    pts.sort_by(|a, b| {
+        a.x.partial_cmp(&b.x)
+            .unwrap()
+            .then_with(|| a.y.partial_cmp(&b.y).unwrap())
+    });
     pts
 }
 
@@ -227,10 +231,7 @@ impl Grid {
         let Some(cell) = self.cells.get_mut(&(cx, cy)) else {
             return;
         };
-        if let Some(idx) = cell
-            .iter()
-            .position(|q| q.x == p.x && q.y == p.y)
-        {
+        if let Some(idx) = cell.iter().position(|q| q.x == p.x && q.y == p.y) {
             cell.remove(idx);
         }
     }
@@ -326,7 +327,13 @@ fn concave(
     }
 
     if inserted {
-        concave(convex, max_sq_edge_len, max_search_area, grid, edge_skip_list);
+        concave(
+            convex,
+            max_sq_edge_len,
+            max_search_area,
+            grid,
+            edge_skip_list,
+        );
     }
 }
 

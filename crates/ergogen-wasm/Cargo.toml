@@ -13,9 +13,13 @@ serde-wasm-bindgen = "0.6"
 ergogen-export = { path = "../ergogen-export" }
 ergogen-geometry = { path = "../ergogen-geometry" }
 ergogen-outline = { path = "../ergogen-outline" }
-ergogen-pcb = { path = "../ergogen-pcb", features = ["js-footprints-wasm"] }
+ergogen-layout = { path = "../ergogen-layout" }
+ergogen-pcb = { path = "../ergogen-pcb" }
 ergogen-parser = { path = "../ergogen-parser" }
 indexmap = "2"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+ergogen-pcb = { path = "../ergogen-pcb", features = ["js-footprints-wasm"] }

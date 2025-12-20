@@ -86,10 +86,11 @@ enum CaseDef {
     Op { target: CasePart, tool: CasePart },
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum OutlineShape {
     Rectangle { w: f64, h: f64 },
     Circle { r: f64 },
+    Region(ergogen_geometry::region::Region),
 }
 
 pub fn generate_cases_jscad(
@@ -115,10 +116,7 @@ struct CaseData {
     outline_shapes: HashMap<String, OutlineShape>,
 }
 
-fn collect_case_data(
-    prepared: &PreparedConfig,
-    case_name: &str,
-) -> Result<CaseData, JscadError> {
+fn collect_case_data(prepared: &PreparedConfig, case_name: &str) -> Result<CaseData, JscadError> {
     let cases_v = prepared
         .canonical
         .get_path("cases")
@@ -157,7 +155,7 @@ fn collect_case_data(
         if outline_shapes.contains_key(outline_name) {
             continue;
         }
-        let shape = parse_outline_shape(outline_name, outlines_map, &prepared.units)?;
+        let shape = parse_outline_shape(outline_name, outlines_map, prepared)?;
         outline_shapes.insert(outline_name.clone(), shape);
     }
 
@@ -180,21 +178,23 @@ fn parse_case_def(
         Value::Seq(seq) => {
             let mut parts = Vec::with_capacity(seq.len());
             for part in seq {
-                parts.push(parse_case_part(name, part, cases_map, outline_names, units)?);
+                parts.push(parse_case_part(
+                    name,
+                    part,
+                    cases_map,
+                    outline_names,
+                    units,
+                )?);
             }
             Ok(CaseDef::Parts(parts))
         }
         Value::Map(map) if map.contains_key("target") && map.contains_key("tool") => {
-            let target_v = map
-                .get("target")
-                .ok_or_else(|| JscadError::InvalidCase {
-                    name: name.to_string(),
-                })?;
-            let tool_v = map
-                .get("tool")
-                .ok_or_else(|| JscadError::InvalidCase {
-                    name: name.to_string(),
-                })?;
+            let target_v = map.get("target").ok_or_else(|| JscadError::InvalidCase {
+                name: name.to_string(),
+            })?;
+            let tool_v = map.get("tool").ok_or_else(|| JscadError::InvalidCase {
+                name: name.to_string(),
+            })?;
             let target = parse_case_part(name, target_v, cases_map, outline_names, units)?;
             let tool = parse_case_part(name, tool_v, cases_map, outline_names, units)?;
             Ok(CaseDef::Op { target, tool })
@@ -219,11 +219,9 @@ fn parse_case_part(
     match v {
         Value::String(s) => parse_case_part_str(case_name, s, cases_map, outline_names),
         Value::Map(map) => {
-            let name_v = map
-                .get("name")
-                .ok_or_else(|| JscadError::InvalidCasePart {
-                    name: case_name.to_string(),
-                })?;
+            let name_v = map.get("name").ok_or_else(|| JscadError::InvalidCasePart {
+                name: case_name.to_string(),
+            })?;
             let Value::String(name) = name_v else {
                 return Err(JscadError::InvalidCasePart {
                     name: case_name.to_string(),
@@ -252,7 +250,11 @@ fn parse_case_part(
                 .transpose()?
                 .unwrap_or_else(|| if what == PartWhat::Outline { 1.0 } else { 0.0 });
             let shift = parse_vec3(units, map.get("shift"), &format!("cases.{case_name}.shift"))?;
-            let rotate = parse_vec3(units, map.get("rotate"), &format!("cases.{case_name}.rotate"))?;
+            let rotate = parse_vec3(
+                units,
+                map.get("rotate"),
+                &format!("cases.{case_name}.rotate"),
+            )?;
             let operation = map
                 .get("operation")
                 .and_then(value_as_str)
@@ -308,7 +310,10 @@ fn parse_case_part_str(
     })
 }
 
-fn collect_case_order(target: &str, cases: &IndexMap<String, CaseDef>) -> Result<Vec<String>, JscadError> {
+fn collect_case_order(
+    target: &str,
+    cases: &IndexMap<String, CaseDef>,
+) -> Result<Vec<String>, JscadError> {
     let mut order = Vec::new();
     let mut visited: HashSet<String> = HashSet::new();
     fn visit(
@@ -321,11 +326,9 @@ fn collect_case_order(target: &str, cases: &IndexMap<String, CaseDef>) -> Result
         if !visited.insert(name.to_string()) {
             return Ok(());
         }
-        let def = cases
-            .get(name)
-            .ok_or_else(|| JscadError::UnknownCase {
-                name: name.to_string(),
-            })?;
+        let def = cases.get(name).ok_or_else(|| JscadError::UnknownCase {
+            name: name.to_string(),
+        })?;
         if !is_root {
             order.push(name.to_string());
         }
@@ -469,9 +472,7 @@ fn render_case_fn_v2(name: &str, def: &CaseDef) -> String {
 
     for (idx, (label, part)) in parts.iter().enumerate() {
         let part_var = format!("{name}__part_{label}");
-        out.push_str(&format!(
-            "  // creating part {label} of case {name}\n"
-        ));
+        out.push_str(&format!("  // creating part {label} of case {name}\n"));
         out.push_str(&format!("  let {part_var} = {};\n", part_fn_call(part)));
         out.push('\n');
         out.push_str("  // make sure that rotations are relative\n");
@@ -515,11 +516,13 @@ fn render_case_fn_v2(name: &str, def: &CaseDef) -> String {
 
 fn part_fn_call(part: &CasePart) -> String {
     match part.what {
-        PartWhat::Outline => format!(
-            "{}_extrude_{}_outline_fn",
-            part.name,
-            fmt_extrude_name(part.extrude)
-        ) + "()",
+        PartWhat::Outline => {
+            format!(
+                "{}_extrude_{}_outline_fn",
+                part.name,
+                fmt_extrude_name(part.extrude)
+            ) + "()"
+        }
         PartWhat::Case => format!("{}_case_fn()", part.name),
     }
 }
@@ -527,7 +530,7 @@ fn part_fn_call(part: &CasePart) -> String {
 fn parse_outline_shape(
     name: &str,
     outlines_map: &IndexMap<String, Value>,
-    units: &Units,
+    prepared: &PreparedConfig,
 ) -> Result<OutlineShape, JscadError> {
     let def = outlines_map
         .get(name)
@@ -551,26 +554,37 @@ fn parse_outline_shape(
         let what = map.get("what").and_then(value_as_str).unwrap_or("");
         match what {
             "rectangle" => {
-                let size_v = map.get("size").ok_or_else(|| JscadError::UnsupportedOutline {
-                    name: name.to_string(),
-                })?;
-                let (w, h) = parse_size(units, size_v, &format!("outlines.{name}.size"))?;
+                let size_v = map
+                    .get("size")
+                    .ok_or_else(|| JscadError::UnsupportedOutline {
+                        name: name.to_string(),
+                    })?;
+                let (w, h) = parse_size(&prepared.units, size_v, &format!("outlines.{name}.size"))?;
                 return Ok(OutlineShape::Rectangle { w, h });
             }
             "circle" => {
-                let radius_v = map.get("radius").ok_or_else(|| JscadError::UnsupportedOutline {
-                    name: name.to_string(),
-                })?;
-                let r = parse_number(units, radius_v, &format!("outlines.{name}.radius"))?;
+                let radius_v = map
+                    .get("radius")
+                    .ok_or_else(|| JscadError::UnsupportedOutline {
+                        name: name.to_string(),
+                    })?;
+                let r = parse_number(
+                    &prepared.units,
+                    radius_v,
+                    &format!("outlines.{name}.radius"),
+                )?;
                 return Ok(OutlineShape::Circle { r });
             }
             _ => continue,
         }
     }
 
-    Err(JscadError::UnsupportedOutline {
-        name: name.to_string(),
-    })
+    let region = ergogen_outline::generate_outline_region(prepared, name).map_err(|_| {
+        JscadError::UnsupportedOutline {
+            name: name.to_string(),
+        }
+    })?;
+    Ok(OutlineShape::Region(region))
 }
 
 fn value_as_str(v: &Value) -> Option<&str> {
@@ -602,6 +616,11 @@ fn render_outline_fn(name: &str, extrude: f64, shape: OutlineShape) -> Result<St
         OutlineShape::Circle { r } => {
             format!("CAG.circle({{\"center\":[0,0],\"radius\":{}}})", fmt_num(r))
         }
+        OutlineShape::Region(region) => {
+            region_to_cag(&region).ok_or_else(|| JscadError::UnsupportedOutline {
+                name: name.to_string(),
+            })?
+        }
     };
     out.push_str(&format!("    return {body}\n"));
     out.push_str(&format!(
@@ -612,7 +631,11 @@ fn render_outline_fn(name: &str, extrude: f64, shape: OutlineShape) -> Result<St
     Ok(out)
 }
 
-fn render_outline_fn_v2(name: &str, extrude: f64, shape: OutlineShape) -> Result<String, JscadError> {
+fn render_outline_fn_v2(
+    name: &str,
+    extrude: f64,
+    shape: OutlineShape,
+) -> Result<String, JscadError> {
     let mut out = String::new();
     out.push_str(&format!(
         "function {}_extrude_{}_outline_fn(){{\n",
@@ -620,19 +643,26 @@ fn render_outline_fn_v2(name: &str, extrude: f64, shape: OutlineShape) -> Result
         fmt_extrude_name(extrude)
     ));
     let body = match shape {
-        OutlineShape::Rectangle { w, h } => format!(
+        OutlineShape::Rectangle { w, h } => vec![format!(
             "const shape = rectangle({{ size: [{}, {}], center: [0, 0] }});",
             fmt_num(w),
             fmt_num(h)
-        ),
-        OutlineShape::Circle { r } => format!(
+        )],
+        OutlineShape::Circle { r } => vec![format!(
             "const shape = circle({{ radius: {}, center: [0, 0] }});",
             fmt_num(r)
-        ),
+        )],
+        OutlineShape::Region(region) => {
+            region_to_geom2(&region).ok_or_else(|| JscadError::UnsupportedOutline {
+                name: name.to_string(),
+            })?
+        }
     };
-    out.push_str("  ");
-    out.push_str(&body);
-    out.push('\n');
+    for line in body {
+        out.push_str("  ");
+        out.push_str(&line);
+        out.push('\n');
+    }
     out.push_str(&format!(
         "  return extrudeLinear({{ height: {} }}, shape);\n",
         fmt_num(extrude)
@@ -641,17 +671,97 @@ fn render_outline_fn_v2(name: &str, extrude: f64, shape: OutlineShape) -> Result
     Ok(out)
 }
 
+fn region_to_cag(region: &ergogen_geometry::region::Region) -> Option<String> {
+    let mut pos = Vec::new();
+    for pl in &region.pos {
+        if let Some(expr) = polyline_to_cag(pl) {
+            pos.push(expr);
+        }
+    }
+    if pos.is_empty() {
+        return None;
+    }
+
+    let mut expr = pos.remove(0);
+    for add in pos {
+        expr = format!("{expr}.union({add})");
+    }
+
+    for pl in &region.neg {
+        if let Some(cut) = polyline_to_cag(pl) {
+            expr = format!("{expr}.subtract({cut})");
+        }
+    }
+
+    Some(expr)
+}
+
+fn polyline_to_cag(pl: &ergogen_geometry::Polyline<f64>) -> Option<String> {
+    if pl.vertex_data.len() < 2 {
+        return None;
+    }
+    let mut pts = String::new();
+    for (idx, v) in pl.vertex_data.iter().enumerate() {
+        if idx > 0 {
+            pts.push(',');
+        }
+        pts.push_str(&format!("[{},{}]", fmt_num(v.x), fmt_num(v.y)));
+    }
+    Some(format!("new CSG.Path2D([{}]).close().innerToCAG()", pts))
+}
+
+fn region_to_geom2(region: &ergogen_geometry::region::Region) -> Option<Vec<String>> {
+    let mut pos = Vec::new();
+    for pl in &region.pos {
+        if let Some(expr) = polyline_to_polygon(pl) {
+            pos.push(expr);
+        }
+    }
+    if pos.is_empty() {
+        return None;
+    }
+
+    let mut lines = Vec::new();
+    let expr = pos.remove(0);
+    lines.push(format!("let shape = {expr};"));
+    for add in pos {
+        lines.push(format!("shape = union(shape, {add});"));
+    }
+
+    for pl in &region.neg {
+        if let Some(cut) = polyline_to_polygon(pl) {
+            lines.push(format!("shape = subtract(shape, {cut});"));
+        }
+    }
+
+    Some(lines)
+}
+
+fn polyline_to_polygon(pl: &ergogen_geometry::Polyline<f64>) -> Option<String> {
+    if pl.vertex_data.len() < 2 {
+        return None;
+    }
+    let mut pts = String::new();
+    for (idx, v) in pl.vertex_data.iter().enumerate() {
+        if idx > 0 {
+            pts.push(',');
+        }
+        pts.push_str(&format!("[{},{}]", fmt_num(v.x), fmt_num(v.y)));
+    }
+    Some(format!("polygon({{ points: [{}] }})", pts))
+}
+
 fn render_cases_v1(case_name: &str, data: CaseData) -> Result<String, JscadError> {
     let mut out = String::new();
 
     for (idx, (outline_name, extrude)) in data.outlines.iter().enumerate() {
-        let shape = data
-            .outline_shapes
-            .get(outline_name)
-            .ok_or_else(|| JscadError::UnknownOutline {
-                name: outline_name.clone(),
-            })?;
-        out.push_str(&render_outline_fn(outline_name, *extrude, *shape)?);
+        let shape =
+            data.outline_shapes
+                .get(outline_name)
+                .ok_or_else(|| JscadError::UnknownOutline {
+                    name: outline_name.clone(),
+                })?;
+        out.push_str(&render_outline_fn(outline_name, *extrude, shape.clone())?);
         if idx + 1 < data.outlines.len() {
             out.push('\n');
             out.push('\n');
@@ -691,18 +801,22 @@ fn render_cases_v2(case_name: &str, data: CaseData) -> Result<String, JscadError
     out.push_str("const { booleans, extrusions, primitives, transforms, measurements } = require('@jscad/modeling');\n");
     out.push_str("const { union, subtract, intersect } = booleans;\n");
     out.push_str("const { extrudeLinear } = extrusions;\n");
-    out.push_str("const { rectangle, circle } = primitives;\n");
+    out.push_str("const { rectangle, circle, polygon } = primitives;\n");
     out.push_str("const { translate, rotate } = transforms;\n");
     out.push_str("const { measureBoundingBox } = measurements;\n\n");
 
     for (idx, (outline_name, extrude)) in data.outlines.iter().enumerate() {
-        let shape = data
-            .outline_shapes
-            .get(outline_name)
-            .ok_or_else(|| JscadError::UnknownOutline {
-                name: outline_name.clone(),
-            })?;
-        out.push_str(&render_outline_fn_v2(outline_name, *extrude, *shape)?);
+        let shape =
+            data.outline_shapes
+                .get(outline_name)
+                .ok_or_else(|| JscadError::UnknownOutline {
+                    name: outline_name.clone(),
+                })?;
+        out.push_str(&render_outline_fn_v2(
+            outline_name,
+            *extrude,
+            shape.clone(),
+        )?);
         if idx + 1 < data.outlines.len() {
             out.push('\n');
         } else {
@@ -734,12 +848,8 @@ fn parse_number(units: &Units, v: &Value, at: &str) -> Result<f64, JscadError> {
         Value::Number(n) => Ok(*n),
         Value::String(s) => units
             .eval(at, s)
-            .map_err(|_| JscadError::InvalidNumber {
-                at: at.to_string(),
-            }),
-        _ => Err(JscadError::InvalidNumber {
-            at: at.to_string(),
-        }),
+            .map_err(|_| JscadError::InvalidNumber { at: at.to_string() }),
+        _ => Err(JscadError::InvalidNumber { at: at.to_string() }),
     }
 }
 
@@ -755,9 +865,7 @@ fn parse_size(units: &Units, v: &Value, at: &str) -> Result<(f64, f64), JscadErr
             let h = parse_number(units, &seq[1], at)?;
             Ok((w, h))
         }
-        _ => Err(JscadError::InvalidNumber {
-            at: at.to_string(),
-        }),
+        _ => Err(JscadError::InvalidNumber { at: at.to_string() }),
     }
 }
 
@@ -777,9 +885,7 @@ fn parse_vec3(units: &Units, v: Option<&Value>, at: &str) -> Result<[f64; 3], Js
             let y = parse_number(units, &seq[1], at)?;
             Ok([x, y, 0.0])
         }
-        _ => Err(JscadError::InvalidVector {
-            at: at.to_string(),
-        }),
+        _ => Err(JscadError::InvalidVector { at: at.to_string() }),
     }
 }
 
@@ -799,19 +905,10 @@ fn fmt_vec3_no_spaces(v: [f64; 3]) -> String {
 }
 
 fn fmt_vec3_spaces(v: [f64; 3]) -> String {
-    format!(
-        "[{}, {}, {}]",
-        fmt_num(v[0]),
-        fmt_num(v[1]),
-        fmt_num(v[2])
-    )
+    format!("[{}, {}, {}]", fmt_num(v[0]), fmt_num(v[1]), fmt_num(v[2]))
 }
 
 fn fmt_vec3_radians(v: [f64; 3]) -> String {
-    let rad = [
-        v[0].to_radians(),
-        v[1].to_radians(),
-        v[2].to_radians(),
-    ];
+    let rad = [v[0].to_radians(), v[1].to_radians(), v[2].to_radians()];
     fmt_vec3_no_spaces(rad)
 }

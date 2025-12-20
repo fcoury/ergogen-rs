@@ -15,7 +15,9 @@ const outlineSvg = render_svg(configYaml, "outline");
 const outputs = render_all(configYaml);
 ```
 
-Rendering APIs are available for PCB + outline exports.
+Rendering APIs are available for PCB + outline exports. `render_all` returns the
+same shape expected by the web UI (canonical/points/units, demo DXF/SVG, outlines,
+cases JSCAD, and PCBs), plus an `errors` array for per-target failures.
 
 ## JS Footprints (WASM)
 

@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use serde_json::Value as JsonValue;
 
-use crate::{PcbError};
+use crate::PcbError;
 use crate::js_runtime::JsParamSpec;
 use ergogen_parser::Value as ErgogenValue;
 
@@ -32,7 +32,9 @@ pub(crate) fn resolve_net_name(
             ErgogenValue::String(s) => Ok(s.clone()),
             ErgogenValue::Number(n) => Ok(format!("{}", n)),
             ErgogenValue::Bool(b) => Ok(b.to_string()),
-            _ => Err(PcbError::FootprintSpec(format!("invalid js net param {name}"))),
+            _ => Err(PcbError::FootprintSpec(format!(
+                "invalid js net param {name}"
+            ))),
         };
     }
     if let Some(default) = &spec.default {
@@ -81,7 +83,10 @@ pub(crate) fn resolve_designator(
     "FP".to_string()
 }
 
-pub(crate) fn next_ref(prefix: &str, refs: &mut std::collections::HashMap<String, usize>) -> String {
+pub(crate) fn next_ref(
+    prefix: &str,
+    refs: &mut std::collections::HashMap<String, usize>,
+) -> String {
     let entry = refs.entry(prefix.to_string()).or_insert(0);
     *entry += 1;
     format!("{prefix}{}", *entry)

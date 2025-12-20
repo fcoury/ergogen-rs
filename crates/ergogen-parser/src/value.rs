@@ -90,7 +90,8 @@ impl Value {
     }
 
     pub fn from_yaml_str(yaml: &str) -> Result<Self, Error> {
-        let normalized = normalize_yaml_flow_sequence_holes(yaml);
+        let normalized =
+            normalize_yaml_flow_sequence_holes(&normalize_yaml_flow_sequence_expressions(yaml));
         let v: serde_yaml::Value = serde_yaml::from_str(&normalized)?;
         Self::try_from_yaml_value(&v)
     }
@@ -194,11 +195,27 @@ fn normalize_yaml_flow_sequence_holes(input: &str) -> String {
 
         if !in_double && ch == '\'' {
             in_single = !in_single;
+            if in_single {
+                if let Some(cur) = frames.last_mut() {
+                    if cur.expect_value {
+                        cur.expect_value = false;
+                        cur.saw_any_element = true;
+                    }
+                }
+            }
             out.push(ch);
             continue;
         }
         if !in_single && ch == '"' && !prev_was_escape {
             in_double = !in_double;
+            if in_double {
+                if let Some(cur) = frames.last_mut() {
+                    if cur.expect_value {
+                        cur.expect_value = false;
+                        cur.saw_any_element = true;
+                    }
+                }
+            }
             out.push(ch);
             continue;
         }
@@ -262,6 +279,208 @@ fn normalize_yaml_flow_sequence_holes(input: &str) -> String {
     out
 }
 
+fn normalize_yaml_flow_sequence_expressions(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut in_single = false;
+    let mut in_double = false;
+    let mut prev_was_escape = false;
+    let mut idx = 0;
+
+    while idx < input.len() {
+        let ch = input[idx..].chars().next().expect("valid char");
+        let ch_len = ch.len_utf8();
+
+        if in_double && !prev_was_escape {
+            prev_was_escape = ch == '\\';
+        } else {
+            prev_was_escape = false;
+        }
+
+        if !in_double && ch == '\'' {
+            in_single = !in_single;
+            out.push(ch);
+            idx += ch_len;
+            continue;
+        }
+        if !in_single && ch == '"' && !prev_was_escape {
+            in_double = !in_double;
+            out.push(ch);
+            idx += ch_len;
+            continue;
+        }
+
+        if !in_single && !in_double && ch == '[' {
+            let (seq, consumed) = extract_flow_sequence(&input[idx..]);
+            out.push_str(&normalize_flow_sequence(&seq));
+            idx += consumed;
+            continue;
+        }
+
+        out.push(ch);
+        idx += ch_len;
+    }
+
+    out
+}
+
+fn extract_flow_sequence(input: &str) -> (String, usize) {
+    let mut depth = 0usize;
+    let mut in_single = false;
+    let mut in_double = false;
+    let mut prev_was_escape = false;
+
+    for (offset, ch) in input.char_indices() {
+        if in_double && !prev_was_escape {
+            prev_was_escape = ch == '\\';
+        } else {
+            prev_was_escape = false;
+        }
+
+        if !in_double && ch == '\'' {
+            in_single = !in_single;
+        } else if !in_single && ch == '"' && !prev_was_escape {
+            in_double = !in_double;
+        }
+
+        if in_single || in_double {
+            continue;
+        }
+
+        match ch {
+            '[' => depth += 1,
+            ']' => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    let end = offset + ch.len_utf8();
+                    return (input[..end].to_string(), end);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    (input.to_string(), input.len())
+}
+
+fn normalize_flow_sequence(seq: &str) -> String {
+    if !seq.starts_with('[') || !seq.ends_with(']') || seq.len() < 2 {
+        return seq.to_string();
+    }
+    let inner = &seq[1..seq.len() - 1];
+    let normalized = normalize_flow_sequence_content(inner);
+    format!("[{}]", normalized)
+}
+
+fn normalize_flow_sequence_content(content: &str) -> String {
+    let mut out = String::with_capacity(content.len());
+    let mut item = String::new();
+    let mut in_single = false;
+    let mut in_double = false;
+    let mut prev_was_escape = false;
+    let mut brace_depth = 0usize;
+    let mut idx = 0;
+
+    while idx < content.len() {
+        let ch = content[idx..].chars().next().expect("valid char");
+        let ch_len = ch.len_utf8();
+
+        if in_double && !prev_was_escape {
+            prev_was_escape = ch == '\\';
+        } else {
+            prev_was_escape = false;
+        }
+
+        if !in_double && ch == '\'' {
+            in_single = !in_single;
+            item.push(ch);
+            idx += ch_len;
+            continue;
+        }
+        if !in_single && ch == '"' && !prev_was_escape {
+            in_double = !in_double;
+            item.push(ch);
+            idx += ch_len;
+            continue;
+        }
+
+        if in_single || in_double {
+            item.push(ch);
+            idx += ch_len;
+            continue;
+        }
+
+        match ch {
+            '[' => {
+                let (nested, consumed) = extract_flow_sequence(&content[idx..]);
+                item.push_str(&normalize_flow_sequence(&nested));
+                idx += consumed;
+                continue;
+            }
+            '{' => {
+                brace_depth += 1;
+                item.push(ch);
+            }
+            '}' => {
+                if brace_depth > 0 {
+                    brace_depth -= 1;
+                }
+                item.push(ch);
+            }
+            ',' if brace_depth == 0 => {
+                out.push_str(&normalize_flow_item(&item));
+                out.push(',');
+                item.clear();
+            }
+            other => item.push(other),
+        }
+
+        idx += ch_len;
+    }
+
+    out.push_str(&normalize_flow_item(&item));
+    out
+}
+
+fn normalize_flow_item(item: &str) -> String {
+    let trimmed = item.trim();
+    if trimmed.is_empty() {
+        return item.to_string();
+    }
+
+    if trimmed.starts_with('"') || trimmed.starts_with('\'') {
+        return item.to_string();
+    }
+    if trimmed.starts_with('[') || trimmed.starts_with('{') || trimmed.contains(':') {
+        return item.to_string();
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    if matches!(lower.as_str(), "true" | "false" | "null" | "~") {
+        return item.to_string();
+    }
+    if trimmed.parse::<f64>().is_ok() {
+        return item.to_string();
+    }
+
+    let mut should_quote = false;
+    for ch in trimmed.chars() {
+        if ch.is_whitespace() || matches!(ch, '+' | '-' | '*' | '/' | '(' | ')') {
+            should_quote = true;
+            break;
+        }
+    }
+    if !should_quote {
+        return item.to_string();
+    }
+
+    let leading_len = item.len() - item.trim_start().len();
+    let trailing_len = item.len() - item.trim_end().len();
+    let leading = &item[..leading_len];
+    let trailing = &item[item.len() - trailing_len..];
+    let escaped = trimmed.replace('\'', "''");
+    format!("{leading}'{escaped}'{trailing}")
+}
+
 #[cfg(test)]
 mod yaml_normalize_tests {
     use super::*;
@@ -277,6 +496,37 @@ mod yaml_normalize_tests {
         assert_eq!(
             seq,
             &vec![Value::Null, Value::Number(10.0), Value::Null, Value::Null]
+        );
+    }
+
+    #[test]
+    fn normalizes_flow_sequence_expressions_to_strings() {
+        let yaml = "a: [-ks * 0.5, kp * 0.25]\n";
+        let v = Value::from_yaml_str(yaml).unwrap();
+        let a = v.get_path("a").unwrap();
+        let Value::Seq(seq) = a else {
+            panic!("a should be seq")
+        };
+        assert_eq!(
+            seq,
+            &vec![
+                Value::String("-ks * 0.5".to_string()),
+                Value::String("kp * 0.25".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn keeps_numeric_flow_sequence_values() {
+        let yaml = "a: [1, -2.5, 3]\n";
+        let v = Value::from_yaml_str(yaml).unwrap();
+        let a = v.get_path("a").unwrap();
+        let Value::Seq(seq) = a else {
+            panic!("a should be seq")
+        };
+        assert_eq!(
+            seq,
+            &vec![Value::Number(1.0), Value::Number(-2.5), Value::Number(3.0)]
         );
     }
 }

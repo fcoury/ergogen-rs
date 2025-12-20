@@ -48,7 +48,10 @@ impl Default for RenderOptions {
 }
 
 /// Converts a DXF file to PNG format.
-pub fn dxf_to_png(dxf_path: impl AsRef<Path>, opts: &RenderOptions) -> Result<Vec<u8>, Dxf2PngError> {
+pub fn dxf_to_png(
+    dxf_path: impl AsRef<Path>,
+    opts: &RenderOptions,
+) -> Result<Vec<u8>, Dxf2PngError> {
     let dxf = Dxf::parse_file(dxf_path)?;
     render_dxf_to_png(&dxf, opts)
 }
@@ -141,7 +144,14 @@ pub fn render_dxf(dxf: &Dxf, opts: &RenderOptions) -> Result<Pixmap, Dxf2PngErro
                 render_line(&mut pixmap, line, &transform_point, &paint, &stroke);
             }
             Entity::Circle(circle) => {
-                render_circle(&mut pixmap, circle, &transform_point, scale, &paint, &stroke);
+                render_circle(
+                    &mut pixmap,
+                    circle,
+                    &transform_point,
+                    scale,
+                    &paint,
+                    &stroke,
+                );
             }
             Entity::Arc(arc) => {
                 render_arc(
@@ -426,8 +436,8 @@ fn bulge_arc_points(start: Point2, end: Point2, bulge: f64, segments: usize) -> 
     let start_angle = (start.y - center_y).atan2(start.x - center_x);
     let end_angle = (end.y - center_y).atan2(end.x - center_x);
 
-    let num_points = ((segments as f64 * theta.abs() / (2.0 * std::f64::consts::PI)).ceil() as usize)
-        .max(2);
+    let num_points =
+        ((segments as f64 * theta.abs() / (2.0 * std::f64::consts::PI)).ceil() as usize).max(2);
 
     let mut points = Vec::with_capacity(num_points);
 
@@ -553,7 +563,10 @@ EOF
         let png_data = result.unwrap();
         assert!(!png_data.is_empty());
         // Check PNG signature
-        assert_eq!(&png_data[..8], &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        assert_eq!(
+            &png_data[..8],
+            &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+        );
     }
 
     #[test]

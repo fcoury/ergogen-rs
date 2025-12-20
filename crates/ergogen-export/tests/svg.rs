@@ -44,7 +44,10 @@ fn parse_svg_path(path: &str) -> Vec<Line> {
                 let y = tokens[i + 2].parse::<f64>().unwrap();
                 let next = Point2 { x, y };
                 if let Some(cur) = current {
-                    lines.push(Line { start: cur, end: next });
+                    lines.push(Line {
+                        start: cur,
+                        end: next,
+                    });
                 }
                 current = Some(next);
                 i += 3;
@@ -283,10 +286,7 @@ fn svg_from_dxf_supports_arcs_and_circles() {
 fn svg_from_dxf_supports_lwpolyline_bulges() {
     let dxf = Dxf {
         entities: vec![Entity::LwPolyline(LwPolyline {
-            vertices: vec![
-                Point2 { x: 0.0, y: 0.0 },
-                Point2 { x: 10.0, y: 0.0 },
-            ],
+            vertices: vec![Point2 { x: 0.0, y: 0.0 }, Point2 { x: 10.0, y: 0.0 }],
             bulges: vec![1.0, 0.0],
             closed: false,
         })],

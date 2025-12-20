@@ -1,18 +1,18 @@
 //! Footprints and KiCad PCB generation.
 
-mod templates;
 pub mod footprint_spec;
-mod js_footprints_shared;
-mod js_runtime;
 #[cfg(feature = "js-footprints")]
 mod js_footprints;
+mod js_footprints_shared;
 #[cfg(all(feature = "js-footprints-wasm", target_arch = "wasm32"))]
 mod js_footprints_wasm;
+mod js_runtime;
+mod templates;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use cavalier_contours::polyline::{seg_arc_radius_and_center, PlineSource};
+use cavalier_contours::polyline::{PlineSource, seg_arc_radius_and_center};
 use ergogen_core::{Point, PointMeta};
 use ergogen_geometry::region::Region;
 use ergogen_layout::{PointsOutput, anchor, parse_points};
@@ -22,12 +22,14 @@ use indexmap::IndexMap;
 use footprint_spec::{ResolvedPrimitive, parse_footprint_spec, resolve_footprint_spec};
 
 #[cfg(all(target_arch = "wasm32", feature = "js-footprints"))]
-compile_error!("Feature `js-footprints` (Boa) is not supported on wasm32; enable `js-footprints-wasm` instead.");
+compile_error!(
+    "Feature `js-footprints` (Boa) is not supported on wasm32; enable `js-footprints-wasm` instead."
+);
 use templates::{
-    KICAD5_HEADER, KICAD8_HEADER,
-    button_template, choc_template, chocmini_template, diode_template, injected_template,
-    mx_template, pad_template, promicro_template, rest_template, trace_template, trrs_template,
+    KICAD5_HEADER, KICAD8_HEADER, button_template, choc_template, chocmini_template,
+    diode_template, injected_template, mx_template, pad_template, promicro_template, rest_template,
     test_anchor_template, test_arrobj_template, test_dynamic_net_template, test_zone_template,
+    trace_template, trrs_template,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -80,8 +82,8 @@ const NET_ORDER_FROM_TO: [&str; 2] = ["from", "to"];
 const NET_ORDER_PAD: [&str; 1] = ["net"];
 const NET_ORDER_TRRS: [&str; 4] = ["A", "B", "C", "D"];
 const NET_ORDER_PROMICRO: [&str; 22] = [
-    "RAW", "GND", "RST", "VCC", "P21", "P20", "P19", "P18", "P15", "P14", "P16", "P10", "P1",
-    "P0", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9",
+    "RAW", "GND", "RST", "VCC", "P21", "P20", "P19", "P18", "P15", "P14", "P16", "P10", "P1", "P0",
+    "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9",
 ];
 const NET_ORDER_JSTPH: [&str; 2] = ["pos", "neg"];
 const NET_ORDER_OLED: [&str; 4] = ["VCC", "GND", "SDA", "SCL"];
@@ -124,10 +126,7 @@ fn default_net_order(what: &str) -> Option<&'static [&'static str]> {
     }
 }
 
-pub fn generate_kicad_pcb_from_yaml_str(
-    yaml: &str,
-    pcb_name: &str,
-) -> Result<String, PcbError> {
+pub fn generate_kicad_pcb_from_yaml_str(yaml: &str, pcb_name: &str) -> Result<String, PcbError> {
     let prepared = PreparedConfig::from_yaml_str(yaml)?;
     generate_kicad_pcb(&prepared, pcb_name)
 }
@@ -156,9 +155,7 @@ pub fn generate_kicad_pcb(prepared: &PreparedConfig, pcb_name: &str) -> Result<S
             .get("secret")
             .and_then(param_to_string)
             .unwrap_or_else(|| "".to_string());
-        return Ok(format!(
-            "Custom template override. The secret is {secret}."
-        ));
+        return Ok(format!("Custom template override. The secret is {secret}."));
     }
     if template == "custom_template" {
         let params = params_from_map(pcb_map.get("params"));
@@ -214,12 +211,8 @@ pub fn generate_kicad_pcb(prepared: &PreparedConfig, pcb_name: &str) -> Result<S
             )?;
 
             for p in placements {
-                let p = apply_adjust_if_present(
-                    def.adjust.as_ref(),
-                    p,
-                    &ref_points,
-                    &prepared.units,
-                )?;
+                let p =
+                    apply_adjust_if_present(def.adjust.as_ref(), p, &ref_points, &prepared.units)?;
                 let (module, extra) = render_footprint(
                     &def,
                     p,
@@ -260,7 +253,9 @@ pub fn generate_kicad_pcb(prepared: &PreparedConfig, pcb_name: &str) -> Result<S
 
     let (rev, company) = pcb_meta(prepared);
     if template == "kicad8" {
-        Ok(render_kicad8(pcb_name, &rev, &company, &net_order, &body, &outlines))
+        Ok(render_kicad8(
+            pcb_name, &rev, &company, &net_order, &body, &outlines,
+        ))
     } else {
         Ok(render_kicad5(
             pcb_name,
@@ -492,7 +487,9 @@ fn render_kicad5(
                 } else {
                     0
                 };
-                if let Some(lines) = name.and_then(|n| module_spacing_override_kicad5(n, occurrence)) {
+                if let Some(lines) =
+                    name.and_then(|n| module_spacing_override_kicad5(n, occurrence))
+                {
                     for line in lines {
                         out.push_str(line);
                         out.push('\n');
@@ -604,11 +601,7 @@ fn render_kicad8(
 fn render_net_list(nets: &[String]) -> String {
     let mut out = String::new();
     for (i, name) in nets.iter().enumerate() {
-        out.push_str(&format!(
-            "(net {} \"{}\")\n",
-            i + 1,
-            name
-        ));
+        out.push_str(&format!("(net {} \"{}\")\n", i + 1, name));
     }
     out.trim_end_matches('\n').to_string()
 }
@@ -759,7 +752,10 @@ fn outlines_to_kicad8(region: &Region) -> Vec<String> {
 }
 
 fn is_full_circle(p: &ergogen_geometry::Polyline<f64>) -> bool {
-    p.vertex_count() == 2 && p.is_closed() && p.at(0).bulge.abs() == 1.0 && p.at(1).bulge.abs() == 1.0
+    p.vertex_count() == 2
+        && p.is_closed()
+        && p.at(0).bulge.abs() == 1.0
+        && p.at(1).bulge.abs() == 1.0
 }
 
 fn is_axis_aligned_rect(p: &ergogen_geometry::Polyline<f64>) -> bool {
@@ -848,7 +844,12 @@ fn render_footprint(
 ) -> Result<(String, String), PcbError> {
     let params = &def.params;
     let (at_x, at_y) = to_kicad_xy(placement.x, placement.y);
-    let at = format!("{} {} {}", fmt_num(at_x), fmt_num(at_y), fmt_num(placement.r));
+    let at = format!(
+        "{} {} {}",
+        fmt_num(at_x),
+        fmt_num(at_y),
+        fmt_num(placement.r)
+    );
     let net_order = default_net_order(def.what.as_str());
 
     if def.what == "spec" {
@@ -860,21 +861,14 @@ fn render_footprint(
         let spec = spec_cache.load(&resolved_path)?;
         let mut spec_params = params.clone();
         spec_params.shift_remove("spec");
-        let resolved =
-            resolve_footprint_spec(&spec, &spec_params)
-                .map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
+        let resolved = resolve_footprint_spec(&spec, &spec_params)
+            .map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
         let module = render_spec_module(&resolved, &at, placement, nets, refs, is_kicad8);
         return Ok((module, String::new()));
     }
 
     if let Some(js_path) = resolve_js_path(&def.what, spec_search_paths) {
-        return render_js_from_path(
-            &js_path,
-            placement,
-            params,
-            refs,
-            nets,
-        );
+        return render_js_from_path(&js_path, placement, params, refs, nets);
     }
 
     match def.what.as_str() {
@@ -948,7 +942,14 @@ fn render_footprint(
             let end_v = params
                 .get("end")
                 .ok_or(PcbError::Unsupported("anchor_test missing end"))?;
-            let start = Point::new(placement.x, placement.y, placement.r, PointMeta { mirrored: placement.mirrored });
+            let start = Point::new(
+                placement.x,
+                placement.y,
+                placement.r,
+                PointMeta {
+                    mirrored: placement.mirrored,
+                },
+            );
             let end = anchor::parse_anchor(
                 end_v,
                 "pcbs.footprints.anchor_test.end",
@@ -994,15 +995,9 @@ fn render_footprint(
             let module = render_template(template, &ctx);
             Ok((module, String::new()))
         }
-        "mx" => render_template_module(
-            mx_template(params),
-            "S",
-            &at,
-            params,
-            nets,
-            refs,
-            net_order,
-        ),
+        "mx" => {
+            render_template_module(mx_template(params), "S", &at, params, nets, refs, net_order)
+        }
         "choc" => render_template_module(
             choc_template(params),
             "S",
@@ -1021,15 +1016,9 @@ fn render_footprint(
             refs,
             net_order,
         ),
-        "diode" => render_template_module(
-            diode_template(),
-            "D",
-            &at,
-            params,
-            nets,
-            refs,
-            net_order,
-        ),
+        "diode" => {
+            render_template_module(diode_template(), "D", &at, params, nets, refs, net_order)
+        }
         "button" => render_template_module(
             button_template(params),
             "B",
@@ -1066,15 +1055,9 @@ fn render_footprint(
             refs,
             net_order,
         ),
-        "injected" => render_template_module(
-            injected_template(),
-            "I",
-            &at,
-            params,
-            nets,
-            refs,
-            net_order,
-        ),
+        "injected" => {
+            render_template_module(injected_template(), "I", &at, params, nets, refs, net_order)
+        }
         "alps" | "jstph" | "jumper" | "oled" | "omron" | "rgb" | "rotary" | "scrollwheel"
         | "slider" | "via" => {
             let (template, prefix) = rest_template(def.what.as_str(), params);
@@ -1098,7 +1081,14 @@ fn render_template_module(
     } else {
         None
     };
-    let module = render_with_nets(template, at, ref_str.as_deref(), params, nets, default_net_order);
+    let module = render_with_nets(
+        template,
+        at,
+        ref_str.as_deref(),
+        params,
+        nets,
+        default_net_order,
+    );
     Ok((module, String::new()))
 }
 
@@ -1127,9 +1117,7 @@ fn resolve_spec_path(path: &str, search_paths: &[PathBuf]) -> Result<PathBuf, Pc
             return Ok(candidate);
         }
     }
-    Err(PcbError::FootprintSpecIo(format!(
-        "spec not found: {path}"
-    )))
+    Err(PcbError::FootprintSpecIo(format!("spec not found: {path}")))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1195,14 +1183,8 @@ fn render_js_from_path(
             .map_err(|e| PcbError::FootprintSpecIo(format!("{}: {e}", path.display())))?;
         let mut module = js_footprints::load_js_module(&source)?;
         let side = param_str(params, "side").unwrap_or_else(|| "F".to_string());
-        let rendered = js_footprints::render_js_footprint(
-            &mut module,
-            placement,
-            params,
-            refs,
-            nets,
-            side,
-        )?;
+        let rendered =
+            js_footprints::render_js_footprint(&mut module, placement, params, refs, nets, side)?;
         return Ok((rendered, String::new()));
     }
     #[cfg(all(feature = "js-footprints-wasm", target_arch = "wasm32"))]
@@ -1210,12 +1192,7 @@ fn render_js_from_path(
         let source = js_footprints_wasm::load_js_source(path)?;
         let side = param_str(params, "side").unwrap_or_else(|| "F".to_string());
         let rendered = js_footprints_wasm::render_js_footprint_wasm(
-            &source,
-            placement,
-            params,
-            refs,
-            nets,
-            side,
+            &source, placement, params, refs, nets, side,
         )?;
         return Ok((rendered, String::new()));
     }
@@ -1314,7 +1291,14 @@ fn render_spec_module(
     let mut pad_idx = 1usize;
     for primitive in &spec.primitives {
         match primitive {
-            ResolvedPrimitive::Pad { at, size, rotation, layers, net, number } => {
+            ResolvedPrimitive::Pad {
+                at,
+                size,
+                rotation,
+                layers,
+                net,
+                number,
+            } => {
                 let (px, py) = (at[0], at[1]);
                 let layer_list = layers.join(" ");
                 let pad_num = number.clone().unwrap_or_else(|| pad_idx.to_string());
@@ -1344,12 +1328,26 @@ fn render_spec_module(
                 }
                 pad_idx += 1;
             }
-            ResolvedPrimitive::PadThru { at, size, rotation, drill, layers, net, shape, kind, number } => {
+            ResolvedPrimitive::PadThru {
+                at,
+                size,
+                rotation,
+                drill,
+                layers,
+                net,
+                shape,
+                kind,
+                number,
+            } => {
                 let (px, py) = (at[0], at[1]);
                 let layer_list = layers.join(" ");
                 let shape = shape
                     .as_deref()
-                    .unwrap_or(if (size[0] - size[1]).abs() < 1e-6 { "circle" } else { "oval" });
+                    .unwrap_or(if (size[0] - size[1]).abs() < 1e-6 {
+                        "circle"
+                    } else {
+                        "oval"
+                    });
                 let kind = kind.as_deref().unwrap_or("thru_hole");
                 let pad_num = number.clone().unwrap_or_else(|| pad_idx.to_string());
                 let pad_num = format_pad_number(&pad_num);
@@ -1392,7 +1390,12 @@ fn render_spec_module(
                 }
                 pad_idx += 1;
             }
-            ResolvedPrimitive::Circle { center, radius, layer, width } => {
+            ResolvedPrimitive::Circle {
+                center,
+                radius,
+                layer,
+                width,
+            } => {
                 let (cx, cy) = (center[0], center[1]);
                 let (ex, ey) = (center[0] + radius, center[1]);
                 out.push_str(&format!(
@@ -1405,7 +1408,12 @@ fn render_spec_module(
                     fmt_num(*width)
                 ));
             }
-            ResolvedPrimitive::Line { start, end, layer, width } => {
+            ResolvedPrimitive::Line {
+                start,
+                end,
+                layer,
+                width,
+            } => {
                 let (sx, sy) = (start[0], start[1]);
                 let (ex, ey) = (end[0], end[1]);
                 out.push_str(&format!(
@@ -1418,7 +1426,14 @@ fn render_spec_module(
                     fmt_num(*width)
                 ));
             }
-            ResolvedPrimitive::Arc { center, radius, start_angle, angle, layer, width } => {
+            ResolvedPrimitive::Arc {
+                center,
+                radius,
+                start_angle,
+                angle,
+                layer,
+                width,
+            } => {
                 let start_vec = rotate_ccw((*radius, 0.0), *start_angle);
                 let end_vec = rotate_ccw((*radius, 0.0), *start_angle + *angle);
                 let (sx, sy) = (center[0] + start_vec.0, center[1] + start_vec.1);
@@ -1434,7 +1449,12 @@ fn render_spec_module(
                     fmt_num(*width)
                 ));
             }
-            ResolvedPrimitive::Rect { center, size, layer, width } => {
+            ResolvedPrimitive::Rect {
+                center,
+                size,
+                layer,
+                width,
+            } => {
                 let hx = size[0] / 2.0;
                 let hy = size[1] / 2.0;
                 let (sx, sy) = (center[0] - hx, center[1] - hy);
@@ -1466,7 +1486,16 @@ fn render_spec_module(
                     }
                 }
             }
-            ResolvedPrimitive::Text { at, text, layer, size, thickness, rotation, justify, hide } => {
+            ResolvedPrimitive::Text {
+                at,
+                text,
+                layer,
+                size,
+                thickness,
+                rotation,
+                justify,
+                hide,
+            } => {
                 let (tx, ty) = (at[0], at[1]);
                 let safe = escape_kicad_text(text);
                 let mut effects = format!(
@@ -1822,14 +1851,8 @@ fn placements_for_where(
         Value::Bool(false) => Ok(Vec::new()),
         other => {
             let start = Point::new(0.0, 0.0, 0.0, PointMeta::default());
-            let base = anchor::parse_anchor(
-                other,
-                "pcbs.where",
-                ref_points,
-                start.clone(),
-                units,
-                false,
-            )?;
+            let base =
+                anchor::parse_anchor(other, "pcbs.where", ref_points, start.clone(), units, false)?;
             match asym {
                 Asym::Source => Ok(vec![Placement {
                     x: base.x,
@@ -1838,7 +1861,8 @@ fn placements_for_where(
                     mirrored: base.meta.mirrored,
                 }]),
                 Asym::Clone => {
-                    let m = anchor::parse_anchor(other, "pcbs.where", ref_points, start, units, true)?;
+                    let m =
+                        anchor::parse_anchor(other, "pcbs.where", ref_points, start, units, true)?;
                     Ok(vec![Placement {
                         x: m.x,
                         y: m.y,
@@ -1847,7 +1871,8 @@ fn placements_for_where(
                     }])
                 }
                 Asym::Both => {
-                    let m = anchor::parse_anchor(other, "pcbs.where", ref_points, start, units, true)?;
+                    let m =
+                        anchor::parse_anchor(other, "pcbs.where", ref_points, start, units, true)?;
                     if (base.x - m.x).abs() < 1e-9
                         && (base.y - m.y).abs() < 1e-9
                         && (base.r - m.r).abs() < 1e-9
@@ -1970,7 +1995,10 @@ fn collect_outline_names(v: Option<&Value>) -> Vec<String> {
 fn outline_name_from_item(item: &Value) -> Option<String> {
     match item {
         Value::String(s) => Some(s.clone()),
-        Value::Map(m) => m.get("outline").and_then(value_as_str).map(|s| s.to_string()),
+        Value::Map(m) => m
+            .get("outline")
+            .and_then(value_as_str)
+            .map(|s| s.to_string()),
         _ => None,
     }
 }
@@ -2002,7 +2030,11 @@ fn fmt_num_kicad5_line(v: f64) -> String {
     let v = if v.abs() < 1e-12 { 0.0 } else { v };
     let s = format!("{:.15}", v);
     let s = s.trim_end_matches('0').trim_end_matches('.');
-    if s.is_empty() { "0".to_string() } else { s.to_string() }
+    if s.is_empty() {
+        "0".to_string()
+    } else {
+        s.to_string()
+    }
 }
 
 fn fmt_num_kicad5_outline_line(v: f64, axis_is_x: bool, has_arc: bool) -> String {
@@ -2042,7 +2074,11 @@ fn fmt_num_kicad8(v: f64) -> String {
     let v = if v.abs() < 1e-12 { 0.0 } else { v };
     let s = format!("{:.7}", v);
     let s = s.trim_end_matches('0').trim_end_matches('.');
-    if s.is_empty() { "0".to_string() } else { s.to_string() }
+    if s.is_empty() {
+        "0".to_string()
+    } else {
+        s.to_string()
+    }
 }
 
 fn fmt_num_kicad8_line(v: f64) -> String {
@@ -2054,7 +2090,11 @@ fn fmt_num_kicad8_line(v: f64) -> String {
             return format!("{}", parsed.next_down());
         }
     }
-    if trimmed.is_empty() { "0".to_string() } else { trimmed.to_string() }
+    if trimmed.is_empty() {
+        "0".to_string()
+    } else {
+        trimmed.to_string()
+    }
 }
 
 fn rotate_ccw(p: (f64, f64), angle_deg: f64) -> (f64, f64) {
@@ -2090,7 +2130,10 @@ fn eval_point(v: &Value, units: &Units) -> Result<(f64, f64), PcbError> {
         Value::Map(m) => {
             let x = m.get("x").ok_or(PcbError::Unsupported("point missing x"))?;
             let y = m.get("y").ok_or(PcbError::Unsupported("point missing y"))?;
-            Ok((eval_number(units, x, "pcbs.point.x")?, eval_number(units, y, "pcbs.point.y")?))
+            Ok((
+                eval_number(units, x, "pcbs.point.x")?,
+                eval_number(units, y, "pcbs.point.y")?,
+            ))
         }
         Value::Seq(seq) if seq.len() == 2 => Ok((
             eval_number(units, &seq[0], "pcbs.point[0]")?,
@@ -2132,7 +2175,10 @@ fn template_vars_for_point(
 
         if let Some(val) = prepared
             .canonical
-            .get_path(&format!("points.zones.{}.key.magic_value", p.meta.zone.name))
+            .get_path(&format!(
+                "points.zones.{}.key.magic_value",
+                p.meta.zone.name
+            ))
             .and_then(param_to_string)
         {
             vars.insert("magic_value".to_string(), val);

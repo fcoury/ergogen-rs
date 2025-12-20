@@ -40,9 +40,9 @@ pub fn parse_js_params(value: &JsonValue) -> Result<IndexMap<String, JsParamSpec
 fn parse_js_param_value(name: &str, value: &JsonValue) -> Result<JsParamSpec, JsRuntimeError> {
     if let Some(obj) = value.as_object() {
         if let Some(kind_val) = obj.get("type") {
-            let kind_str = kind_val
-                .as_str()
-                .ok_or_else(|| JsRuntimeError::ParamInvalid(name.to_string(), "type must be string"))?;
+            let kind_str = kind_val.as_str().ok_or_else(|| {
+                JsRuntimeError::ParamInvalid(name.to_string(), "type must be string")
+            })?;
             let kind = match kind_str {
                 "net" => JsParamKind::Net,
                 "number" => JsParamKind::Number,
@@ -53,9 +53,10 @@ fn parse_js_param_value(name: &str, value: &JsonValue) -> Result<JsParamSpec, Js
                     return Err(JsRuntimeError::ParamInvalid(
                         name.to_string(),
                         "unknown type",
-                    ))
+                    ));
                 }
             };
+            let has_value = obj.contains_key("value");
             let default = obj.get("value").cloned().filter(|v| !v.is_null());
             if let Some(default) = &default {
                 if !default_matches_kind(kind, default) {
@@ -67,7 +68,7 @@ fn parse_js_param_value(name: &str, value: &JsonValue) -> Result<JsParamSpec, Js
             }
             Ok(JsParamSpec {
                 kind,
-                required: default.is_none(),
+                required: default.is_none() && !has_value,
                 default,
             })
         } else {
@@ -83,16 +84,17 @@ fn parse_js_param_value(name: &str, value: &JsonValue) -> Result<JsParamSpec, Js
             JsonValue::Bool(_) => JsParamKind::Boolean,
             JsonValue::Array(_) => JsParamKind::Array,
             JsonValue::Null => {
-                return Err(JsRuntimeError::ParamInvalid(
-                    name.to_string(),
-                    "null requires explicit type",
-                ))
+                return Ok(JsParamSpec {
+                    kind: JsParamKind::Net,
+                    required: false,
+                    default: None,
+                });
             }
             _ => {
                 return Err(JsRuntimeError::ParamInvalid(
                     name.to_string(),
                     "unsupported default type",
-                ))
+                ));
             }
         };
         Ok(JsParamSpec {
@@ -151,7 +153,11 @@ impl<'a> JsContext<'a> {
             r: placement.r,
             rot: placement.r,
             ref_str,
-            ref_hide: if ref_hide { "hide".to_string() } else { "".to_string() },
+            ref_hide: if ref_hide {
+                "hide".to_string()
+            } else {
+                "".to_string()
+            },
             side,
             at_x,
             at_y,
@@ -261,7 +267,13 @@ mod tests {
             mirrored: false,
         };
         let mut nets = NetIndex::default();
-        let ctx = JsContext::new(placement, "U1".to_string(), true, "F".to_string(), &mut nets);
+        let ctx = JsContext::new(
+            placement,
+            "U1".to_string(),
+            true,
+            "F".to_string(),
+            &mut nets,
+        );
 
         assert_eq!(ctx.at(), "(at 10 -20 90)");
         assert_eq!(ctx.r(), 90.0);
@@ -284,7 +296,13 @@ mod tests {
             mirrored: false,
         };
         let mut nets = NetIndex::default();
-        let mut ctx = JsContext::new(placement, "MCU1".to_string(), false, "F".to_string(), &mut nets);
+        let mut ctx = JsContext::new(
+            placement,
+            "MCU1".to_string(),
+            false,
+            "F".to_string(),
+            &mut nets,
+        );
 
         let local = ctx.local_net("24");
         assert_eq!(local.name, "MCU1_24");

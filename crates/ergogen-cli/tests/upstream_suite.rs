@@ -135,7 +135,10 @@ fn try_compare_outline_dxf(yaml: &str, _base: &str, expected_path: &Path) -> Res
     Ok(())
 }
 
-fn try_compare_points_demo_dxf(prepared: &PreparedConfig, expected_path: &Path) -> Result<(), String> {
+fn try_compare_points_demo_dxf(
+    prepared: &PreparedConfig,
+    expected_path: &Path,
+) -> Result<(), String> {
     let points = parse_points(&prepared.canonical, &prepared.units).map_err(|e| e.to_string())?;
     let mut entities: Vec<Entity> = Vec::new();
 
@@ -190,11 +193,7 @@ fn try_compare_kicad_pcb(yaml: &str, expected_path: &Path) -> Result<(), String>
     let got = generate_kicad_pcb_from_yaml_str(yaml, pcb_name).map_err(|e| e.to_string())?;
     let expected = std::fs::read_to_string(expected_path).map_err(|e| e.to_string())?;
 
-    let norm = |s: &str| {
-        s.replace("\r\n", "\n")
-            .trim_end_matches('\n')
-            .to_string()
-    };
+    let norm = |s: &str| s.replace("\r\n", "\n").trim_end_matches('\n').to_string();
 
     let got = norm(&got);
     let expected = norm(&expected);
@@ -224,11 +223,7 @@ fn try_compare_case_jscad(prepared: &PreparedConfig, expected_path: &Path) -> Re
     );
     std::fs::write(&out_path, &got).unwrap();
 
-    let norm = |s: &str| {
-        s.replace("\r\n", "\n")
-            .trim_end_matches('\n')
-            .to_string()
-    };
+    let norm = |s: &str| s.replace("\r\n", "\n").trim_end_matches('\n').to_string();
 
     if norm(&got) != norm(&expected) {
         return Err("cases JSCAD output mismatch".to_string());

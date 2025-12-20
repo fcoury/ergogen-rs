@@ -1,6 +1,6 @@
-use ergogen_outline::generate_outline_region_from_yaml_str;
-use ergogen_export::dxf_geom::dxf_from_region;
 use cavalier_contours::polyline::PlineSource;
+use ergogen_export::dxf_geom::dxf_from_region;
+use ergogen_outline::generate_outline_region_from_yaml_str;
 
 fn main() {
     let path = std::env::args().nth(1).expect("yaml path");
@@ -73,13 +73,16 @@ fn main() {
         }
     }
     let dxf = dxf_from_region(&region).unwrap();
-    let mut line=0; let mut arc=0; let mut circle=0; let mut lw=0;
+    let mut line = 0;
+    let mut arc = 0;
+    let mut circle = 0;
+    let mut lw = 0;
     for e in dxf.entities {
         match e {
-            ergogen_export::dxf::Entity::Line(_) => line+=1,
-            ergogen_export::dxf::Entity::Arc(_) => arc+=1,
-            ergogen_export::dxf::Entity::Circle(_) => circle+=1,
-            ergogen_export::dxf::Entity::LwPolyline(_) => lw+=1,
+            ergogen_export::dxf::Entity::Line(_) => line += 1,
+            ergogen_export::dxf::Entity::Arc(_) => arc += 1,
+            ergogen_export::dxf::Entity::Circle(_) => circle += 1,
+            ergogen_export::dxf::Entity::LwPolyline(_) => lw += 1,
             ergogen_export::dxf::Entity::Unsupported(_) => {}
         }
     }

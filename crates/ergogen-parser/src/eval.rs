@@ -135,11 +135,7 @@ fn insert_implicit_multiplication(expr: &str) -> String {
             if s.starts_with('.') {
                 s.insert(0, '0');
             }
-            (
-                Tok::Number,
-                s,
-                None,
-            )
+            (Tok::Number, s, None)
         } else if is_ident_start(c) {
             let start = i;
             i += 1;

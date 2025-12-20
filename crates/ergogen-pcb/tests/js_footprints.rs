@@ -16,9 +16,7 @@ fn fixture_dir() -> PathBuf {
 }
 
 fn normalize(s: &str) -> String {
-    s.replace("\r\n", "\n")
-        .trim_end_matches('\n')
-        .to_string()
+    s.replace("\r\n", "\n").trim_end_matches('\n').to_string()
 }
 
 #[cfg(feature = "js-footprints")]
@@ -53,6 +51,10 @@ fn js_footprint_fixtures_match_golden_kicad_pcbs() {
         }
 
         let expected = std::fs::read_to_string(&expected_path).unwrap();
-        assert_eq!(normalize(&got), normalize(&expected), "fixture {stem} mismatch");
+        assert_eq!(
+            normalize(&got),
+            normalize(&expected),
+            "fixture {stem} mismatch"
+        );
     }
 }
