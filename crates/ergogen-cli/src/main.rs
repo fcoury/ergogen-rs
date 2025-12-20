@@ -1,9 +1,13 @@
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use clap::{Args, Parser, Subcommand};
 use ergogen_dxf2png::{RenderOptions, save_dxf_as_png};
 
+mod error;
 mod render;
+
+use error::{CliError, ErrorCode};
 
 #[derive(Parser)]
 #[command(name = "ergogen")]
@@ -74,8 +78,22 @@ struct RenderArgs {
     clean: bool,
 }
 
-fn main() {
-    let cli = Cli::parse();
+fn main() -> ExitCode {
+    run()
+}
+
+fn run() -> ExitCode {
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(e) => {
+            let _ = e.print();
+            let code = match e.kind() {
+                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion => 0,
+                _ => ErrorCode::Usage as u8,
+            };
+            return ExitCode::from(code);
+        }
+    };
 
     match cli.command {
         Commands::Dxf2png {
@@ -90,15 +108,27 @@ fn main() {
         } => {
             let output = output.unwrap_or_else(|| input.with_extension("png"));
 
-            let background = parse_hex_color(&bg).unwrap_or_else(|e| {
-                eprintln!("Invalid background color '{}': {}", bg, e);
-                std::process::exit(1);
-            });
+            let background = match parse_hex_color(&bg) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!(
+                        "{}",
+                        CliError::usage(format!("Invalid background color '{bg}': {e}"))
+                    );
+                    return ExitCode::from(ErrorCode::Usage as u8);
+                }
+            };
 
-            let stroke_color = parse_hex_color(&stroke).unwrap_or_else(|e| {
-                eprintln!("Invalid stroke color '{}': {}", stroke, e);
-                std::process::exit(1);
-            });
+            let stroke_color = match parse_hex_color(&stroke) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!(
+                        "{}",
+                        CliError::usage(format!("Invalid stroke color '{stroke}': {e}"))
+                    );
+                    return ExitCode::from(ErrorCode::Usage as u8);
+                }
+            };
 
             let opts = RenderOptions {
                 width,
@@ -113,10 +143,11 @@ fn main() {
             match save_dxf_as_png(&input, &output, &opts) {
                 Ok(()) => {
                     println!("Converted {} -> {}", input.display(), output.display());
+                    ExitCode::SUCCESS
                 }
                 Err(e) => {
-                    eprintln!("Error: {}", e);
-                    std::process::exit(1);
+                    eprintln!("{}", CliError::input(format!("Error: {e}")));
+                    ExitCode::from(ErrorCode::Input as u8)
                 }
             }
         }
@@ -126,12 +157,13 @@ fn main() {
             jscad_v2,
             debug,
             clean,
-        }) => {
-            if let Err(e) = render::run_render(input, output, debug, clean, jscad_v2) {
-                eprintln!("Error: {e}");
-                std::process::exit(1);
+        }) => match render::run_render(input, output, debug, clean, jscad_v2) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                eprintln!("Error: {err}");
+                ExitCode::from(err.code as u8)
             }
-        }
+        },
     }
 }
 
