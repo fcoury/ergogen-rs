@@ -113,6 +113,13 @@ When fixtures are imported, record:
     - Open `fixtures/m7/pcbs/spec_visual___pcbs_pcb.kicad_pcb` and confirm arc sweeps 90° from the +X axis and the label is rotated +30° and hidden.
     - Open `fixtures/m7/pcbs/spec_kicad8_rect___pcbs_pcb.kicad_pcb` in KiCad 8 and confirm the silk rectangle is emitted as `fp_rect`.
 
+### M8
+
+- Knuckles “assets-level” parity fixture (JS footprints + outline + KiCad output):
+  - `fixtures/m8/knuckles/knuckles_assets.yaml`
+  - `fixtures/m8/knuckles/knuckles_assets___outlines_pcb_dxf.dxf`
+  - `fixtures/m8/knuckles/knuckles_assets___pcbs_pcb.kicad_pcb`
+
 ### Upstream (Full Test Suite Import)
 
 - Upstream repo: `git@github.com:ergogen/ergogen.git`

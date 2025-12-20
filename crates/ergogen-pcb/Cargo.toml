@@ -21,3 +21,6 @@ serde-wasm-bindgen = { version = "0.6", optional = true }
 [features]
 js-footprints = ["boa_engine"]
 js-footprints-wasm = ["wasm-bindgen", "js-sys", "serde-wasm-bindgen"]
+
+[dev-dependencies]
+ergogen-export = { path = "../ergogen-export" }

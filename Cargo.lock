@@ -558,6 +558,7 @@ dependencies = [
  "boa_engine",
  "cavalier_contours",
  "ergogen-core",
+ "ergogen-export",
  "ergogen-geometry",
  "ergogen-layout",
  "ergogen-outline",

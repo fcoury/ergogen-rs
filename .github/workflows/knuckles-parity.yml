@@ -1,0 +1,42 @@
+name: Knuckles Parity
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 3 * * *"
+
+jobs:
+  knuckles-parity:
+    runs-on: ubuntu-latest
+    # To gate on a PR label later, uncomment and adjust:
+    # if: github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'run-knuckles-parity')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Generate upstream baselines (JS ergogen)
+        env:
+          ERGOGEN_UPSTREAM_CMD: "npx -y ergogen@4.1.0"
+        run: |
+          set -euo pipefail
+          ./scripts/update-upstream-baselines.sh \
+            8286e18f18ac064aa6d2ebca9c449bf2f6ba4d37 \
+            fixtures/m8/knuckles/knuckles_assets.yaml \
+            knuckles_assets
+
+      - name: Compare Rust outputs to goldens + upstream
+        env:
+          UPSTREAM_BASELINE_DIR: fixtures/upstream-baselines/8286e18f18ac064aa6d2ebca9c449bf2f6ba4d37/knuckles_assets
+        run: cargo test -p ergogen-pcb --features js-footprints --test knuckles_parity
+

@@ -1,0 +1,42 @@
+meta:
+  name: knuckles_assets
+  version: v0.0
+  author: Ergogen Tests
+
+points:
+  zones:
+    # Minimal point set (single point at origin) so outline placement via `where: true` works.
+    matrix: {}
+
+outlines:
+  pcb:
+    - what: rectangle
+      where: true
+      size: [100, 80]
+
+pcbs:
+  pcb:
+    template: kicad8
+    footprints_search_paths:
+      - knuckles/ergogen/footprints
+    outlines:
+      main:
+        outline: pcb
+    footprints:
+      - what: ceoloide/mounting_hole_npth
+        params:
+          hole_size: "2.2"
+          hole_drill: "2.2"
+          side: F
+        adjust:
+          shift: [0, 0]
+      - what: ceoloide/diode_tht_sod123
+        params:
+          side: F
+          reversible: false
+          include_tht: false
+          from: NET1
+          to: NET2
+        adjust:
+          shift: [10, 0]
+
