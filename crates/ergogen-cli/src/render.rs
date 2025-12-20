@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use ergogen_export::dxf::{Dxf, Entity, Line, NormalizeOptions};
 use ergogen_export::dxf_geom::dxf_from_region;
-use ergogen_export::jscad::generate_cases_jscad;
+use ergogen_export::jscad::{generate_cases_jscad, generate_cases_jscad_v2};
 use ergogen_export::svg::{SvgError, svg_from_dxf};
 use ergogen_layout::{PointsOutput, parse_points};
 use ergogen_outline::generate_outline_region;
@@ -19,7 +19,13 @@ fn fixture_dxf_opts() -> NormalizeOptions {
     }
 }
 
-pub fn run_render(input: PathBuf, output: PathBuf, debug: bool, clean: bool) -> Result<(), String> {
+pub fn run_render(
+    input: PathBuf,
+    output: PathBuf,
+    debug: bool,
+    clean: bool,
+    jscad_v2: bool,
+) -> Result<(), String> {
     let orig_cwd = std::env::current_dir().map_err(|e| e.to_string())?;
     let input = absolutize_path(&orig_cwd, &input);
     let output = absolutize_path(&orig_cwd, &output);
@@ -53,7 +59,7 @@ pub fn run_render(input: PathBuf, output: PathBuf, debug: bool, clean: bool) -> 
         write_pcb_outputs(&output, &prepared, &pcb_names)?;
     }
     if !case_names.is_empty() {
-        write_case_outputs(&output, &prepared, &case_names)?;
+        write_case_outputs(&output, &prepared, &case_names, jscad_v2)?;
     }
 
     Ok(())
@@ -231,6 +237,7 @@ fn write_case_outputs(
     output: &Path,
     prepared: &PreparedConfig,
     names: &[String],
+    write_v2: bool,
 ) -> Result<(), String> {
     let dir = output.join("cases");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -238,6 +245,12 @@ fn write_case_outputs(
     for name in names {
         let jscad = generate_cases_jscad(prepared, name).map_err(|e| e.to_string())?;
         std::fs::write(dir.join(format!("{name}.jscad")), jscad).map_err(|e| e.to_string())?;
+
+        if write_v2 {
+            let jscad_v2 = generate_cases_jscad_v2(prepared, name).map_err(|e| e.to_string())?;
+            std::fs::write(dir.join(format!("{name}.v2.jscad")), jscad_v2)
+                .map_err(|e| e.to_string())?;
+        }
     }
 
     Ok(())

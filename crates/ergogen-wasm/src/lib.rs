@@ -36,6 +36,8 @@ struct OutlineOutput {
 #[derive(Serialize)]
 struct CaseOutput {
     jscad: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    jscad_v2: Option<String>,
 }
 fn to_js_error(kind: &str, message: String) -> JsValue {
     let err = ErgogenError {
@@ -132,11 +134,34 @@ pub fn render_all(config_yaml: &str) -> Result<JsValue, JsValue> {
         .and_then(|v| v.as_map())
     {
         for name in map.keys() {
+            let mut v1: Option<String> = None;
+            let mut v2: Option<String> = None;
+
             match ergogen_export::jscad::generate_cases_jscad(&prepared, name) {
-                Ok(jscad) => {
-                    cases.insert(name.clone(), CaseOutput { jscad });
-                }
+                Ok(jscad) => v1 = Some(jscad),
                 Err(err) => push_error(&mut errors, "case", name, format!("{err:?}")),
+            }
+            match ergogen_export::jscad::generate_cases_jscad_v2(&prepared, name) {
+                Ok(jscad) => v2 = Some(jscad),
+                Err(err) => push_error(&mut errors, "case_v2", name, format!("{err:?}")),
+            }
+
+            if let Some(jscad) = v1 {
+                cases.insert(
+                    name.clone(),
+                    CaseOutput {
+                        jscad,
+                        jscad_v2: v2,
+                    },
+                );
+            } else if v2.is_some() {
+                cases.insert(
+                    name.clone(),
+                    CaseOutput {
+                        jscad: String::new(),
+                        jscad_v2: v2,
+                    },
+                );
             }
         }
     }
@@ -194,6 +219,14 @@ pub fn render_svg(config_yaml: &str, outline_name: &str) -> Result<String, JsVal
 #[wasm_bindgen]
 pub fn render_outlines(config_yaml: &str, outline_name: &str) -> Result<String, JsValue> {
     render_dxf(config_yaml, outline_name)
+}
+
+#[wasm_bindgen]
+pub fn render_case_jscad_v2(config_yaml: &str, case_name: &str) -> Result<String, JsValue> {
+    let prepared = PreparedConfig::from_yaml_str(config_yaml)
+        .map_err(|e| to_js_error("parser", e.to_string()))?;
+    ergogen_export::jscad::generate_cases_jscad_v2(&prepared, case_name)
+        .map_err(|e| to_js_error("case_v2", e.to_string()))
 }
 
 fn demo_from_points(points: &PointsOutput) -> Result<DemoOutput, String> {

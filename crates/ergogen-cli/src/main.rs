@@ -61,6 +61,10 @@ struct RenderArgs {
     #[arg(short, long, default_value = "output")]
     output: PathBuf,
 
+    /// Additionally write modern JSCAD v2 outputs (compatible with jscad.app)
+    #[arg(long)]
+    jscad_v2: bool,
+
     /// Include debug outputs (source/, points/, and `_` prefixed definitions)
     #[arg(long)]
     debug: bool,
@@ -119,10 +123,11 @@ fn main() {
         Commands::Render(RenderArgs {
             input,
             output,
+            jscad_v2,
             debug,
             clean,
         }) => {
-            if let Err(e) = render::run_render(input, output, debug, clean) {
+            if let Err(e) = render::run_render(input, output, debug, clean, jscad_v2) {
                 eprintln!("Error: {e}");
                 std::process::exit(1);
             }
