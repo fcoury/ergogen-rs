@@ -217,15 +217,18 @@ fn make_local_net_fn(js_ctx: &mut JsContext<'_>) -> NativeFunction {
 #[allow(clippy::unnecessary_cast)]
 fn make_global_net_fn(js_ctx: &mut JsContext<'_>) -> NativeFunction {
     let ptr: *mut JsContext<'static> = js_ctx as *mut JsContext<'_> as *mut JsContext<'static>;
-    NativeFunction::from_copy_closure(move |_, args, ctx| {
+    NativeFunction::from_copy_closure(move |_, args, _ctx| {
         let name = args
             .first()
             .and_then(|v| v.as_string())
             .map(|s| s.to_std_string().unwrap_or_default())
             .unwrap_or_default();
         let js_ctx = unsafe { &mut *ptr };
+        // Upstream `p.global_net(name)` is typically used where KiCad expects a numeric net id
+        // (e.g. `(segment ... (net <id>))`), unlike net params / `local_net` which are used where
+        // KiCad expects a full `(net <id> "<name>")` s-expression.
         let net = js_ctx.global_net(&name);
-        net_to_js(ctx, net)
+        Ok(JsValue::from(net.index as f64))
     })
 }
 
@@ -282,7 +285,7 @@ module.exports = {
     net_param: { type: "net", value: "GND" },
     num: { type: "number", value: 2 }
   },
-  body: p => `${p.at} ${p.xy(1, 2)} ${p.local_net("A")} ${p.global_net("B")} ${p.net_param} ${p.num}`
+  body: p => `${p.at} ${p.xy(1, 2)} ${p.local_net("A")} GN=${p.global_net("B")} ${p.net_param} ${p.num}`
 };
 "#;
         let mut module = load_js_module(source).unwrap();
@@ -308,7 +311,7 @@ module.exports = {
         assert!(rendered.contains("(at "));
         assert!(rendered.contains("1 2"));
         assert!(rendered.contains("\"FP1_A\""));
-        assert!(rendered.contains("\"B\""));
+        assert!(rendered.contains("GN=3"));
         assert!(rendered.contains("\"GND\""));
     }
 }

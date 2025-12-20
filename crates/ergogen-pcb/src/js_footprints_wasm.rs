@@ -184,7 +184,8 @@ fn make_global_net_fn(nets_ptr: *mut NetIndex) -> Closure<dyn FnMut(JsValue) -> 
     Closure::wrap(Box::new(move |name: JsValue| -> JsValue {
         let raw = js_value_to_string(name);
         let net = unsafe { net_from_name(&mut *nets_ptr, raw) };
-        net_to_js(net).unwrap_or_else(|_| JsValue::NULL)
+        // See Boa implementation: `global_net` is most often used where KiCad expects a numeric id.
+        JsValue::from_f64(net.index as f64)
     }))
 }
 
