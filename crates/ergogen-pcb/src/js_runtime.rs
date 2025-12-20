@@ -56,19 +56,20 @@ fn parse_js_param_value(name: &str, value: &JsonValue) -> Result<JsParamSpec, Js
                     ));
                 }
             };
-            let has_value = obj.contains_key("value");
-            let default = obj.get("value").cloned().filter(|v| !v.is_null());
-            if let Some(default) = &default {
-                if !default_matches_kind(kind, default) {
-                    return Err(JsRuntimeError::ParamInvalid(
-                        name.to_string(),
-                        "default type mismatch",
-                    ));
-                }
+            let value_field = obj.get("value");
+            let required = value_field.is_none() || value_field.is_some_and(|v| v.is_null());
+            let default = value_field.cloned().filter(|v| !v.is_null());
+            if let Some(default) = &default
+                && !default_matches_kind(kind, default)
+            {
+                return Err(JsRuntimeError::ParamInvalid(
+                    name.to_string(),
+                    "default type mismatch",
+                ));
             }
             Ok(JsParamSpec {
                 kind,
-                required: default.is_none() && !has_value,
+                required,
                 default,
             })
         } else {

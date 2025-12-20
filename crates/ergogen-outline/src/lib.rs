@@ -1190,11 +1190,11 @@ fn parse_anchor_with_key_meta(
     let mut width = start.width;
     let mut height = start.height;
 
-    if let Some(ref_name) = anchor_ref_string(raw) {
-        if let Some(p) = points.get(ref_name) {
-            width = p.meta.width;
-            height = p.meta.height;
-        }
+    if let Some(ref_name) = anchor_ref_string(raw)
+        && let Some(p) = points.get(ref_name)
+    {
+        width = p.meta.width;
+        height = p.meta.height;
     }
 
     Ok(AnchorWithKeyMeta {
@@ -1204,7 +1204,7 @@ fn parse_anchor_with_key_meta(
     })
 }
 
-fn anchor_ref_string<'a>(raw: &'a Value) -> Option<&'a str> {
+fn anchor_ref_string(raw: &Value) -> Option<&str> {
     match raw {
         Value::String(s) => Some(s.as_str()),
         Value::Map(m) => match m.get("ref") {
@@ -1289,11 +1289,9 @@ fn rotate_about_origin(x: f64, y: f64, deg: f64) -> (f64, f64) {
     (x * c - y * s, x * s + y * c)
 }
 
-fn rect_corners(
-    center: (f64, f64),
-    size: (f64, f64),
-    rotation_deg: f64,
-) -> ((f64, f64), (f64, f64), (f64, f64), (f64, f64)) {
+type RectCorners = ((f64, f64), (f64, f64), (f64, f64), (f64, f64));
+
+fn rect_corners(center: (f64, f64), size: (f64, f64), rotation_deg: f64) -> RectCorners {
     let (cx, cy) = center;
     let (w, h) = size;
     let hw = w / 2.0;

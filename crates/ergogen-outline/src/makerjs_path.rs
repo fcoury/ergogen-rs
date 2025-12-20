@@ -1,3 +1,5 @@
+#![allow(clippy::excessive_precision, clippy::inconsistent_digit_grouping)]
+
 use std::f64::consts::PI;
 
 use ergogen_geometry::{PlineVertex, Polyline};
@@ -645,13 +647,13 @@ fn get_largest_arc(seed: &BezierSeed, start_t: f64, end_t: f64, accuracy: f64) -
             upper = test;
         }
 
-        if lower.t == upper.t {
-            if let Some(a) = last_good {
-                return ArcOrLine::Arc {
-                    arc: a,
-                    end_t: lower.t,
-                };
-            }
+        if lower.t == upper.t
+            && let Some(a) = last_good
+        {
+            return ArcOrLine::Arc {
+                arc: a,
+                end_t: lower.t,
+            };
         }
 
         if !accepted

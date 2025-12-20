@@ -577,10 +577,11 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
                     .get("kind")
                     .and_then(value_as_str)
                     .map(|s| s.to_string());
-                if let Some(kind) = &kind {
-                    if kind != "thru_hole" && kind != "np_thru_hole" {
-                        return Err(FootprintSpecError::Invalid("primitives.pad_thru.kind"));
-                    }
+                if let Some(kind) = &kind
+                    && kind != "thru_hole"
+                    && kind != "np_thru_hole"
+                {
+                    return Err(FootprintSpecError::Invalid("primitives.pad_thru.kind"));
                 }
                 let number = map
                     .get("number")

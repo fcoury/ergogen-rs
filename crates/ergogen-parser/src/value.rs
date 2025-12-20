@@ -164,6 +164,7 @@ fn normalize_yaml_flow_sequence_holes(input: &str) -> String {
     struct Frame {
         expect_value: bool,
         saw_any_element: bool,
+        last_sep_was_hole: bool,
     }
 
     let mut out = String::with_capacity(input.len());
@@ -180,6 +181,7 @@ fn normalize_yaml_flow_sequence_holes(input: &str) -> String {
                 frames.push(Frame {
                     expect_value: true,
                     saw_any_element: false,
+                    last_sep_was_hole: false,
                 });
             }
             out.push(ch);
@@ -195,26 +197,24 @@ fn normalize_yaml_flow_sequence_holes(input: &str) -> String {
 
         if !in_double && ch == '\'' {
             in_single = !in_single;
-            if in_single {
-                if let Some(cur) = frames.last_mut() {
-                    if cur.expect_value {
-                        cur.expect_value = false;
-                        cur.saw_any_element = true;
-                    }
-                }
+            if in_single
+                && let Some(cur) = frames.last_mut()
+                && cur.expect_value
+            {
+                cur.expect_value = false;
+                cur.saw_any_element = true;
             }
             out.push(ch);
             continue;
         }
         if !in_single && ch == '"' && !prev_was_escape {
             in_double = !in_double;
-            if in_double {
-                if let Some(cur) = frames.last_mut() {
-                    if cur.expect_value {
-                        cur.expect_value = false;
-                        cur.saw_any_element = true;
-                    }
-                }
+            if in_double
+                && let Some(cur) = frames.last_mut()
+                && cur.expect_value
+            {
+                cur.expect_value = false;
+                cur.saw_any_element = true;
             }
             out.push(ch);
             continue;
@@ -239,21 +239,34 @@ fn normalize_yaml_flow_sequence_holes(input: &str) -> String {
                 frames.push(Frame {
                     expect_value: true,
                     saw_any_element: false,
+                    last_sep_was_hole: false,
                 });
                 out.push(ch);
             }
             ',' => {
-                if cur.expect_value {
+                let was_hole = cur.expect_value;
+                if was_hole {
                     out.push_str("null");
                     cur.saw_any_element = true;
                 }
                 out.push(ch);
                 cur.expect_value = true;
+                cur.last_sep_was_hole = was_hole;
                 *frames.last_mut().unwrap() = cur;
             }
             ']' => {
                 if cur.expect_value && cur.saw_any_element {
-                    out.push_str("null");
+                    if cur.last_sep_was_hole {
+                        out.push_str("null");
+                    } else {
+                        // Upstream configs sometimes include trailing commas in flow sequences, e.g.
+                        // `[1, 2,]` or with whitespace/newlines after the comma. `serde_yaml`
+                        // rejects these, so we conservatively remove the trailing comma.
+                        let trimmed_len = out.trim_end_matches(char::is_whitespace).len();
+                        if trimmed_len > 0 && out.as_bytes()[trimmed_len - 1] == b',' {
+                            out.remove(trimmed_len - 1);
+                        }
+                    }
                 }
                 out.push(ch);
                 frames.pop();
@@ -421,9 +434,7 @@ fn normalize_flow_sequence_content(content: &str) -> String {
                 item.push(ch);
             }
             '}' => {
-                if brace_depth > 0 {
-                    brace_depth -= 1;
-                }
+                brace_depth = brace_depth.saturating_sub(1);
                 item.push(ch);
             }
             ',' if brace_depth == 0 => {
@@ -497,6 +508,25 @@ mod yaml_normalize_tests {
             seq,
             &vec![Value::Null, Value::Number(10.0), Value::Null, Value::Null]
         );
+    }
+
+    #[test]
+    fn strips_trailing_commas_in_flow_sequences() {
+        let yaml = "a: [1, 2,]\n";
+        let v = Value::from_yaml_str(yaml).unwrap();
+        let a = v.get_path("a").unwrap();
+        let Value::Seq(seq) = a else {
+            panic!("a should be seq")
+        };
+        assert_eq!(seq, &vec![Value::Number(1.0), Value::Number(2.0)]);
+
+        let yaml = "a: [\n  1,\n  2,\n]\n";
+        let v = Value::from_yaml_str(yaml).unwrap();
+        let a = v.get_path("a").unwrap();
+        let Value::Seq(seq) = a else {
+            panic!("a should be seq")
+        };
+        assert_eq!(seq, &vec![Value::Number(1.0), Value::Number(2.0)]);
     }
 
     #[test]

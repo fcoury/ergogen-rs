@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use ergogen_export::dxf::NormalizeOptions;
 use ergogen_export::dxf_geom::dxf_from_region;
-use ergogen_export::jscad::generate_cases_jscad_v2;
+use ergogen_export::jscad::generate_cases_jscad;
 use ergogen_export::svg::svg_from_dxf;
 use ergogen_outline::generate_outline_region;
 use ergogen_parser::{PreparedConfig, Value};
@@ -79,7 +79,7 @@ fn main() {
             if name.starts_with('_') {
                 continue;
             }
-            let jscad = generate_cases_jscad_v2(&prepared, name).expect("generate jscad");
+            let jscad = generate_cases_jscad(&prepared, name).expect("generate jscad");
             let out_path = cases_dir.join(format!("{name}.jscad"));
             std::fs::write(&out_path, jscad).expect("write jscad file");
         }

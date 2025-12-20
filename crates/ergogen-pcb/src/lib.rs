@@ -3,9 +3,17 @@
 pub mod footprint_spec;
 #[cfg(feature = "js-footprints")]
 mod js_footprints;
+#[cfg(any(
+    feature = "js-footprints",
+    all(feature = "js-footprints-wasm", target_arch = "wasm32")
+))]
 mod js_footprints_shared;
 #[cfg(all(feature = "js-footprints-wasm", target_arch = "wasm32"))]
 mod js_footprints_wasm;
+#[cfg(any(
+    feature = "js-footprints",
+    all(feature = "js-footprints-wasm", target_arch = "wasm32")
+))]
 mod js_runtime;
 mod templates;
 
@@ -154,7 +162,7 @@ pub fn generate_kicad_pcb(prepared: &PreparedConfig, pcb_name: &str) -> Result<S
         let secret = params
             .get("secret")
             .and_then(param_to_string)
-            .unwrap_or_else(|| "".to_string());
+            .unwrap_or_default();
         return Ok(format!("Custom template override. The secret is {secret}."));
     }
     if template == "custom_template" {
@@ -162,7 +170,7 @@ pub fn generate_kicad_pcb(prepared: &PreparedConfig, pcb_name: &str) -> Result<S
         let secret = params
             .get("secret")
             .and_then(param_to_string)
-            .unwrap_or_else(|| "".to_string());
+            .unwrap_or_default();
         return Ok(format!(
             "Custom template override. The secret is {secret}. MakerJS is loaded. Ergogen is loaded."
         ));
@@ -497,11 +505,11 @@ fn render_kicad5(
                 } else {
                     out.push_str(&" ".repeat(sep_a));
                     out.push('\n');
-                    if indent != 6 {
-                        if let Some(sep_b) = sep_b {
-                            out.push_str(&" ".repeat(sep_b));
-                            out.push('\n');
-                        }
+                    if indent != 6
+                        && let Some(sep_b) = sep_b
+                    {
+                        out.push_str(&" ".repeat(sep_b));
+                        out.push('\n');
                     }
                     out.push('\n');
                     out.push_str(&" ".repeat(sep_a));
@@ -527,11 +535,11 @@ fn render_kicad5(
                 } else {
                     out.push_str(&" ".repeat(sep_a));
                     out.push('\n');
-                    if indent != 6 {
-                        if let Some(sep_b) = sep_b {
-                            out.push_str(&" ".repeat(sep_b));
-                            out.push('\n');
-                        }
+                    if indent != 6
+                        && let Some(sep_b) = sep_b
+                    {
+                        out.push_str(&" ".repeat(sep_b));
+                        out.push('\n');
                     }
                     out.push_str("  \n");
                 }
@@ -638,7 +646,7 @@ fn outlines_to_kicad5(region: &Region) -> Vec<String> {
         let start = pick_outline_start(p);
         let n = p.vertex_count();
         let has_arc = (0..n).any(|idx| !p.at(idx).bulge_is_zero());
-        let reverse = !has_arc && !is_axis_aligned_rect(p);
+        let reverse = !has_arc && !is_axis_aligned_rect(p) && polyline_signed_area_kicad(p) < 0.0;
         for offset in 0..n {
             let i = if reverse {
                 (start + n - offset) % n
@@ -790,6 +798,22 @@ fn pick_outline_start(p: &ergogen_geometry::Polyline<f64>) -> usize {
     best
 }
 
+fn polyline_signed_area_kicad(p: &ergogen_geometry::Polyline<f64>) -> f64 {
+    let n = p.vertex_count();
+    if n < 3 {
+        return 0.0;
+    }
+    let mut area2 = 0.0;
+    for i in 0..n {
+        let v1 = p.at(i);
+        let v2 = p.at((i + 1) % n);
+        let (x1, y1) = to_kicad_xy(v1.x, v1.y);
+        let (x2, y2) = to_kicad_xy(v2.x, v2.y);
+        area2 += x1 * y2 - x2 * y1;
+    }
+    area2
+}
+
 fn kicad5_circle(p: &ergogen_geometry::Polyline<f64>) -> Option<String> {
     if p.vertex_count() != 2 {
         return None;
@@ -830,6 +854,7 @@ fn kicad8_circle(p: &ergogen_geometry::Polyline<f64>) -> Option<String> {
     ))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_footprint(
     def: &FootprintDef,
     placement: Placement,
@@ -1185,7 +1210,7 @@ fn render_js_from_path(
         let side = param_str(params, "side").unwrap_or_else(|| "F".to_string());
         let rendered =
             js_footprints::render_js_footprint(&mut module, placement, params, refs, nets, side)?;
-        return Ok((rendered, String::new()));
+        Ok((rendered, String::new()))
     }
     #[cfg(all(feature = "js-footprints-wasm", target_arch = "wasm32"))]
     {
@@ -1194,7 +1219,7 @@ fn render_js_from_path(
         let rendered = js_footprints_wasm::render_js_footprint_wasm(
             &source, placement, params, refs, nets, side,
         )?;
-        return Ok((rendered, String::new()));
+        Ok((rendered, String::new()))
     }
     #[cfg(not(any(feature = "js-footprints", feature = "js-footprints-wasm")))]
     {
@@ -2085,10 +2110,11 @@ fn fmt_num_kicad8_line(v: f64) -> String {
     let v = if v.abs() < 1e-12 { 0.0 } else { v };
     let rounded = format!("{:.7}", v);
     let trimmed = rounded.trim_end_matches('0').trim_end_matches('.');
-    if v < 0.0 && !rounded.ends_with('0') {
-        if let Ok(parsed) = rounded.parse::<f64>() {
-            return format!("{}", parsed.next_down());
-        }
+    if v < 0.0
+        && !rounded.ends_with('0')
+        && let Ok(parsed) = rounded.parse::<f64>()
+    {
+        return format!("{}", parsed.next_down());
     }
     if trimmed.is_empty() {
         "0".to_string()

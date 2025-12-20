@@ -38,7 +38,7 @@ pub fn load_js_module(source: &str) -> Result<JsFootprintModule, PcbError> {
     let params_val = module_obj
         .get(js_string!("params"), &mut ctx)
         .map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
-    let params_json = js_value_to_json(&params_val, &mut ctx)?;
+    let params_json = js_params_to_json(&params_val, &mut ctx)?;
     let params =
         parse_js_params(&params_json).map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
 
@@ -146,38 +146,65 @@ fn json_to_js_value(value: &JsonValue, ctx: &mut Context) -> Result<JsValue, Pcb
     JsValue::from_json(value, ctx).map_err(js_err)
 }
 
-fn js_value_to_json(value: &JsValue, ctx: &mut Context) -> Result<JsonValue, PcbError> {
-    if value.is_null() || value.is_undefined() {
-        return Ok(JsonValue::Null);
-    }
-    value.to_json(ctx).map_err(js_err)
+fn js_params_to_json(params: &JsValue, ctx: &mut Context) -> Result<JsonValue, PcbError> {
+    // Boa's `to_json` conversion panics on `undefined` (notably inside objects/arrays),
+    // while upstream JS footprints commonly use `undefined` as a sentinel for "required".
+    // Use JS' own JSON rules instead:
+    // - object properties with `undefined` values are omitted
+    // - array elements that are `undefined` become `null`
+    //
+    // This matches `JSON.stringify(...)` behavior and keeps required-ness detection correct.
+    // Stash before we stringify; this is intentionally global in the JS context.
+    let _ = ctx.register_global_property(
+        js_string!("__ergogen_tmp_params"),
+        params.clone(),
+        Attribute::all(),
+    );
+
+    // Re-run stringify now that the global is set.
+    let json_str = ctx
+        .eval(Source::from_bytes(
+            "JSON.stringify(globalThis.__ergogen_tmp_params)".as_bytes(),
+        ))
+        .map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
+
+    let json_str = json_str.as_string().ok_or_else(|| {
+        PcbError::FootprintSpec("module.exports.params must be JSON-serializable".to_string())
+    })?;
+    let json_str = json_str
+        .to_std_string()
+        .map_err(|e| PcbError::FootprintSpec(e.to_string()))?;
+    serde_json::from_str(&json_str).map_err(|e| PcbError::FootprintSpec(e.to_string()))
 }
 
+#[allow(clippy::unnecessary_cast)]
 fn make_xy_fn(js_ctx: &mut JsContext<'_>) -> NativeFunction {
-    let ptr = js_ctx as *mut JsContext as *mut JsContext<'static>;
+    let ptr: *mut JsContext<'static> = js_ctx as *mut JsContext<'_> as *mut JsContext<'static>;
     NativeFunction::from_copy_closure(move |_, args, _ctx| {
-        let x = args.get(0).and_then(|v| v.as_number()).unwrap_or(0.0);
+        let x = args.first().and_then(|v| v.as_number()).unwrap_or(0.0);
         let y = args.get(1).and_then(|v| v.as_number()).unwrap_or(0.0);
         let ctx = unsafe { &mut *ptr };
         Ok(JsValue::from(JsString::from(ctx.xy(x, y))))
     })
 }
 
+#[allow(clippy::unnecessary_cast)]
 fn make_eaxy_fn(js_ctx: &mut JsContext<'_>) -> NativeFunction {
-    let ptr = js_ctx as *mut JsContext as *mut JsContext<'static>;
+    let ptr: *mut JsContext<'static> = js_ctx as *mut JsContext<'_> as *mut JsContext<'static>;
     NativeFunction::from_copy_closure(move |_, args, _ctx| {
-        let x = args.get(0).and_then(|v| v.as_number()).unwrap_or(0.0);
+        let x = args.first().and_then(|v| v.as_number()).unwrap_or(0.0);
         let y = args.get(1).and_then(|v| v.as_number()).unwrap_or(0.0);
         let ctx = unsafe { &mut *ptr };
         Ok(JsValue::from(JsString::from(ctx.eaxy(x, y))))
     })
 }
 
+#[allow(clippy::unnecessary_cast)]
 fn make_local_net_fn(js_ctx: &mut JsContext<'_>) -> NativeFunction {
-    let ptr = js_ctx as *mut JsContext as *mut JsContext<'static>;
+    let ptr: *mut JsContext<'static> = js_ctx as *mut JsContext<'_> as *mut JsContext<'static>;
     NativeFunction::from_copy_closure(move |_, args, ctx| {
         let name = args
-            .get(0)
+            .first()
             .and_then(|v| v.as_string())
             .map(|s| s.to_std_string().unwrap_or_default())
             .unwrap_or_default();
@@ -187,11 +214,12 @@ fn make_local_net_fn(js_ctx: &mut JsContext<'_>) -> NativeFunction {
     })
 }
 
+#[allow(clippy::unnecessary_cast)]
 fn make_global_net_fn(js_ctx: &mut JsContext<'_>) -> NativeFunction {
-    let ptr = js_ctx as *mut JsContext as *mut JsContext<'static>;
+    let ptr: *mut JsContext<'static> = js_ctx as *mut JsContext<'_> as *mut JsContext<'static>;
     NativeFunction::from_copy_closure(move |_, args, ctx| {
         let name = args
-            .get(0)
+            .first()
             .and_then(|v| v.as_string())
             .map(|s| s.to_std_string().unwrap_or_default())
             .unwrap_or_default();

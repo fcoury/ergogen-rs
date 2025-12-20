@@ -1,3 +1,5 @@
+#![cfg(feature = "js-footprints")]
+
 use std::path::PathBuf;
 
 use ergogen_pcb::generate_kicad_pcb_from_yaml_str;
@@ -19,7 +21,6 @@ fn normalize(s: &str) -> String {
     s.replace("\r\n", "\n").trim_end_matches('\n').to_string()
 }
 
-#[cfg(feature = "js-footprints")]
 #[test]
 fn js_footprint_fixtures_match_golden_kicad_pcbs() {
     let dir = fixture_dir();

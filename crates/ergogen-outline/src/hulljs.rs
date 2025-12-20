@@ -124,7 +124,7 @@ fn tangent(pointset: &[Pt]) -> Vec<Pt> {
     res
 }
 
-fn convex_in_place(pointset: &mut Vec<Pt>) -> Vec<Pt> {
+fn convex_in_place(pointset: &mut [Pt]) -> Vec<Pt> {
     // pointset must be sorted by X.
     let upper = tangent(pointset);
     // NOTE: convex.js reverses the input array in-place and leaves it reversed. `hull.js` relies on
@@ -144,13 +144,7 @@ fn ccw_bool(a: Pt, b: Pt, c: Pt) -> bool {
     //   cw = ((y3 - y1) * (x2 - x1)) - ((y2 - y1) * (x3 - x1))
     //   return cw > 0 ? true : cw < 0 ? false : true; // colinear
     let cw = (c.y - a.y) * (b.x - a.x) - (b.y - a.y) * (c.x - a.x);
-    if cw > 0.0 {
-        true
-    } else if cw < 0.0 {
-        false
-    } else {
-        true
-    }
+    cw >= 0.0
 }
 
 fn segments_intersect(seg1: [Pt; 2], seg2: [Pt; 2]) -> bool {
@@ -359,7 +353,7 @@ pub fn hull(pointset: Vec<[f64; 2]>, concavity: f64) -> Vec<[f64; 2]> {
         occ_h * MAX_SEARCH_BBOX_SIZE_PERCENT,
     );
 
-    let mut convex = convex_in_place(&mut points);
+    let mut convex = convex_in_place(points.as_mut_slice());
 
     let mut inner_points: Vec<Pt> = Vec::new();
     for p in &points {

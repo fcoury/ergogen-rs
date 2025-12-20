@@ -64,21 +64,17 @@ pub(crate) fn resolve_designator(
     params_spec: &IndexMap<String, JsParamSpec>,
     params: &IndexMap<String, ErgogenValue>,
 ) -> String {
-    if let Some(value) = params.get("designator") {
-        if let ErgogenValue::String(s) = value {
-            if !s.is_empty() {
-                return s.clone();
-            }
-        }
+    if let Some(ErgogenValue::String(s)) = params.get("designator")
+        && !s.is_empty()
+    {
+        return s.clone();
     }
-    if let Some(spec) = params_spec.get("designator") {
-        if let Some(default) = &spec.default {
-            if let Some(s) = default.as_str() {
-                if !s.is_empty() {
-                    return s.to_string();
-                }
-            }
-        }
+    if let Some(spec) = params_spec.get("designator")
+        && let Some(default) = &spec.default
+        && let Some(s) = default.as_str()
+        && !s.is_empty()
+    {
+        return s.to_string();
     }
     "FP".to_string()
 }

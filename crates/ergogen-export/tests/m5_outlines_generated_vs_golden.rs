@@ -35,16 +35,15 @@ fn generate_outline_dxf_from_yaml(
         .and_then(|(_, rest)| rest.strip_suffix("_dxf.dxf"))
         .unwrap_or("outline");
     let region = generate_outline_region_from_yaml_str(&yaml, outline_name)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
-    let dxf = dxf_from_region(&region)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
+    let dxf = dxf_from_region(&region).map_err(|e| std::io::Error::other(e.to_string()))?;
     let opts = fixture_dxf_opts();
     let normalized = dxf
         .normalize(opts)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
     let out_str = normalized
         .to_dxf_string(opts)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
     std::fs::write(out_dxf_path, out_str)?;
     Ok(())
 }

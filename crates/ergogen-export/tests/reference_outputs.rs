@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use ergogen_export::dxf::{NormalizeOptions, compare_files_semantic};
 use ergogen_export::dxf_geom::dxf_from_region;
-use ergogen_export::jscad::generate_cases_jscad_v2;
+use ergogen_export::jscad::generate_cases_jscad;
 use ergogen_export::svg::svg_from_dxf;
 use ergogen_outline::generate_outline_region;
 use ergogen_parser::{PreparedConfig, Value};
@@ -100,12 +100,10 @@ fn reference_outputs_match_goldens() {
                     compare_files_semantic(&raw, &golden, opts).unwrap();
                 }
             }
-            if check_upstream {
-                if let Some(upstream_root) = upstream_root.as_ref() {
-                    let upstream = upstream_root.join("outlines").join(format!("{name}.dxf"));
-                    if upstream.exists() {
-                        compare_files_semantic(&upstream, &golden, opts).unwrap();
-                    }
+            if check_upstream && let Some(upstream_root) = upstream_root.as_ref() {
+                let upstream = upstream_root.join("outlines").join(format!("{name}.dxf"));
+                if upstream.exists() {
+                    compare_files_semantic(&upstream, &golden, opts).unwrap();
                 }
             }
 
@@ -118,12 +116,10 @@ fn reference_outputs_match_goldens() {
                         compare_raw_text(&svg_path, &raw);
                     }
                 }
-                if check_upstream {
-                    if let Some(upstream_root) = upstream_root.as_ref() {
-                        let upstream = upstream_root.join("outlines").join(format!("{name}.svg"));
-                        if upstream.exists() {
-                            compare_raw_text(&svg_path, &upstream);
-                        }
+                if check_upstream && let Some(upstream_root) = upstream_root.as_ref() {
+                    let upstream = upstream_root.join("outlines").join(format!("{name}.svg"));
+                    if upstream.exists() {
+                        compare_raw_text(&svg_path, &upstream);
                     }
                 }
             }
@@ -135,7 +131,7 @@ fn reference_outputs_match_goldens() {
             if name.starts_with('_') {
                 continue;
             }
-            let jscad = generate_cases_jscad_v2(&prepared, name).unwrap();
+            let jscad = generate_cases_jscad(&prepared, name).unwrap();
             let out_path = golden_root.join("cases").join(format!("{name}.jscad"));
             compare_or_update(&out_path, &jscad, update);
             if check_raw {
@@ -144,12 +140,10 @@ fn reference_outputs_match_goldens() {
                     compare_raw_text(&out_path, &raw);
                 }
             }
-            if check_upstream {
-                if let Some(upstream_root) = upstream_root.as_ref() {
-                    let upstream = upstream_root.join("cases").join(format!("{name}.jscad"));
-                    if upstream.exists() {
-                        compare_raw_text(&out_path, &upstream);
-                    }
+            if check_upstream && let Some(upstream_root) = upstream_root.as_ref() {
+                let upstream = upstream_root.join("cases").join(format!("{name}.jscad"));
+                if upstream.exists() {
+                    compare_raw_text(&out_path, &upstream);
                 }
             }
         }
@@ -169,12 +163,10 @@ fn reference_outputs_match_goldens() {
                     compare_raw_text(&out_path, &raw);
                 }
             }
-            if check_upstream {
-                if let Some(upstream_root) = upstream_root.as_ref() {
-                    let upstream = upstream_root.join("pcbs").join(format!("{name}.kicad_pcb"));
-                    if upstream.exists() {
-                        compare_raw_text(&out_path, &upstream);
-                    }
+            if check_upstream && let Some(upstream_root) = upstream_root.as_ref() {
+                let upstream = upstream_root.join("pcbs").join(format!("{name}.kicad_pcb"));
+                if upstream.exists() {
+                    compare_raw_text(&out_path, &upstream);
                 }
             }
         }

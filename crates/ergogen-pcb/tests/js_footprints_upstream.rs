@@ -1,3 +1,5 @@
+#![cfg(feature = "js-footprints")]
+
 use std::path::PathBuf;
 
 use ergogen_pcb::generate_kicad_pcb_from_yaml_str;
@@ -44,7 +46,6 @@ fn upstream_dir() -> Option<PathBuf> {
         })
 }
 
-#[cfg(feature = "js-footprints")]
 #[test]
 fn js_footprints_match_upstream_outputs_when_configured() {
     let upstream_dir = match upstream_dir() {

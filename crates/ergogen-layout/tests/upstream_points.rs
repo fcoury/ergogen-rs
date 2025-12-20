@@ -205,29 +205,29 @@ fn upstream_points_with_golden_points_match() {
                         );
                     }
                 }
-                if let Some(zone) = meta.zone {
-                    if let Some(expected) = zone.name {
-                        assert_meta_eq(
-                            &base,
-                            &pname,
-                            "zone.name",
-                            &p.meta.zone.name,
-                            &expected,
-                            p.meta.zone.name == expected,
-                        );
-                    }
+                if let Some(zone) = meta.zone
+                    && let Some(expected) = zone.name
+                {
+                    assert_meta_eq(
+                        &base,
+                        &pname,
+                        "zone.name",
+                        &p.meta.zone.name,
+                        &expected,
+                        p.meta.zone.name == expected,
+                    );
                 }
-                if let Some(col) = meta.col {
-                    if let Some(expected) = col.name {
-                        assert_meta_eq(
-                            &base,
-                            &pname,
-                            "col.name",
-                            &p.meta.col.name,
-                            &expected,
-                            p.meta.col.name == expected,
-                        );
-                    }
+                if let Some(col) = meta.col
+                    && let Some(expected) = col.name
+                {
+                    assert_meta_eq(
+                        &base,
+                        &pname,
+                        "col.name",
+                        &p.meta.col.name,
+                        &expected,
+                        p.meta.col.name == expected,
+                    );
                 }
                 if let Some(expected) = meta.skip {
                     assert_meta_eq(

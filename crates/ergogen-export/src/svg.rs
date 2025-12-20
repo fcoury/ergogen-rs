@@ -71,7 +71,7 @@ pub fn svg_from_lines(lines: &[Line]) -> Result<String, SvgError> {
         let start = transform(line.start);
         let end = transform(line.end);
 
-        let need_move = current.map_or(true, |p| !close(p, start));
+        let need_move = current.is_none_or(|p| !close(p, start));
         if need_move {
             if !path.is_empty() {
                 path.push(' ');
@@ -83,12 +83,12 @@ pub fn svg_from_lines(lines: &[Line]) -> Result<String, SvgError> {
         path.push_str(&format!(" L {} {}", fmt_num(end.x), fmt_num(end.y)));
         current = Some(end);
 
-        if let Some(s) = sub_start {
-            if close(end, s) {
-                path.push_str(" Z");
-                current = None;
-                sub_start = None;
-            }
+        if let Some(s) = sub_start
+            && close(end, s)
+        {
+            path.push_str(" Z");
+            current = None;
+            sub_start = None;
         }
     }
 

@@ -271,7 +271,7 @@ fn render_circle<F>(
 
 fn circle_path(cx: f32, cy: f32, r: f32) -> Option<tiny_skia::Path> {
     // Approximate circle with cubic beziers (4 segments)
-    let k = 0.5522847498; // (4/3) * tan(pi/8)
+    let k = 0.552_284_8; // (4/3) * tan(pi/8)
     let c = r * k;
 
     let mut pb = PathBuilder::new();

@@ -57,24 +57,24 @@ fn parse_command(command: &str) -> CliCommand {
     let mut analyze = None;
 
     if let Some(pos) = tokens.iter().rposition(|t| *t == "src/cli.js") {
-        if let Some(arg) = tokens.get(pos + 1) {
-            if !arg.starts_with("--") {
-                let resolved = resolve_input_path(arg);
-                is_kle = resolved
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("json"));
-                if resolved
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("zip"))
-                {
-                    analyze = Some(AnalyzeTarget::Bundle);
-                } else if resolved.is_dir() {
-                    analyze = Some(AnalyzeTarget::Folder);
-                }
-                input = Some(resolved);
+        if let Some(arg) = tokens.get(pos + 1)
+            && !arg.starts_with("--")
+        {
+            let resolved = resolve_input_path(arg);
+            is_kle = resolved
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"));
+            if resolved
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("zip"))
+            {
+                analyze = Some(AnalyzeTarget::Bundle);
+            } else if resolved.is_dir() {
+                analyze = Some(AnalyzeTarget::Folder);
             }
+            input = Some(resolved);
         }
         for token in &tokens[pos + 1..] {
             if *token == "--debug" {
@@ -162,10 +162,10 @@ fn load_fixture_config(fixture_dir: &Path, command: &CliCommand) -> Result<Fixtu
         PreparedConfig::from_yaml_str(&raw).map_err(|e| e.to_string())?
     };
 
-    if let Some(root) = bundle_root.as_ref() {
-        if let Some(err) = check_bundle_templates(root, &prepared.canonical) {
-            return Err(err);
-        }
+    if let Some(root) = bundle_root.as_ref()
+        && let Some(err) = check_bundle_templates(root, &prepared.canonical)
+    {
+        return Err(err);
     }
 
     Ok(FixtureConfig { raw, prepared })
@@ -188,12 +188,12 @@ fn check_bundle_templates(root: &Path, canonical: &Value) -> Option<String> {
         if !path.exists() {
             continue;
         }
-        if let Ok(contents) = std::fs::read_to_string(&path) {
-            if contents.contains("nonexistent_require") {
-                return Some(format!(
-                    "Unknown dependency \"nonexistent_require\" among the requirements of injection \"{name}\"!"
-                ));
-            }
+        if let Ok(contents) = std::fs::read_to_string(&path)
+            && contents.contains("nonexistent_require")
+        {
+            return Some(format!(
+                "Unknown dependency \"nonexistent_require\" among the requirements of injection \"{name}\"!"
+            ));
         }
     }
     None
