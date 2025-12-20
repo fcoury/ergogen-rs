@@ -67,6 +67,13 @@ pub enum ResolvedDrill {
     Vector([f64; 2]),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TextKind {
+    User,
+    Reference,
+    Value,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Primitive {
     Pad {
@@ -115,6 +122,7 @@ pub enum Primitive {
         width: ScalarSpec,
     },
     Text {
+        kind: TextKind,
         at: [ScalarSpec; 2],
         text: String,
         layer: String,
@@ -189,6 +197,7 @@ pub enum ResolvedPrimitive {
         width: f64,
     },
     Text {
+        kind: TextKind,
         at: [f64; 2],
         text: String,
         layer: String,
@@ -368,6 +377,7 @@ pub fn resolve_footprint_spec(
                 });
             }
             Primitive::Text {
+                kind,
                 at,
                 text,
                 layer,
@@ -378,7 +388,10 @@ pub fn resolve_footprint_spec(
                 hide,
             } => {
                 let at = resolve_vec2(at, &vars)?;
-                let text = interpolate(text, &vars)?;
+                let text = match kind {
+                    TextKind::Reference => text.clone(),
+                    TextKind::User | TextKind::Value => interpolate(text, &vars)?,
+                };
                 let layer = interpolate(layer, &vars)?;
                 let size = resolve_vec2(size, &vars)?;
                 let thickness = resolve_scalar(thickness, &vars)?;
@@ -388,6 +401,7 @@ pub fn resolve_footprint_spec(
                     None => None,
                 };
                 primitives.push(ResolvedPrimitive::Text {
+                    kind: *kind,
                     at,
                     text,
                     layer,
@@ -701,11 +715,25 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
             }
             "text" => {
                 let at = parse_vec2(map.get("at"), "primitives.text.at")?;
-                let text = map
-                    .get("text")
-                    .and_then(value_as_str)
-                    .ok_or(FootprintSpecError::Invalid("primitives.text.text"))?
-                    .to_string();
+                let kind_str = map.get("kind").and_then(value_as_str).unwrap_or("user");
+                let kind = match kind_str {
+                    "user" => TextKind::User,
+                    "reference" => TextKind::Reference,
+                    "value" => TextKind::Value,
+                    _ => return Err(FootprintSpecError::Invalid("primitives.text.kind")),
+                };
+                let text = match kind {
+                    TextKind::Reference => map
+                        .get("text")
+                        .and_then(value_as_str)
+                        .unwrap_or("")
+                        .to_string(),
+                    TextKind::User | TextKind::Value => map
+                        .get("text")
+                        .and_then(value_as_str)
+                        .ok_or(FootprintSpecError::Invalid("primitives.text.text"))?
+                        .to_string(),
+                };
                 let layer = map
                     .get("layer")
                     .and_then(value_as_str)
@@ -722,6 +750,7 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
                     .map(|s| s.to_string());
                 let hide = parse_bool_opt(map.get("hide"), "primitives.text.hide", false)?;
                 out.push(Primitive::Text {
+                    kind,
                     at,
                     text,
                     layer,

@@ -1352,11 +1352,22 @@ fn render_spec_module(
         out.push('\n');
     }
     out.push_str(&format!("            (at {})\n\n", at));
-    out.push_str(&format!(
-        "            (fp_text reference \"{}\" (at 0 0) (layer F.SilkS) hide (effects (font (size 1.27 1.27) (thickness 0.15))))\n",
-        ref_str
-    ));
-    out.push_str("            (fp_text value \"\" (at 0 0) (layer F.SilkS) hide (effects (font (size 1.27 1.27) (thickness 0.15))))\n\n");
+    let has_explicit_ref_or_value_text = spec.primitives.iter().any(|p| {
+        matches!(
+            p,
+            ResolvedPrimitive::Text {
+                kind: footprint_spec::TextKind::Reference | footprint_spec::TextKind::Value,
+                ..
+            }
+        )
+    });
+    if !has_explicit_ref_or_value_text {
+        out.push_str(&format!(
+            "            (fp_text reference \"{}\" (at 0 0) (layer F.SilkS) hide (effects (font (size 1.27 1.27) (thickness 0.15))))\n",
+            ref_str
+        ));
+        out.push_str("            (fp_text value \"\" (at 0 0) (layer F.SilkS) hide (effects (font (size 1.27 1.27) (thickness 0.15))))\n\n");
+    }
 
     if !spec.net_order.is_empty() {
         for key in &spec.net_order {
@@ -1565,6 +1576,7 @@ fn render_spec_module(
                 }
             }
             ResolvedPrimitive::Text {
+                kind,
                 at,
                 text,
                 layer,
@@ -1575,7 +1587,16 @@ fn render_spec_module(
                 hide,
             } => {
                 let (tx, ty) = (at[0], at[1]);
-                let safe = escape_kicad_text(text);
+                let kind = match kind {
+                    footprint_spec::TextKind::User => "user",
+                    footprint_spec::TextKind::Reference => "reference",
+                    footprint_spec::TextKind::Value => "value",
+                };
+                let rendered_text = match kind {
+                    "reference" => ref_str.as_str(),
+                    _ => text.as_str(),
+                };
+                let safe = escape_kicad_text(rendered_text);
                 let mut effects = format!(
                     "(effects (font (size {} {}) (thickness {}))",
                     fmt_num(size[0]),
@@ -1586,12 +1607,13 @@ fn render_spec_module(
                     effects.push_str(&format!(" (justify {})", justify));
                 }
                 effects.push(')');
+                let at_str =
+                    format_at_with_rotation(tx, ty, Some(*rotation).filter(|r| r.abs() > 1e-9));
                 out.push_str(&format!(
-                    "            (fp_text user \"{}\" (at {} {} {}) (layer {}){} {})\n",
+                    "            (fp_text {} \"{}\" (at {}) (layer {}){} {})\n",
+                    kind,
                     safe,
-                    fmt_num(tx),
-                    fmt_num(ty),
-                    fmt_num(*rotation),
+                    at_str,
                     layer,
                     if *hide { " hide" } else { "" },
                     effects
@@ -2576,5 +2598,75 @@ mod template_vars_tests {
         let vars = template_vars_for_point(&points, &prepared, placement);
         assert_eq!(vars.get("key.led_prev").map(String::as_str), Some("LED_18"));
         assert_eq!(vars.get("key.led_next").map(String::as_str), Some("LED_19"));
+    }
+
+    #[test]
+    fn render_spec_module_renders_reference_and_value_text_when_specified() {
+        let spec = footprint_spec::ResolvedFootprint {
+            name: "trrs".to_string(),
+            module: "TRRS-PJ-320A-dual".to_string(),
+            layer: "F.Cu".to_string(),
+            tedit: "5970F8E5".to_string(),
+            tstamp: None,
+            descr: None,
+            tags: None,
+            ref_prefix: "TRRS".to_string(),
+            net_order: vec![],
+            params: IndexMap::new(),
+            primitives: vec![
+                ResolvedPrimitive::Text {
+                    kind: footprint_spec::TextKind::Reference,
+                    at: [0.0, 14.2],
+                    text: String::new(),
+                    layer: "Dwgs.User".to_string(),
+                    size: [1.0, 1.0],
+                    thickness: 0.15,
+                    rotation: 0.0,
+                    justify: None,
+                    hide: false,
+                },
+                ResolvedPrimitive::Text {
+                    kind: footprint_spec::TextKind::Value,
+                    at: [0.0, -5.6],
+                    text: "TRRS-PJ-320A-dual".to_string(),
+                    layer: "F.Fab".to_string(),
+                    size: [1.0, 1.0],
+                    thickness: 0.15,
+                    rotation: 0.0,
+                    justify: None,
+                    hide: false,
+                },
+                ResolvedPrimitive::Text {
+                    kind: footprint_spec::TextKind::User,
+                    at: [1.0, 2.0],
+                    text: "USR".to_string(),
+                    layer: "F.SilkS".to_string(),
+                    size: [1.0, 1.0],
+                    thickness: 0.15,
+                    rotation: 90.0,
+                    justify: None,
+                    hide: true,
+                },
+            ],
+        };
+
+        let placement = Placement {
+            name: String::new(),
+            x: 0.0,
+            y: 0.0,
+            r: 0.0,
+            mirrored: false,
+        };
+        let mut nets = NetIndex::default();
+        let mut refs = HashMap::new();
+
+        let rendered = render_spec_module(&spec, "0 0 0", placement, &mut nets, &mut refs, false);
+        assert!(rendered.contains("(fp_text reference \"TRRS1\" (at 0 14.2) (layer Dwgs.User)"));
+        assert!(
+            rendered.contains("(fp_text value \"TRRS-PJ-320A-dual\" (at 0 -5.6) (layer F.Fab)")
+        );
+        assert!(rendered.contains("(fp_text user \"USR\" (at 1 2 90) (layer F.SilkS) hide"));
+        assert!(!rendered.contains("(at 0 14.2 0)"));
+        assert!(rendered.contains("))\n"));
     }
 }

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use ergogen_parser::Value;
 use ergogen_pcb::footprint_spec::{
-    FootprintSpec, ParamKind, Primitive, ResolvedDrill, ResolvedPrimitive, ScalarSpec,
+    FootprintSpec, ParamKind, Primitive, ResolvedDrill, ResolvedPrimitive, ScalarSpec, TextKind,
     parse_footprint_spec, resolve_footprint_spec,
 };
 use indexmap::IndexMap;
@@ -304,4 +304,75 @@ fn resolves_shape_templates() {
     assert_eq!(text.1, [1.1, 1.1]);
     assert_eq!(text.2, 0.25);
     assert_eq!(text.3, Some("left".to_string()));
+}
+
+#[test]
+fn parses_and_resolves_text_kind_reference_and_value() {
+    let yaml = r#"
+name: text_kinds
+params: {}
+primitives:
+  - type: text
+    kind: reference
+    at: [0, 14.2]
+    layer: Dwgs.User
+  - type: text
+    kind: value
+    text: TRRS-PJ-320A-dual
+    at: [0, -5.6]
+    layer: F.Fab
+  - type: text
+    text: HELLO
+    at: [1, 2]
+    layer: F.SilkS
+    rotation: 90
+    hide: true
+"#;
+    let spec = parse_footprint_spec(yaml).unwrap();
+
+    assert!(matches!(
+        spec.primitives[0],
+        Primitive::Text {
+            kind: TextKind::Reference,
+            ..
+        }
+    ));
+    assert!(matches!(
+        spec.primitives[1],
+        Primitive::Text {
+            kind: TextKind::Value,
+            ..
+        }
+    ));
+
+    let resolved = resolve_footprint_spec(&spec, &IndexMap::new()).unwrap();
+    assert!(matches!(
+        resolved.primitives[0],
+        ResolvedPrimitive::Text {
+            kind: TextKind::Reference,
+            ..
+        }
+    ));
+    match &resolved.primitives[1] {
+        ResolvedPrimitive::Text { kind, text, .. } => {
+            assert_eq!(*kind, TextKind::Value);
+            assert_eq!(text, "TRRS-PJ-320A-dual");
+        }
+        _ => panic!("expected text primitive"),
+    }
+    match &resolved.primitives[2] {
+        ResolvedPrimitive::Text {
+            kind,
+            text,
+            rotation,
+            hide,
+            ..
+        } => {
+            assert_eq!(*kind, TextKind::User);
+            assert_eq!(text, "HELLO");
+            assert_eq!(*rotation, 90.0);
+            assert!(*hide);
+        }
+        _ => panic!("expected text primitive"),
+    }
 }
