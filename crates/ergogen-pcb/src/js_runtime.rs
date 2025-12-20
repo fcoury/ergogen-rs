@@ -1,6 +1,7 @@
 use indexmap::IndexMap;
 use serde_json::Value as JsonValue;
 
+#[cfg(feature = "js-footprints")]
 use crate::{NetIndex, Placement, escape_kicad_text, fmt_num, rotate_ccw, to_kicad_xy};
 
 #[derive(Debug, thiserror::Error)]
@@ -122,6 +123,7 @@ pub struct JsNet {
     pub str: String,
 }
 
+#[cfg(feature = "js-footprints")]
 pub(crate) struct JsContext<'a> {
     at: String,
     r: f64,
@@ -134,6 +136,7 @@ pub(crate) struct JsContext<'a> {
     nets: &'a mut NetIndex,
 }
 
+#[cfg(feature = "js-footprints")]
 impl<'a> JsContext<'a> {
     pub(crate) fn new(
         placement: Placement,
