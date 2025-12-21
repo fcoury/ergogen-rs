@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use ergogen_export::dxf::{Dxf, Entity, Line, NormalizeOptions, Point2};
 use ergogen_export::{dxf_geom, svg};
 use ergogen_layout::{PointsOutput, parse_points};
-use ergogen_parser::PreparedConfig;
+use ergogen_parser::{PreparedConfig, Value, convert_kle};
 use indexmap::IndexMap;
 use serde::Serialize;
 
@@ -74,8 +74,18 @@ fn outline_region(
     yaml: &str,
     outline_name: &str,
 ) -> Result<ergogen_geometry::region::Region, JsValue> {
-    ergogen_outline::generate_outline_region_from_yaml_str(yaml, outline_name)
+    let prepared = prepare_config(yaml)?;
+    ergogen_outline::generate_outline_region(&prepared, outline_name)
         .map_err(|e| to_js_error("outline", e.to_string()))
+}
+
+fn prepare_config(raw: &str) -> Result<PreparedConfig, JsValue> {
+    let parsed = Value::from_yaml_str(raw).map_err(|e| to_js_error("parser", e.to_string()))?;
+    let raw = match parsed {
+        Value::Map(_) => parsed,
+        _ => convert_kle(&parsed).map_err(|e| to_js_error("parser", e.to_string()))?,
+    };
+    PreparedConfig::from_value(&raw).map_err(|e| to_js_error("parser", e.to_string()))
 }
 
 #[derive(Serialize)]
@@ -92,8 +102,7 @@ struct RenderAllOutput {
 
 #[wasm_bindgen]
 pub fn render_all(config_yaml: &str) -> Result<JsValue, JsValue> {
-    let prepared = PreparedConfig::from_yaml_str(config_yaml)
-        .map_err(|e| to_js_error("parser", e.to_string()))?;
+    let prepared = prepare_config(config_yaml)?;
 
     let canonical = prepared.canonical.clone();
     let units = prepared.units.vars().clone();
@@ -196,8 +205,8 @@ pub fn render_all(config_yaml: &str) -> Result<JsValue, JsValue> {
 
 #[wasm_bindgen]
 pub fn render_pcb(config_yaml: &str, pcb_name: &str) -> Result<String, JsValue> {
-    ergogen_pcb::generate_kicad_pcb_from_yaml_str(config_yaml, pcb_name)
-        .map_err(|e| to_js_error("pcb", e.to_string()))
+    let prepared = prepare_config(config_yaml)?;
+    ergogen_pcb::generate_kicad_pcb(&prepared, pcb_name).map_err(|e| to_js_error("pcb", e.to_string()))
 }
 
 #[wasm_bindgen]
@@ -236,8 +245,7 @@ pub fn render_outlines(config_yaml: &str, outline_name: &str) -> Result<String, 
 
 #[wasm_bindgen]
 pub fn render_case_jscad_v2(config_yaml: &str, case_name: &str) -> Result<String, JsValue> {
-    let prepared = PreparedConfig::from_yaml_str(config_yaml)
-        .map_err(|e| to_js_error("parser", e.to_string()))?;
+    let prepared = prepare_config(config_yaml)?;
     ergogen_export::jscad::generate_cases_jscad_v2(&prepared, case_name)
         .map_err(|e| to_js_error("case_v2", e.to_string()))
 }

@@ -1,0 +1,197 @@
+name: chocmini_keycaps
+module: lib:Kailh_PG1232
+layer: F.Cu
+tedit: 5E1ADAC2
+ref_prefix: S
+net_order:
+  - from
+  - to
+params:
+  from:
+    type: net
+    default: from
+  to:
+    type: net
+    default: to
+primitives:
+  - type: text
+    kind: reference
+    at: [0, 0]
+    layer: F.SilkS
+    size: [1.27, 1.27]
+    thickness: 0.15
+    hide: true
+  - type: text
+    kind: value
+    text: Kailh_PG1232
+    at: [0, -7.3]
+    layer: F.Fab
+    size: [1, 1]
+    thickness: 0.15
+
+  - type: line
+    start: [-7.25, -6.75]
+    end: [-6.25, -6.75]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-7.25, -6.75]
+    end: [-7.25, -5.75]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-7.25, 6.75]
+    end: [-6.25, 6.75]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-7.25, 6.75]
+    end: [-7.25, 5.75]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7.25, -6.75]
+    end: [6.25, -6.75]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7.25, -6.75]
+    end: [7.25, -5.75]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7.25, 6.75]
+    end: [6.25, 6.75]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7.25, 6.75]
+    end: [7.25, 5.75]
+    layer: Dwgs.User
+    width: 0.15
+
+  - type: line
+    start: [2.8, -5.35]
+    end: [-2.8, -5.35]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-2.8, -3.2]
+    end: [2.8, -3.2]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [2.8, -3.2]
+    end: [2.8, -5.35]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-2.8, -3.2]
+    end: [-2.8, -5.35]
+    layer: Dwgs.User
+    width: 0.15
+
+  - type: line
+    start: [2.25, 2.6]
+    end: [5.8, 2.6]
+    layer: Edge.Cuts
+    width: 0.12
+  - type: line
+    start: [-2.25, 2.6]
+    end: [-5.8, 2.6]
+    layer: Edge.Cuts
+    width: 0.12
+  - type: line
+    start: [2.25, 3.6]
+    end: [2.25, 2.6]
+    layer: Edge.Cuts
+    width: 0.12
+  - type: line
+    start: [-2.25, 3.6]
+    end: [2.25, 3.6]
+    layer: Edge.Cuts
+    width: 0.12
+  - type: line
+    start: [-2.25, 2.6]
+    end: [-2.25, 3.6]
+    layer: Edge.Cuts
+    width: 0.12
+  - type: line
+    start: [-5.8, 2.6]
+    end: [-5.8, -2.95]
+    layer: Edge.Cuts
+    width: 0.12
+  - type: line
+    start: [5.8, -2.95]
+    end: [5.8, 2.6]
+    layer: Edge.Cuts
+    width: 0.12
+  - type: line
+    start: [-5.8, -2.95]
+    end: [5.8, -2.95]
+    layer: Edge.Cuts
+    width: 0.12
+
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [5.3, -4.75]
+    size: [1.6, 1.6]
+    drill: 1.1
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: "3"
+    clearance: 0.2
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-5.3, -4.75]
+    size: [1.6, 1.6]
+    drill: 1.1
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: "4"
+    clearance: 0.2
+
+  - type: line
+    start: [-9, -8.5]
+    end: [9, -8.5]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [9, -8.5]
+    end: [9, 8.5]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [9, 8.5]
+    end: [-9, 8.5]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-9, 8.5]
+    end: [-9, -8.5]
+    layer: Dwgs.User
+    width: 0.15
+
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-4.58, 5.1]
+    size: [1.6, 1.6]
+    drill: 1.1
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ from }}"
+    number: "1"
+    clearance: 0.2
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [2, 5.4]
+    size: [1.6, 1.6]
+    drill: 1.1
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ to }}"
+    number: "2"
+    clearance: 0.2
+

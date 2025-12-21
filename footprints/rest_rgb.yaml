@@ -1,0 +1,127 @@
+name: rest_rgb
+module: WS2812B
+layer: F.Cu
+tedit: 53BEE615
+ref_prefix: LED
+net_order: [VCC, GND, din, dout]
+params:
+  VCC:
+    type: net
+    required: true
+  dout:
+    type: net
+    required: true
+  GND:
+    type: net
+    required: true
+  din:
+    type: net
+    required: true
+primitives:
+  - type: line
+    start: [-1.75, -1.75]
+    end: [-1.75, 1.75]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [-1.75, 1.75]
+    end: [1.75, 1.75]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [1.75, 1.75]
+    end: [1.75, -1.75]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [1.75, -1.75]
+    end: [-1.75, -1.75]
+    layer: F.SilkS
+    width: 0.15
+
+  - type: line
+    start: [-2.5, -2.5]
+    end: [-2.5, 2.5]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [-2.5, 2.5]
+    end: [2.5, 2.5]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [2.5, 2.5]
+    end: [2.5, -2.5]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [2.5, -2.5]
+    end: [-2.5, -2.5]
+    layer: F.SilkS
+    width: 0.15
+
+  - type: poly
+    points:
+      - [4, 2.2]
+      - [4, 0.375]
+      - [5, 1.2875]
+    layer: F.SilkS
+    width: 0.1
+
+  - type: pad
+    at: [-2.2, -0.875]
+    rotation: 0
+    size: [2.6, 1]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: "{{ VCC }}"
+    number: "1"
+  - type: pad
+    at: [-2.2, 0.875]
+    rotation: 0
+    size: [2.6, 1]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: "{{ dout }}"
+    number: "2"
+  - type: pad
+    at: [2.2, 0.875]
+    rotation: 0
+    size: [2.6, 1]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: "{{ GND }}"
+    number: "3"
+  - type: pad
+    at: [2.2, -0.875]
+    rotation: 0
+    size: [2.6, 1]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: "{{ din }}"
+    number: "4"
+
+  - type: pad
+    at: [-2.5, -1.6]
+    rotation: 0
+    size: [2, 1.2]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: "{{ VCC }}"
+    number: "11"
+  - type: pad
+    at: [-2.5, 1.6]
+    rotation: 0
+    size: [2, 1.2]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: "{{ dout }}"
+    number: "22"
+  - type: pad
+    at: [2.5, 1.6]
+    rotation: 0
+    size: [2, 1.2]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: "{{ GND }}"
+    number: "33"
+  - type: pad
+    at: [2.5, -1.6]
+    rotation: 0
+    size: [2, 1.2]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: "{{ din }}"
+    number: "44"

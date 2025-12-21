@@ -1,0 +1,522 @@
+name: promicro_up
+module: ProMicro
+layer: F.Cu
+tedit: 5B307E4C
+ref_prefix: MCU
+params:
+  RAW: { type: net, default: RAW }
+  GND: { type: net, default: GND }
+  RST: { type: net, default: RST }
+  VCC: { type: net, default: VCC }
+  P21: { type: net, default: P21 }
+  P20: { type: net, default: P20 }
+  P19: { type: net, default: P19 }
+  P18: { type: net, default: P18 }
+  P15: { type: net, default: P15 }
+  P14: { type: net, default: P14 }
+  P16: { type: net, default: P16 }
+  P10: { type: net, default: P10 }
+  P1: { type: net, default: P1 }
+  P0: { type: net, default: P0 }
+  P2: { type: net, default: P2 }
+  P3: { type: net, default: P3 }
+  P4: { type: net, default: P4 }
+  P5: { type: net, default: P5 }
+  P6: { type: net, default: P6 }
+  P7: { type: net, default: P7 }
+  P8: { type: net, default: P8 }
+  P9: { type: net, default: P9 }
+primitives:
+  - type: line
+    start: [-19.304, -3.81]
+    end: [-14.224, -3.81]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-19.304, 3.81]
+    end: [-19.304, -3.81]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-14.224, 3.81]
+    end: [-19.304, 3.81]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-14.224, -3.81]
+    end: [-14.224, 3.81]
+    layer: Dwgs.User
+    width: 0.15
+
+  - type: line
+    start: [-17.78, 8.89]
+    end: [15.24, 8.89]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [15.24, 8.89]
+    end: [15.24, -8.89]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [15.24, -8.89]
+    end: [-17.78, -8.89]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [-17.78, -8.89]
+    end: [-17.78, 8.89]
+    layer: F.SilkS
+    width: 0.15
+
+  - type: line
+    start: [-15.24, -6.35]
+    end: [-12.7, -6.35]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [-15.24, -6.35]
+    end: [-15.24, -8.89]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [-12.7, -6.35]
+    end: [-12.7, -8.89]
+    layer: F.SilkS
+    width: 0.15
+
+  - type: text
+    kind: user
+    text: RAW
+    at: [-13.97, -4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: GND
+    at: [-11.43, -4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: RST
+    at: [-8.89, -4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: VCC
+    at: [-6.35, -4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P21
+    at: [-3.81, -4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P20
+    at: [-1.27, -4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P19
+    at: [1.27, -4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P18
+    at: [3.81, -4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P15
+    at: [6.35, -4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P14
+    at: [8.89, -4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P16
+    at: [11.43, -4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P10
+    at: [13.97, -4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+
+  - type: text
+    kind: user
+    text: P01
+    at: [-13.97, 4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P00
+    at: [-11.43, 4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: GND
+    at: [-8.89, 4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: GND
+    at: [-6.35, 4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P02
+    at: [-3.81, 4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P03
+    at: [-1.27, 4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P04
+    at: [1.27, 4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P05
+    at: [3.81, 4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P06
+    at: [6.35, 4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P07
+    at: [8.89, 4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P08
+    at: [11.43, 4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+  - type: text
+    kind: user
+    text: P09
+    at: [13.97, 4.8]
+    rotation: 90
+    layer: F.SilkS
+    size: [0.8, 0.8]
+    thickness: 0.15
+
+  - type: pad_thru
+    kind: thru_hole
+    shape: rect
+    at: [-13.97, -7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ RAW }}"
+    number: "1"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-11.43, -7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ GND }}"
+    number: "2"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-8.89, -7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ RST }}"
+    number: "3"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-6.35, -7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ VCC }}"
+    number: "4"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-3.81, -7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P21 }}"
+    number: "5"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-1.27, -7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P20 }}"
+    number: "6"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [1.27, -7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P19 }}"
+    number: "7"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [3.81, -7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P18 }}"
+    number: "8"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [6.35, -7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P15 }}"
+    number: "9"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [8.89, -7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P14 }}"
+    number: "10"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [11.43, -7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P16 }}"
+    number: "11"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [13.97, -7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P10 }}"
+    number: "12"
+
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-13.97, 7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P1 }}"
+    number: "13"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-11.43, 7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P0 }}"
+    number: "14"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-8.89, 7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ GND }}"
+    number: "15"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-6.35, 7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ GND }}"
+    number: "16"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-3.81, 7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P2 }}"
+    number: "17"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-1.27, 7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P3 }}"
+    number: "18"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [1.27, 7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P4 }}"
+    number: "19"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [3.81, 7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P5 }}"
+    number: "20"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [6.35, 7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P6 }}"
+    number: "21"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [8.89, 7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P7 }}"
+    number: "22"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [11.43, 7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P8 }}"
+    number: "23"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [13.97, 7.62]
+    rotation: 0
+    size: [1.7526, 1.7526]
+    drill: 1.0922
+    layers: ["*.Cu", "*.SilkS", "*.Mask"]
+    net: "{{ P9 }}"
+    number: "24"

@@ -1387,30 +1387,37 @@ fn render_spec_module(
                 layers,
                 net,
                 number,
+                clearance,
             } => {
                 let (px, py) = (at[0], at[1]);
                 let layer_list = layers.join(" ");
                 let pad_num = number.clone().unwrap_or_else(|| pad_idx.to_string());
                 let pad_num = format_pad_number(&pad_num);
                 let at_str = format_at_with_rotation(px, py, *rotation);
+                let clearance_str = clearance
+                    .as_ref()
+                    .map(|c| format!(" (clearance {})", fmt_num(*c)))
+                    .unwrap_or_default();
                 if net.is_empty() {
                     out.push_str(&format!(
-                        "            (pad {} smd rect (at {}) (size {} {}) (layers {}))\n",
-                        pad_num,
-                        at_str,
-                        fmt_num(size[0]),
-                        fmt_num(size[1]),
-                        layer_list
-                    ));
-                } else {
-                    let net_id = nets.ensure(net);
-                    out.push_str(&format!(
-                        "            (pad {} smd rect (at {}) (size {} {}) (layers {}) (net {} \"{}\"))\n",
+                        "            (pad {} smd rect (at {}) (size {} {}) (layers {}){})\n",
                         pad_num,
                         at_str,
                         fmt_num(size[0]),
                         fmt_num(size[1]),
                         layer_list,
+                        clearance_str
+                    ));
+                } else {
+                    let net_id = nets.ensure(net);
+                    out.push_str(&format!(
+                        "            (pad {} smd rect (at {}) (size {} {}) (layers {}){} (net {} \"{}\"))\n",
+                        pad_num,
+                        at_str,
+                        fmt_num(size[0]),
+                        fmt_num(size[1]),
+                        layer_list,
+                        clearance_str,
                         net_id,
                         net
                     ));
@@ -1427,6 +1434,8 @@ fn render_spec_module(
                 shape,
                 kind,
                 number,
+                clearance,
+                zone_connect,
             } => {
                 let (px, py) = (at[0], at[1]);
                 let layer_list = layers.join(" ");
@@ -1449,22 +1458,17 @@ fn render_spec_module(
                         format!("(drill oval {} {})", fmt_num(v[0]), fmt_num(v[1]))
                     }
                 };
+                let zone_connect_str = zone_connect
+                    .as_ref()
+                    .map(|z| format!(" (zone_connect {})", fmt_num(*z)))
+                    .unwrap_or_default();
+                let clearance_str = clearance
+                    .as_ref()
+                    .map(|c| format!(" (clearance {})", fmt_num(*c)))
+                    .unwrap_or_default();
                 if net.is_empty() {
                     out.push_str(&format!(
-                        "            (pad {} {} {} (at {}) (size {} {}) {} (layers {}))\n",
-                        pad_num,
-                        kind,
-                        shape,
-                        at_str,
-                        fmt_num(size[0]),
-                        fmt_num(size[1]),
-                        drill_str,
-                        layer_list
-                    ));
-                } else {
-                    let net_id = nets.ensure(net);
-                    out.push_str(&format!(
-                        "            (pad {} {} {} (at {}) (size {} {}) {} (layers {}) (net {} \"{}\"))\n",
+                        "            (pad {} {} {} (at {}) (size {} {}) {} (layers {}){}{})\n",
                         pad_num,
                         kind,
                         shape,
@@ -1473,8 +1477,25 @@ fn render_spec_module(
                         fmt_num(size[1]),
                         drill_str,
                         layer_list,
+                        zone_connect_str,
+                        clearance_str
+                    ));
+                } else {
+                    let net_id = nets.ensure(net);
+                    out.push_str(&format!(
+                        "            (pad {} {} {} (at {}) (size {} {}) {} (layers {}){} (net {} \"{}\"){})\n",
+                        pad_num,
+                        kind,
+                        shape,
+                        at_str,
+                        fmt_num(size[0]),
+                        fmt_num(size[1]),
+                        drill_str,
+                        layer_list,
+                        zone_connect_str,
                         net_id,
-                        net
+                        net,
+                        clearance_str
                     ));
                 }
                 pad_idx += 1;
@@ -1524,19 +1545,38 @@ fn render_spec_module(
                 width,
             } => {
                 let start_vec = rotate_ccw((*radius, 0.0), *start_angle);
-                let end_vec = rotate_ccw((*radius, 0.0), *start_angle + *angle);
-                let (sx, sy) = (center[0] + start_vec.0, center[1] + start_vec.1);
-                let (ex, ey) = (center[0] + end_vec.0, center[1] + end_vec.1);
-                out.push_str(&format!(
-                    "            (fp_arc (start {} {}) (end {} {}) (angle {}) (layer {}) (width {}))\n",
-                    fmt_num(sx),
-                    fmt_num(sy),
-                    fmt_num(ex),
-                    fmt_num(ey),
-                    fmt_num(*angle),
-                    layer,
-                    fmt_num(*width)
-                ));
+                let (cx, cy) = (center[0], center[1]);
+                if is_kicad8 {
+                    // KiCad 6/7/8 format in our exports: `(fp_arc (start <startpoint>) (end <endpoint>) (angle <sweep>))`
+                    // This matches our existing KiCad 8 golden fixtures.
+                    let (sx, sy) = (cx + start_vec.0, cy + start_vec.1);
+                    let end_vec = rotate_ccw((*radius, 0.0), *start_angle + *angle);
+                    let (ex, ey) = (cx + end_vec.0, cy + end_vec.1);
+                    out.push_str(&format!(
+                        "            (fp_arc (start {} {}) (end {} {}) (angle {}) (layer {}) (width {}))\n",
+                        fmt_num(sx),
+                        fmt_num(sy),
+                        fmt_num(ex),
+                        fmt_num(ey),
+                        fmt_num(*angle),
+                        layer,
+                        fmt_num(*width)
+                    ));
+                } else {
+                    // KiCad 5 format: `(fp_arc (start <center>) (end <startpoint>) (angle <sweep>))`
+                    // Most upstream templates use this convention.
+                    let (ex, ey) = (cx + start_vec.0, cy + start_vec.1);
+                    out.push_str(&format!(
+                        "            (fp_arc (start {} {}) (end {} {}) (angle {}) (layer {}) (width {}))\n",
+                        fmt_num(cx),
+                        fmt_num(cy),
+                        fmt_num(ex),
+                        fmt_num(ey),
+                        fmt_num(*angle),
+                        layer,
+                        fmt_num(*width)
+                    ));
+                }
             }
             ResolvedPrimitive::Rect {
                 center,
@@ -1593,7 +1633,13 @@ fn render_spec_module(
                     footprint_spec::TextKind::Value => "value",
                 };
                 let rendered_text = match kind {
-                    "reference" => ref_str.as_str(),
+                    "reference" => {
+                        if text.is_empty() {
+                            ref_str.as_str()
+                        } else {
+                            text.as_str()
+                        }
+                    }
                     _ => text.as_str(),
                 };
                 let safe = escape_kicad_text(rendered_text);
@@ -1632,6 +1678,20 @@ fn render_spec_module(
                     layer,
                     if *hide { " hide" } else { "" },
                     effects
+                ));
+            }
+            ResolvedPrimitive::Poly { points, layer, width } => {
+                let mut pts = String::new();
+                pts.push_str("(pts");
+                for p in points {
+                    pts.push_str(&format!(" (xy {} {})", fmt_num(p[0]), fmt_num(p[1])));
+                }
+                pts.push(')');
+                out.push_str(&format!(
+                    "            (fp_poly {} (layer {}) (width {}))\n",
+                    pts,
+                    layer,
+                    fmt_num(*width)
                 ));
             }
         }

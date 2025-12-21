@@ -331,7 +331,11 @@ pub struct PreparedIr {
 impl PreparedIr {
     pub fn from_yaml_str(yaml: &str) -> Result<Self, Error> {
         let raw = Value::from_yaml_str(yaml)?;
-        let canonical = parameterize(&inherit(&unnest(&raw)?)?)?;
+        Self::from_value(&raw)
+    }
+
+    pub fn from_value(raw: &Value) -> Result<Self, Error> {
+        let canonical = parameterize(&inherit(&unnest(raw)?)?)?;
         Ok(Self { canonical })
     }
 }

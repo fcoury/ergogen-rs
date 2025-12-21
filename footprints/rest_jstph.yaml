@@ -1,0 +1,89 @@
+name: rest_jstph
+module: JST_PH_S2B-PH-K_02x2.00mm_Angled
+layer: F.Cu
+tedit: 58D3FE32
+descr: "JST PH series connector, S2B-PH-K, side entry type, through hole, Datasheet: http://www.jst-mfg.com/product/pdf/eng/ePH.pdf"
+tags: "connector jst ph"
+ref_prefix: JST
+net_order: [pos, neg]
+params:
+  pos:
+    type: net
+    required: true
+  neg:
+    type: net
+    required: true
+primitives:
+  - type: line
+    start: [-2.25, 0.25]
+    end: [-2.25, -1.35]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [-2.25, -1.35]
+    end: [-2.95, -1.35]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [-2.95, -1.35]
+    end: [-2.95, 6.25]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [-2.95, 6.25]
+    end: [2.95, 6.25]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [2.95, 6.25]
+    end: [2.95, -1.35]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [2.95, -1.35]
+    end: [2.25, -1.35]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [2.25, -1.35]
+    end: [2.25, 0.25]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [2.25, 0.25]
+    end: [-2.25, 0.25]
+    layer: F.SilkS
+    width: 0.15
+
+  - type: line
+    start: [-1, 1.5]
+    end: [-1, 2.0]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [-1.25, 1.75]
+    end: [-0.75, 1.75]
+    layer: F.SilkS
+    width: 0.15
+
+  - type: pad_thru
+    kind: thru_hole
+    shape: rect
+    at: [-1, 0]
+    rotation: 0
+    size: [1.2, 1.7]
+    drill: 0.75
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ pos }}"
+    number: "1"
+  - type: pad_thru
+    kind: thru_hole
+    shape: oval
+    at: [1, 0]
+    rotation: 0
+    size: [1.2, 1.7]
+    drill: 0.75
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ neg }}"
+    number: "2"
+

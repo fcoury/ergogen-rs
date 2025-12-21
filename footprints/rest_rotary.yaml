@@ -1,0 +1,239 @@
+name: rest_rotary
+module: rotary_encoder
+layer: F.Cu
+tedit: 603326DE
+ref_prefix: ROT
+net_order: [from, to, A, B, C]
+params:
+  A:
+    type: net
+    required: true
+  B:
+    type: net
+    required: true
+  C:
+    type: net
+    required: true
+  from:
+    type: net
+    required: true
+  to:
+    type: net
+    required: true
+primitives:
+  - type: text
+    kind: reference
+    text: ""
+    at: [0, 0.5]
+    rotation: 0
+    layer: F.SilkS
+    size: [1, 1]
+    thickness: 0.15
+    hide: true
+  - type: text
+    kind: value
+    text: ""
+    at: [0, 8.89]
+    rotation: 0
+    layer: F.Fab
+    size: [1, 1]
+    thickness: 0.15
+
+  - type: line
+    start: [-0.62, -0.04]
+    end: [0.38, -0.04]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [-0.12, -0.54]
+    end: [-0.12, 0.46]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [5.98, 3.26]
+    end: [5.98, 5.86]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [5.98, -1.34]
+    end: [5.98, 1.26]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [5.98, -5.94]
+    end: [5.98, -3.34]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [-3.12, -0.04]
+    end: [2.88, -0.04]
+    layer: F.Fab
+    width: 0.12
+  - type: line
+    start: [-0.12, -3.04]
+    end: [-0.12, 2.96]
+    layer: F.Fab
+    width: 0.12
+  - type: line
+    start: [-7.32, -4.14]
+    end: [-7.62, -3.84]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [-7.92, -4.14]
+    end: [-7.32, -4.14]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [-7.62, -3.84]
+    end: [-7.92, -4.14]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [-6.22, -5.84]
+    end: [-6.22, 5.86]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [-2.12, -5.84]
+    end: [-6.22, -5.84]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [-2.12, 5.86]
+    end: [-6.22, 5.86]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [5.98, 5.86]
+    end: [1.88, 5.86]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [1.88, -5.94]
+    end: [5.98, -5.94]
+    layer: F.SilkS
+    width: 0.12
+  - type: line
+    start: [-6.12, -4.74]
+    end: [-5.12, -5.84]
+    layer: F.Fab
+    width: 0.12
+  - type: line
+    start: [-6.12, 5.76]
+    end: [-6.12, -4.74]
+    layer: F.Fab
+    width: 0.12
+  - type: line
+    start: [5.88, 5.76]
+    end: [-6.12, 5.76]
+    layer: F.Fab
+    width: 0.12
+  - type: line
+    start: [5.88, -5.84]
+    end: [5.88, 5.76]
+    layer: F.Fab
+    width: 0.12
+  - type: line
+    start: [-5.12, -5.84]
+    end: [5.88, -5.84]
+    layer: F.Fab
+    width: 0.12
+  - type: line
+    start: [-8.87, -6.89]
+    end: [7.88, -6.89]
+    layer: F.CrtYd
+    width: 0.05
+  - type: line
+    start: [-8.87, -6.89]
+    end: [-8.87, 6.81]
+    layer: F.CrtYd
+    width: 0.05
+  - type: line
+    start: [7.88, 6.81]
+    end: [7.88, -6.89]
+    layer: F.CrtYd
+    width: 0.05
+  - type: line
+    start: [7.88, 6.81]
+    end: [-8.87, 6.81]
+    layer: F.CrtYd
+    width: 0.05
+  - type: circle
+    center: [-0.12, -0.04]
+    radius: 3
+    layer: F.SilkS
+    width: 0.12
+  - type: circle
+    center: [-0.12, -0.04]
+    radius: 3
+    layer: F.Fab
+    width: 0.12
+
+  - type: pad_thru
+    kind: thru_hole
+    shape: rect
+    at: [-7.62, -2.54]
+    rotation: 0
+    size: [2, 2]
+    drill: 1
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ A }}"
+    number: A
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-7.62, -0.04]
+    size: [2, 2]
+    drill: 1
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ C }}"
+    number: C
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-7.62, 2.46]
+    size: [2, 2]
+    drill: 1
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ B }}"
+    number: B
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [6.88, -2.54]
+    size: [1.5, 1.5]
+    drill: 1
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ from }}"
+    number: "1"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [6.88, 2.46]
+    size: [1.5, 1.5]
+    drill: 1
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ to }}"
+    number: "2"
+
+  - type: pad_thru
+    kind: thru_hole
+    shape: rect
+    at: [-0.12, -5.64]
+    rotation: 0
+    size: [3.2, 2]
+    drill: [2.8, 1.5]
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+  - type: pad_thru
+    kind: thru_hole
+    shape: rect
+    at: [-0.12, 5.56]
+    rotation: 0
+    size: [3.2, 2]
+    drill: [2.8, 1.5]
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""

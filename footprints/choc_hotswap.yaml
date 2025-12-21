@@ -1,0 +1,119 @@
+name: choc_hotswap
+module: PG1350
+layer: F.Cu
+tedit: 5DD50112
+ref_prefix: S
+net_order:
+  - from
+  - to
+params:
+  from:
+    type: net
+    default: from
+  to:
+    type: net
+    default: to
+primitives:
+  - type: line
+    start: [-7, -6]
+    end: [-7, -7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-7, 7]
+    end: [-6, 7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-6, -7]
+    end: [-7, -7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-7, 7]
+    end: [-7, 6]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7, 6]
+    end: [7, 7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7, -7]
+    end: [6, -7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [6, 7]
+    end: [7, 7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7, -7]
+    end: [7, -6]
+    layer: Dwgs.User
+    width: 0.15
+
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [0, 0]
+    size: [3.429, 3.429]
+    drill: 3.429
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [5.5, 0]
+    size: [1.7018, 1.7018]
+    drill: 1.7018
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [-5.5, 0]
+    size: [1.7018, 1.7018]
+    drill: 1.7018
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [5, -3.75]
+    size: [3, 3]
+    drill: 3
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [0, -5.95]
+    size: [3, 3]
+    drill: 3
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+
+  - type: pad
+    at: [-3.275, -5.95]
+    size: [2.6, 2.6]
+    rotation: 0
+    layers: [B.Cu, B.Paste, B.Mask]
+    net: "{{ from }}"
+    number: "1"
+  - type: pad
+    at: [8.275, -3.75]
+    size: [2.6, 2.6]
+    rotation: 0
+    layers: [B.Cu, B.Paste, B.Mask]
+    net: "{{ to }}"
+    number: "2"
+

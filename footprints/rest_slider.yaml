@@ -1,0 +1,131 @@
+name: rest_slider
+module: E73:SPDT_C128955
+layer: F.Cu
+tstamp: 5BF2CC3C
+ref_prefix: T
+net_order: [from, to]
+params:
+  from:
+    type: net
+    required: true
+  to:
+    type: net
+    required: true
+primitives:
+  - type: line
+    start: [1.95, -1.35]
+    end: [-1.95, -1.35]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [0, -1.35]
+    end: [-3.3, -1.35]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [-3.3, -1.35]
+    end: [-3.3, 1.5]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [-3.3, 1.5]
+    end: [3.3, 1.5]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [3.3, 1.5]
+    end: [3.3, -1.35]
+    layer: F.SilkS
+    width: 0.15
+  - type: line
+    start: [0, -1.35]
+    end: [3.3, -1.35]
+    layer: F.SilkS
+    width: 0.15
+
+  - type: line
+    start: [-1.95, -3.85]
+    end: [1.95, -3.85]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [1.95, -3.85]
+    end: [1.95, -1.35]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-1.95, -1.35]
+    end: [-1.95, -3.85]
+    layer: Dwgs.User
+    width: 0.15
+
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [1.5, 0]
+    size: [1, 1]
+    drill: 0.9
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [-1.5, 0]
+    size: [1, 1]
+    drill: 0.9
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+
+  - type: pad
+    at: [2.25, 2.075]
+    rotation: 0
+    size: [0.9, 1.25]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: "{{ from }}"
+    number: "1"
+  - type: pad
+    at: [-0.75, 2.075]
+    rotation: 0
+    size: [0.9, 1.25]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: "{{ to }}"
+    number: "2"
+  - type: pad
+    at: [-2.25, 2.075]
+    rotation: 0
+    size: [0.9, 1.25]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: ""
+    number: "3"
+
+  - type: pad
+    at: [3.7, -1.1]
+    rotation: 0
+    size: [0.9, 0.9]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: ""
+    number: ""
+  - type: pad
+    at: [3.7, 1.1]
+    rotation: 0
+    size: [0.9, 0.9]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: ""
+    number: ""
+  - type: pad
+    at: [-3.7, 1.1]
+    rotation: 0
+    size: [0.9, 0.9]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: ""
+    number: ""
+  - type: pad
+    at: [-3.7, -1.1]
+    rotation: 0
+    size: [0.9, 0.9]
+    layers: [F.Cu, F.Paste, F.Mask]
+    net: ""
+    number: ""
+

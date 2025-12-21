@@ -6,7 +6,7 @@ use ergogen_export::jscad::generate_cases_jscad;
 use ergogen_export::svg::svg_from_lines;
 use ergogen_layout::{PointsOutput, parse_points};
 use ergogen_outline::generate_outline_region;
-use ergogen_parser::{PreparedConfig, Value};
+use ergogen_parser::{PreparedConfig, Value, convert_kle};
 use ergogen_pcb::generate_kicad_pcb;
 
 fn fixture_dxf_opts() -> NormalizeOptions {
@@ -113,7 +113,7 @@ struct FixtureConfig {
     prepared: PreparedConfig,
 }
 
-fn load_fixture_config(fixture_dir: &Path, command: &CliCommand) -> Result<FixtureConfig, String> {
+fn load_fixture_config(_fixture_dir: &Path, command: &CliCommand) -> Result<FixtureConfig, String> {
     let Some(input) = &command.input else {
         return Err("Usage: ergogen <config_file> [options]".to_string());
     };
@@ -155,9 +155,9 @@ fn load_fixture_config(fixture_dir: &Path, command: &CliCommand) -> Result<Fixtu
     }
 
     let prepared = if command.is_kle {
-        let canonical_path = fixture_dir.join("reference/source/canonical.yaml");
-        let canonical = std::fs::read_to_string(&canonical_path).map_err(|e| e.to_string())?;
-        PreparedConfig::from_yaml_str(&canonical).map_err(|e| e.to_string())?
+        let parsed = Value::from_yaml_str(&raw).map_err(|e| e.to_string())?;
+        let converted = convert_kle(&parsed).map_err(|e| e.to_string())?;
+        PreparedConfig::from_value(&converted).map_err(|e| e.to_string())?
     } else {
         PreparedConfig::from_yaml_str(&raw).map_err(|e| e.to_string())?
     };

@@ -4,6 +4,7 @@ mod config;
 mod error;
 mod eval;
 mod expr;
+mod kle;
 mod prepare;
 mod units;
 mod value;
@@ -12,6 +13,7 @@ pub use config::RawConfig;
 pub use error::Error;
 pub use eval::eval_in_context;
 pub use expr::ScalarExpr;
+pub use kle::convert_kle;
 pub use prepare::{PreparedIr, extend_all, inherit, parameterize, unnest};
 pub use units::{UnitEntry, Units};
 pub use value::Value;
@@ -26,6 +28,15 @@ pub struct PreparedConfig {
 impl PreparedConfig {
     pub fn from_yaml_str(yaml: &str) -> Result<Self, Error> {
         let ir = PreparedIr::from_yaml_str(yaml)?;
+        let units = units_from_canonical(&ir.canonical)?;
+        Ok(Self {
+            canonical: ir.canonical,
+            units,
+        })
+    }
+
+    pub fn from_value(raw: &Value) -> Result<Self, Error> {
+        let ir = PreparedIr::from_value(raw)?;
         let units = units_from_canonical(&ir.canonical)?;
         Ok(Self {
             canonical: ir.canonical,

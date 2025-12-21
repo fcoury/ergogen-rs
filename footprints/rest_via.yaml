@@ -1,0 +1,39 @@
+name: rest_via
+module: VIA-0.6mm
+layer: F.Cu
+tedit: 591DBFB0
+ref_prefix: REF
+net_order: [net]
+params:
+  net:
+    type: net
+    required: true
+primitives:
+  - type: text
+    kind: reference
+    text: REF**
+    at: [0, 1.4]
+    layer: F.SilkS
+    size: [1, 1]
+    thickness: 0.15
+    hide: true
+  - type: text
+    kind: value
+    text: VIA-0.6mm
+    at: [0, -1.4]
+    layer: F.Fab
+    size: [1, 1]
+    thickness: 0.15
+    hide: true
+
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [0, 0]
+    size: [0.6, 0.6]
+    drill: 0.3
+    layers: ["*.Cu"]
+    zone_connect: 2
+    net: "{{ net }}"
+    number: "1"
+

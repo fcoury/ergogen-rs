@@ -1,0 +1,124 @@
+name: choc_keycaps
+module: PG1350
+layer: F.Cu
+tedit: 5DD50112
+ref_prefix: S
+net_order:
+  - from
+  - to
+params:
+  from:
+    type: net
+    default: from
+  to:
+    type: net
+    default: to
+primitives:
+  - type: line
+    start: [-7, -6]
+    end: [-7, -7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-7, 7]
+    end: [-6, 7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-6, -7]
+    end: [-7, -7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-7, 7]
+    end: [-7, 6]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7, 6]
+    end: [7, 7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7, -7]
+    end: [6, -7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [6, 7]
+    end: [7, 7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7, -7]
+    end: [7, -6]
+    layer: Dwgs.User
+    width: 0.15
+
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [0, 0]
+    size: [3.429, 3.429]
+    drill: 3.429
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [5.5, 0]
+    size: [1.7018, 1.7018]
+    drill: 1.7018
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [-5.5, 0]
+    size: [1.7018, 1.7018]
+    drill: 1.7018
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+
+  - type: line
+    start: [-9, -8.5]
+    end: [9, -8.5]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [9, -8.5]
+    end: [9, 8.5]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [9, 8.5]
+    end: [-9, 8.5]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-9, 8.5]
+    end: [-9, -8.5]
+    layer: Dwgs.User
+    width: 0.15
+
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [5, -3.8]
+    size: [2.032, 2.032]
+    drill: 1.27
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ from }}"
+    number: "1"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [0, -5.9]
+    size: [2.032, 2.032]
+    drill: 1.27
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ to }}"
+    number: "2"

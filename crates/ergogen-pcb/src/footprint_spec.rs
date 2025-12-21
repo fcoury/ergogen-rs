@@ -83,6 +83,7 @@ pub enum Primitive {
         layers: Vec<String>,
         net: String,
         number: Option<String>,
+        clearance: Option<ScalarSpec>,
     },
     PadThru {
         at: [ScalarSpec; 2],
@@ -94,6 +95,8 @@ pub enum Primitive {
         shape: Option<String>,
         kind: Option<String>,
         number: Option<String>,
+        clearance: Option<ScalarSpec>,
+        zone_connect: Option<ScalarSpec>,
     },
     Circle {
         center: [ScalarSpec; 2],
@@ -132,6 +135,11 @@ pub enum Primitive {
         justify: Option<String>,
         hide: bool,
     },
+    Poly {
+        points: Vec<[ScalarSpec; 2]>,
+        layer: String,
+        width: ScalarSpec,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -158,6 +166,7 @@ pub enum ResolvedPrimitive {
         layers: Vec<String>,
         net: String,
         number: Option<String>,
+        clearance: Option<f64>,
     },
     PadThru {
         at: [f64; 2],
@@ -169,6 +178,8 @@ pub enum ResolvedPrimitive {
         shape: Option<String>,
         kind: Option<String>,
         number: Option<String>,
+        clearance: Option<f64>,
+        zone_connect: Option<f64>,
     },
     Circle {
         center: [f64; 2],
@@ -207,6 +218,11 @@ pub enum ResolvedPrimitive {
         justify: Option<String>,
         hide: bool,
     },
+    Poly {
+        points: Vec<[f64; 2]>,
+        layer: String,
+        width: f64,
+    },
 }
 
 pub fn parse_footprint_spec(yaml: &str) -> Result<FootprintSpec, FootprintSpecError> {
@@ -230,6 +246,7 @@ pub fn resolve_footprint_spec(
                 layers,
                 net,
                 number,
+                clearance,
             } => {
                 let at = resolve_vec2(at, &vars)?;
                 let size = resolve_vec2(size, &vars)?;
@@ -253,6 +270,7 @@ pub fn resolve_footprint_spec(
                     layers: resolved_layers,
                     net,
                     number,
+                    clearance: clearance.as_ref().map(|c| resolve_scalar(c, &vars)).transpose()?,
                 });
             }
             Primitive::PadThru {
@@ -265,6 +283,8 @@ pub fn resolve_footprint_spec(
                 shape,
                 kind,
                 number,
+                clearance,
+                zone_connect,
             } => {
                 let at = resolve_vec2(at, &vars)?;
                 let size = resolve_vec2(size, &vars)?;
@@ -300,6 +320,11 @@ pub fn resolve_footprint_spec(
                     shape,
                     kind,
                     number,
+                    clearance: clearance.as_ref().map(|c| resolve_scalar(c, &vars)).transpose()?,
+                    zone_connect: zone_connect
+                        .as_ref()
+                        .map(|z| resolve_scalar(z, &vars))
+                        .transpose()?,
                 });
             }
             Primitive::Circle {
@@ -410,6 +435,19 @@ pub fn resolve_footprint_spec(
                     rotation,
                     justify,
                     hide: *hide,
+                });
+            }
+            Primitive::Poly { points, layer, width } => {
+                let mut resolved_points = Vec::new();
+                for point in points {
+                    resolved_points.push(resolve_vec2(point, &vars)?);
+                }
+                let layer = interpolate(layer, &vars)?;
+                let width = resolve_scalar(width, &vars)?;
+                primitives.push(ResolvedPrimitive::Poly {
+                    points: resolved_points,
+                    layer,
+                    width,
                 });
             }
         }
@@ -560,6 +598,10 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
                     .get("number")
                     .map(|v| parse_pad_number(v, "primitives.pad.number"))
                     .transpose()?;
+                let clearance = map
+                    .get("clearance")
+                    .map(|v| parse_scalar(v, "primitives.pad.clearance"))
+                    .transpose()?;
                 out.push(Primitive::Pad {
                     at,
                     size,
@@ -567,6 +609,7 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
                     layers,
                     net,
                     number,
+                    clearance,
                 });
             }
             "pad_thru" => {
@@ -601,6 +644,14 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
                     .get("number")
                     .map(|v| parse_pad_number(v, "primitives.pad_thru.number"))
                     .transpose()?;
+                let clearance = map
+                    .get("clearance")
+                    .map(|v| parse_scalar(v, "primitives.pad_thru.clearance"))
+                    .transpose()?;
+                let zone_connect = map
+                    .get("zone_connect")
+                    .map(|v| parse_scalar(v, "primitives.pad_thru.zone_connect"))
+                    .transpose()?;
                 out.push(Primitive::PadThru {
                     at,
                     size,
@@ -611,6 +662,8 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
                     shape,
                     kind,
                     number,
+                    clearance,
+                    zone_connect,
                 });
             }
             "circle" => {
@@ -759,6 +812,33 @@ fn parse_primitives(seq: &[Value]) -> Result<Vec<Primitive>, FootprintSpecError>
                     rotation,
                     justify,
                     hide,
+                });
+            }
+            "poly" => {
+                let points_v = map
+                    .get("points")
+                    .ok_or(FootprintSpecError::Invalid("primitives.poly.points"))?;
+                let Value::Seq(seq) = points_v else {
+                    return Err(FootprintSpecError::InvalidVector("primitives.poly.points"));
+                };
+                let mut points = Vec::new();
+                for item in seq {
+                    points.push(parse_vec2(Some(item), "primitives.poly.points")?);
+                }
+                let layer = map
+                    .get("layer")
+                    .and_then(value_as_str)
+                    .ok_or(FootprintSpecError::Invalid("primitives.poly.layer"))?
+                    .to_string();
+                let width = parse_scalar(
+                    map.get("width")
+                        .ok_or(FootprintSpecError::Invalid("primitives.poly.width"))?,
+                    "primitives.poly.width",
+                )?;
+                out.push(Primitive::Poly {
+                    points,
+                    layer,
+                    width,
                 });
             }
             _ => return Err(FootprintSpecError::Invalid("primitives.<item>.type")),

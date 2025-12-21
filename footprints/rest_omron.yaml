@@ -1,0 +1,91 @@
+name: rest_omron
+module: OMRON_B3F-4055
+layer: F.Cu
+tstamp: 5BF2CC94
+ref_prefix: S
+net_order: [from, to]
+params:
+  from:
+    type: net
+    required: true
+  to:
+    type: net
+    required: true
+primitives:
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [0, -4.5]
+    size: [1.8, 1.8]
+    drill: 1.8
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [0, 4.5]
+    size: [1.8, 1.8]
+    drill: 1.8
+    layers: ["*.Cu", "*.Mask"]
+    net: ""
+    number: ""
+
+  - type: line
+    start: [-6, -6]
+    end: [6, -6]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [6, -6]
+    end: [6, 6]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [6, 6]
+    end: [-6, 6]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-6, 6]
+    end: [-6, -6]
+    layer: Dwgs.User
+    width: 0.15
+
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [6.25, -2.5]
+    size: [1.2, 1.2]
+    drill: 1.2
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ from }}"
+    number: "1"
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [-6.25, -2.5]
+    size: [1.2, 1.2]
+    drill: 1.2
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ from }}"
+    number: "2"
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [6.25, 2.5]
+    size: [1.2, 1.2]
+    drill: 1.2
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ to }}"
+    number: "3"
+  - type: pad_thru
+    kind: np_thru_hole
+    shape: circle
+    at: [-6.25, 2.5]
+    size: [1.2, 1.2]
+    drill: 1.2
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ to }}"
+    number: "4"
+

@@ -1,0 +1,74 @@
+name: rest_alps
+module: ALPS
+layer: F.Cu
+tedit: 5CF31DEF
+ref_prefix: S
+net_order: [from, to]
+params:
+  from:
+    type: net
+    required: true
+  to:
+    type: net
+    required: true
+primitives:
+  - type: line
+    start: [-7, -6]
+    end: [-7, -7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-7, 7]
+    end: [-6, 7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-6, -7]
+    end: [-7, -7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [-7, 7]
+    end: [-7, 6]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7, 6]
+    end: [7, 7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7, -7]
+    end: [6, -7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [6, 7]
+    end: [7, 7]
+    layer: Dwgs.User
+    width: 0.15
+  - type: line
+    start: [7, -7]
+    end: [7, -6]
+    layer: Dwgs.User
+    width: 0.15
+
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [2.5, -4.5]
+    size: [2.25, 2.25]
+    drill: 1.47
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ from }}"
+    number: "1"
+  - type: pad_thru
+    kind: thru_hole
+    shape: circle
+    at: [-2.5, -4]
+    size: [2.25, 2.25]
+    drill: 1.47
+    layers: ["*.Cu", "*.Mask"]
+    net: "{{ to }}"
+    number: "2"
+

@@ -8,7 +8,7 @@ use ergogen_export::jscad::{generate_cases_jscad, generate_cases_jscad_v2};
 use ergogen_export::svg::{SvgError, svg_from_dxf};
 use ergogen_layout::{PointsOutput, parse_points};
 use ergogen_outline::generate_outline_region;
-use ergogen_parser::{PreparedConfig, Value};
+use ergogen_parser::{PreparedConfig, Value, convert_kle};
 use ergogen_pcb::generate_kicad_pcb;
 use serde::Serialize;
 use tempfile::TempDir;
@@ -51,8 +51,23 @@ pub fn run_render(
             config_path.display()
         ))
     })?;
-    let prepared =
-        PreparedConfig::from_yaml_str(&raw).map_err(|e| CliError::input(e.to_string()))?;
+
+    let parsed = Value::from_yaml_str(&raw).map_err(|e| CliError::input(e.to_string()))?;
+    let (prepared, auto_debug) = match parsed {
+        Value::Map(_) => (
+            PreparedConfig::from_value(&parsed).map_err(|e| CliError::input(e.to_string()))?,
+            false,
+        ),
+        _ => {
+            let converted = convert_kle(&parsed).map_err(|e| CliError::input(e.to_string()))?;
+            (
+                PreparedConfig::from_value(&converted)
+                    .map_err(|e| CliError::input(e.to_string()))?,
+                true,
+            )
+        }
+    };
+    let debug = debug || auto_debug;
 
     let outline_names = collect_names(&prepared.canonical, "outlines", debug);
     let pcb_names = collect_names(&prepared.canonical, "pcbs", debug);
