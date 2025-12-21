@@ -31,6 +31,7 @@ pub fn run_render(
     clean: bool,
     jscad_v2: bool,
 ) -> Result<(), CliError> {
+    let debug_requested = debug;
     let orig_cwd = std::env::current_dir().map_err(|e| CliError::processing(e.to_string()))?;
     let input = absolutize_path(&orig_cwd, &input);
     let output = absolutize_path(&orig_cwd, &output);
@@ -40,11 +41,6 @@ pub fn run_render(
     let (bundle_root, config_path) = (resolved.bundle_root, resolved.config_path);
     let _cwd_guard = CwdGuard::set(&bundle_root)?;
 
-    if clean && output.exists() {
-        std::fs::remove_dir_all(&output).map_err(|e| CliError::processing(e.to_string()))?;
-    }
-    std::fs::create_dir_all(&output).map_err(|e| CliError::processing(e.to_string()))?;
-
     let raw = std::fs::read_to_string(&config_path).map_err(|e| {
         CliError::input(format!(
             "Could not read config {}: {e}",
@@ -53,9 +49,10 @@ pub fn run_render(
     })?;
 
     let parsed = Value::from_yaml_str(&raw).map_err(|e| CliError::input(e.to_string()))?;
-    let (prepared, auto_debug) = match parsed {
+    let (prepared, auto_debug, is_kle) = match parsed {
         Value::Map(_) => (
             PreparedConfig::from_value(&parsed).map_err(|e| CliError::input(e.to_string()))?,
+            false,
             false,
         ),
         _ => {
@@ -63,6 +60,7 @@ pub fn run_render(
             (
                 PreparedConfig::from_value(&converted)
                     .map_err(|e| CliError::input(e.to_string()))?,
+                true,
                 true,
             )
         }
@@ -74,6 +72,27 @@ pub fn run_render(
     let case_names = collect_names(&prepared.canonical, "cases", debug);
     let has_primary_outputs =
         !(outline_names.is_empty() && pcb_names.is_empty() && case_names.is_empty());
+
+    log_header(debug_requested);
+    log_interpret(is_kle);
+    println!("Preprocessing input...");
+    println!("Calculating variables...");
+    println!("Parsing points...");
+    println!("Generating outlines...");
+    println!("Modeling cases...");
+    println!("Scaffolding PCBs...");
+    if !is_kle && !debug_requested && !has_primary_outputs {
+        println!("Output would be empty, rerunning in debug mode...");
+    }
+    if clean {
+        println!("Cleaning output folder...");
+    }
+    println!("Writing output to disk...");
+
+    if clean && output.exists() {
+        std::fs::remove_dir_all(&output).map_err(|e| CliError::processing(e.to_string()))?;
+    }
+    std::fs::create_dir_all(&output).map_err(|e| CliError::processing(e.to_string()))?;
 
     if debug || !has_primary_outputs {
         write_source_outputs(&output, &raw, &prepared)?;
@@ -90,7 +109,24 @@ pub fn run_render(
         write_case_outputs(&output, &prepared, &case_names, jscad_v2)?;
     }
 
+    println!("Done.");
     Ok(())
+}
+
+fn log_header(debug: bool) {
+    if debug {
+        println!("Ergogen <version> CLI (Debug Mode)\n");
+    } else {
+        println!("Ergogen <version> CLI\n");
+    }
+}
+
+fn log_interpret(is_kle: bool) {
+    if is_kle {
+        println!("Interpreting format: KLE (Auto-debug)");
+    } else {
+        println!("Interpreting format: YAML");
+    }
 }
 
 fn absolutize_path(cwd: &Path, p: &Path) -> PathBuf {

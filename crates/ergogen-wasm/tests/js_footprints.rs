@@ -111,3 +111,24 @@ fn render_all_includes_points_units_demo() {
     assert!(output.cases.is_empty());
     assert!(output.errors.is_empty());
 }
+
+#[wasm_bindgen_test]
+fn render_all_accepts_kle_json() {
+    let kle_json = include_str!("../../../fixtures/upstream/fixtures/minimal_kle.json");
+    let value = ergogen_wasm::render_all(kle_json).unwrap();
+    let output: RenderAllOutput = serde_wasm_bindgen::from_value(value).unwrap();
+
+    let zones = output
+        .canonical
+        .get_path("points.zones")
+        .and_then(|v| v.as_map())
+        .expect("zones map");
+    assert_eq!(zones.len(), 6);
+
+    let label = output
+        .canonical
+        .get_path("points.zones.key1.columns.key1col.rows.key1row.label")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(label, "0_0");
+}
