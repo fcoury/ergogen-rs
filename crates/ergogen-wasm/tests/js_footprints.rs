@@ -125,10 +125,12 @@ fn render_all_accepts_kle_json() {
         .expect("zones map");
     assert_eq!(zones.len(), 6);
 
-    let label = output
+    let label = match output
         .canonical
         .get_path("points.zones.key1.columns.key1col.rows.key1row.label")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    {
+        Some(ErgogenValue::String(s)) => s.as_str(),
+        _ => "",
+    };
     assert_eq!(label, "0_0");
 }
