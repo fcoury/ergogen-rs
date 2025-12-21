@@ -32,6 +32,17 @@ cases JSCAD, and PCBs), plus an `errors` array for per-target failures.
 All render functions accept a **YAML config string** or **KLE JSON** (auto-detected)
 and convert it to the canonical Ergogen config before rendering.
 
+### API surface (v0)
+
+- `version() -> string`
+- `set_virtual_fs({ [path: string]: string })`
+- `clear_virtual_fs()`
+- `render_all(config: string) -> RenderAllOutput`
+- `render_pcb(config: string, pcbName: string) -> string`
+- `render_dxf(config: string, outlineName: string) -> string`
+- `render_svg(config: string, outlineName: string) -> string`
+- `render_case_jscad_v2(config: string, caseName: string) -> string`
+
 ### Virtual FS (spec footprints)
 
 To resolve `what: spec` footprints without touching the host filesystem, provide a
