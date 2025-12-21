@@ -56,3 +56,62 @@ fn render_bundle_zip_smoke() {
     assert!(output.join("pcbs/pcb.kicad_pcb").is_file());
     assert!(output.join("pcbs/custom_template.kicad_pcb").is_file());
 }
+
+#[test]
+fn render_without_subcommand_smoke() {
+    let bin = env!("CARGO_BIN_EXE_ergogen");
+    let input = workspace_root().join("fixtures/upstream/fixtures/medium.yaml");
+    let out_dir = tempfile::tempdir().expect("tempdir");
+    let output = out_dir.path().join("output");
+
+    let status = Command::new(bin)
+        .args([
+            input.to_string_lossy().as_ref(),
+            "--output",
+            output.to_string_lossy().as_ref(),
+            "--clean",
+        ])
+        .status()
+        .expect("run ergogen");
+    assert!(status.success());
+
+    assert!(output.join("outlines/export.dxf").is_file());
+}
+
+#[test]
+fn render_svg_flag_controls_outline_svgs() {
+    let bin = env!("CARGO_BIN_EXE_ergogen");
+    let input = workspace_root().join("fixtures/upstream/fixtures/medium.yaml");
+
+    let out_dir = tempfile::tempdir().expect("tempdir");
+    let output = out_dir.path().join("output");
+    let status = Command::new(bin)
+        .args([
+            "render",
+            input.to_string_lossy().as_ref(),
+            "--output",
+            output.to_string_lossy().as_ref(),
+            "--clean",
+        ])
+        .status()
+        .expect("run ergogen render");
+    assert!(status.success());
+    assert!(output.join("outlines/export.dxf").is_file());
+    assert!(!output.join("outlines/export.svg").exists());
+
+    let out_dir = tempfile::tempdir().expect("tempdir");
+    let output = out_dir.path().join("output");
+    let status = Command::new(bin)
+        .args([
+            "render",
+            input.to_string_lossy().as_ref(),
+            "--output",
+            output.to_string_lossy().as_ref(),
+            "--clean",
+            "--svg",
+        ])
+        .status()
+        .expect("run ergogen render --svg");
+    assert!(status.success());
+    assert!(output.join("outlines/export.svg").is_file());
+}

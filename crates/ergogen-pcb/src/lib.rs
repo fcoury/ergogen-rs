@@ -1680,7 +1680,11 @@ fn render_spec_module(
                     effects
                 ));
             }
-            ResolvedPrimitive::Poly { points, layer, width } => {
+            ResolvedPrimitive::Poly {
+                points,
+                layer,
+                width,
+            } => {
                 let mut pts = String::new();
                 pts.push_str("(pts");
                 for p in points {

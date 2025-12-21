@@ -14,7 +14,9 @@ fn normalize(s: &str) -> String {
         };
         let token = &rest[1..end_quote];
         let safe_unquoted = !token.is_empty()
-            && !token.chars().any(|c| c.is_whitespace() || c == '(' || c == ')' || c == '"');
+            && !token
+                .chars()
+                .any(|c| c.is_whitespace() || c == '(' || c == ')' || c == '"');
         if !safe_unquoted {
             return line.to_string();
         }

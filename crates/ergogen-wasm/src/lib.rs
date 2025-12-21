@@ -206,7 +206,8 @@ pub fn render_all(config_yaml: &str) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn render_pcb(config_yaml: &str, pcb_name: &str) -> Result<String, JsValue> {
     let prepared = prepare_config(config_yaml)?;
-    ergogen_pcb::generate_kicad_pcb(&prepared, pcb_name).map_err(|e| to_js_error("pcb", e.to_string()))
+    ergogen_pcb::generate_kicad_pcb(&prepared, pcb_name)
+        .map_err(|e| to_js_error("pcb", e.to_string()))
 }
 
 #[wasm_bindgen]

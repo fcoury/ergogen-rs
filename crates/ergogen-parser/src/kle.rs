@@ -59,11 +59,7 @@ fn first_non_empty_label(labels: &[String]) -> String {
 }
 
 fn norm_zero(v: f64) -> f64 {
-    if v.abs() < 1e-12 {
-        0.0
-    } else {
-        v
-    }
+    if v.abs() < 1e-12 { 0.0 } else { v }
 }
 
 fn parse_kle_keys(kle: &Value) -> Result<(Vec<KleKey>, IndexMap<String, Value>), Error> {
@@ -73,7 +69,7 @@ fn parse_kle_keys(kle: &Value) -> Result<(Vec<KleKey>, IndexMap<String, Value>),
 
     let mut idx = 0usize;
     let mut meta_map: IndexMap<String, Value> = IndexMap::new();
-    if let Some(Value::Map(m)) = top.get(0)
+    if let Some(Value::Map(m)) = top.first()
         && is_kle_meta_map(m)
     {
         if let Some(notes) = value_string(m.get("notes")) {
@@ -98,8 +94,7 @@ fn parse_kle_keys(kle: &Value) -> Result<(Vec<KleKey>, IndexMap<String, Value>),
     };
 
     let mut keys: Vec<KleKey> = Vec::new();
-    let mut row_index = 0usize;
-    for row in &top[idx..] {
+    for (row_index, row) in top[idx..].iter().enumerate() {
         let Value::Seq(items) = row else {
             return Err(Error::Json("KLE rows must be arrays".to_string()));
         };
@@ -170,8 +165,6 @@ fn parse_kle_keys(kle: &Value) -> Result<(Vec<KleKey>, IndexMap<String, Value>),
                 }
             }
         }
-
-        row_index += 1;
     }
 
     Ok((keys, meta_map))
@@ -212,8 +205,14 @@ pub fn convert_kle(kle: &Value) -> Result<Value, Error> {
         let splay = norm_zero(-key.rotation_angle);
 
         let mut row_meta = meta.clone();
-        row_meta.insert("width".to_string(), Value::String(format!("{} u", key.width)));
-        row_meta.insert("height".to_string(), Value::String(format!("{} u", key.height)));
+        row_meta.insert(
+            "width".to_string(),
+            Value::String(format!("{} u", key.width)),
+        );
+        row_meta.insert(
+            "height".to_string(),
+            Value::String(format!("{} u", key.height)),
+        );
         row_meta.insert("label".to_string(), Value::String(label));
         row_meta.insert("column_net".to_string(), Value::String(col_net));
         row_meta.insert("row_net".to_string(), Value::String(row_net));
@@ -255,9 +254,6 @@ pub fn convert_kle(kle: &Value) -> Result<Value, Error> {
 
     Ok(Value::Map(IndexMap::from([(
         "points".to_string(),
-        Value::Map(IndexMap::from([(
-            "zones".to_string(),
-            Value::Map(zones),
-        )])),
+        Value::Map(IndexMap::from([("zones".to_string(), Value::Map(zones))])),
     )])))
 }

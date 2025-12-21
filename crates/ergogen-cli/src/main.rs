@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -70,12 +71,16 @@ struct RenderArgs {
     jscad_v2: bool,
 
     /// Include debug outputs (source/, points/, and `_` prefixed definitions)
-    #[arg(long)]
+    #[arg(short = 'd', long)]
     debug: bool,
 
     /// Delete the output folder before rendering
     #[arg(long)]
     clean: bool,
+
+    /// Generate SVG outputs for outlines
+    #[arg(long)]
+    svg: bool,
 }
 
 fn main() -> ExitCode {
@@ -83,7 +88,7 @@ fn main() -> ExitCode {
 }
 
 fn run() -> ExitCode {
-    let cli = match Cli::try_parse() {
+    let cli = match Cli::try_parse_from(normalize_args(std::env::args_os().collect())) {
         Ok(cli) => cli,
         Err(e) => {
             let _ = e.print();
@@ -157,7 +162,8 @@ fn run() -> ExitCode {
             jscad_v2,
             debug,
             clean,
-        }) => match render::run_render(input, output, debug, clean, jscad_v2) {
+            svg,
+        }) => match render::run_render(input, output, debug, clean, jscad_v2, svg) {
             Ok(()) => ExitCode::SUCCESS,
             Err(err) => {
                 eprintln!("Error: {err}");
@@ -165,6 +171,32 @@ fn run() -> ExitCode {
             }
         },
     }
+}
+
+fn normalize_args(mut args: Vec<OsString>) -> Vec<OsString> {
+    if should_insert_render(&args) {
+        args.insert(1, OsString::from("render"));
+    }
+    args
+}
+
+fn should_insert_render(args: &[OsString]) -> bool {
+    let mut saw_double_dash = false;
+    for arg in args.iter().skip(1) {
+        let s = arg.to_string_lossy();
+        if !saw_double_dash && s == "--" {
+            saw_double_dash = true;
+            continue;
+        }
+        if !saw_double_dash && s.starts_with('-') {
+            continue;
+        }
+        if s == "render" || s == "dxf2png" {
+            return false;
+        }
+        return true;
+    }
+    false
 }
 
 fn parse_hex_color(hex: &str) -> Result<[u8; 4], String> {

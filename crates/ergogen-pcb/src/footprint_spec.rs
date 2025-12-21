@@ -270,7 +270,10 @@ pub fn resolve_footprint_spec(
                     layers: resolved_layers,
                     net,
                     number,
-                    clearance: clearance.as_ref().map(|c| resolve_scalar(c, &vars)).transpose()?,
+                    clearance: clearance
+                        .as_ref()
+                        .map(|c| resolve_scalar(c, &vars))
+                        .transpose()?,
                 });
             }
             Primitive::PadThru {
@@ -320,7 +323,10 @@ pub fn resolve_footprint_spec(
                     shape,
                     kind,
                     number,
-                    clearance: clearance.as_ref().map(|c| resolve_scalar(c, &vars)).transpose()?,
+                    clearance: clearance
+                        .as_ref()
+                        .map(|c| resolve_scalar(c, &vars))
+                        .transpose()?,
                     zone_connect: zone_connect
                         .as_ref()
                         .map(|z| resolve_scalar(z, &vars))
@@ -437,7 +443,11 @@ pub fn resolve_footprint_spec(
                     hide: *hide,
                 });
             }
-            Primitive::Poly { points, layer, width } => {
+            Primitive::Poly {
+                points,
+                layer,
+                width,
+            } => {
                 let mut resolved_points = Vec::new();
                 for point in points {
                     resolved_points.push(resolve_vec2(point, &vars)?);

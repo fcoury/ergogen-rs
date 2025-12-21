@@ -30,6 +30,7 @@ pub fn run_render(
     debug: bool,
     clean: bool,
     jscad_v2: bool,
+    svg: bool,
 ) -> Result<(), CliError> {
     let debug_requested = debug;
     let orig_cwd = std::env::current_dir().map_err(|e| CliError::processing(e.to_string()))?;
@@ -100,7 +101,8 @@ pub fn run_render(
     }
 
     if !outline_names.is_empty() {
-        write_outline_outputs(&output, &prepared, &outline_names, debug)?;
+        let write_svg = debug || svg;
+        write_outline_outputs(&output, &prepared, &outline_names, debug, write_svg)?;
     }
     if !pcb_names.is_empty() {
         write_pcb_outputs(&output, &prepared, &pcb_names)?;
@@ -323,6 +325,7 @@ fn write_outline_outputs(
     prepared: &PreparedConfig,
     names: &[String],
     debug: bool,
+    write_svg: bool,
 ) -> Result<(), CliError> {
     let dir = output.join("outlines");
     std::fs::create_dir_all(&dir).map_err(|e| CliError::processing(e.to_string()))?;
@@ -333,13 +336,15 @@ fn write_outline_outputs(
         let dxf = dxf_from_region(&region).map_err(|e| CliError::processing(e.to_string()))?;
 
         write_dxf(&dir.join(format!("{name}.dxf")), &dxf)?;
-        match svg_from_dxf(&dxf) {
-            Ok(svg) => {
-                std::fs::write(dir.join(format!("{name}.svg")), svg)
-                    .map_err(|e| CliError::processing(e.to_string()))?;
+        if write_svg {
+            match svg_from_dxf(&dxf) {
+                Ok(svg) => {
+                    std::fs::write(dir.join(format!("{name}.svg")), svg)
+                        .map_err(|e| CliError::processing(e.to_string()))?;
+                }
+                Err(SvgError::Empty) => {}
+                Err(e) => return Err(CliError::processing(e.to_string())),
             }
-            Err(SvgError::Empty) => {}
-            Err(e) => return Err(CliError::processing(e.to_string())),
         }
 
         if debug && let Ok(lines) = collect_line_entities(&dxf) {
